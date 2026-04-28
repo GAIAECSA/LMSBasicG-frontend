@@ -518,21 +518,19 @@ export function PublicCoursesView() {
                             </h2>
 
                         </div>
-
-                        <div className="grid justify-center gap-8 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid justify-center gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
                             {publicCourses.map((course) => (
                                 <article
                                     key={course.id}
-                                    className="group w-full max-w-[380px] overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.14)]"
-                                >
-                                    <div className="relative h-60 overflow-hidden bg-slate-100">
+                                    className="group flex h-[430px] w-full max-w-[360px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.14)]">
+                                    <div className="relative h-[215px] shrink-0 overflow-hidden bg-slate-100">
                                         <img
                                             src={resolveImageUrl(getCourseImageUrl(course))}
                                             alt={getCourseName(course)}
                                             className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                                         />
 
-                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/15 to-transparent" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
 
                                         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
                                             <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-800 shadow">
@@ -549,17 +547,17 @@ export function PublicCoursesView() {
                                         <div className="absolute inset-x-0 bottom-0 p-4">
                                             <div className="flex items-end justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
                                                         Curso
                                                     </p>
 
-                                                    <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-sm">
+                                                    <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white drop-shadow-sm">
                                                         {getCourseName(course)}
                                                     </h3>
                                                 </div>
 
                                                 <div className="shrink-0 rounded-2xl bg-white px-3 py-2 text-right shadow-lg">
-                                                    <p className="text-base font-black text-slate-950">
+                                                    <p className="text-sm font-black text-slate-950">
                                                         {getMainPriceLabel(course)}
                                                     </p>
 
@@ -576,25 +574,31 @@ export function PublicCoursesView() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-6 p-6">
-                                        <p className="min-h-[84px] overflow-hidden break-words text-sm leading-7 text-slate-600">
-                                            <span className="line-clamp-3 block">
-                                                {getCourseDescription(course) ||
-                                                    "Curso disponible en la plataforma para fortalecer tus conocimientos."}
-                                            </span>
+                                    <div className="flex flex-1 flex-col p-5">
+                                        <p
+                                            className="h-[78px] break-words text-sm leading-6 text-slate-600"
+                                            style={{
+                                                display: "-webkit-box",
+                                                WebkitLineClamp: 3,
+                                                WebkitBoxOrient: "vertical",
+                                                overflow: "hidden",
+                                            }}
+                                        >
+                                            {getCourseDescription(course) ||
+                                                "Curso disponible en la plataforma para fortalecer tus conocimientos."}
                                         </p>
 
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="mt-4 grid grid-cols-2 gap-3">
                                             <Link
                                                 href="/login"
-                                                className="flex min-h-[52px] items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-center text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                                                className="flex h-12 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-3 text-center text-sm font-bold text-blue-700 transition hover:bg-blue-100"
                                             >
                                                 Ver curso
                                             </Link>
 
                                             <Link
                                                 href="/login"
-                                                className="flex min-h-[52px] items-center justify-center rounded-2xl bg-blue-600 px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+                                                className="flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
                                             >
                                                 Matricularme
                                             </Link>
