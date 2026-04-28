@@ -1,0 +1,9 @@
+docker stop lmsbasicg-frontend
+docker rm lmsbasicg-frontend
+
+docker build -t lmsbasicg-frontend .
+
+docker run -d \
+  --name lmsbasicg-frontend \
+  -p 9001:9001 \
+  lmsbasicg-frontend

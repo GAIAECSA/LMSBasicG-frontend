@@ -18,6 +18,12 @@ const CERTIFICATE_TEMPLATES_URL = `${API_BASE_URL}/certificate_templates`;
 const CERTIFICATES_URL = `${API_BASE_URL}/certificates`;
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
+const AUTH_FALLBACK_KEYS = [
+    "token",
+    "access_token",
+    "accessToken",
+    "authToken",
+];
 
 export type CertificateFieldType =
     | "student_name"
@@ -167,6 +173,10 @@ function clearAuthSession() {
     if (typeof window === "undefined") return;
 
     localStorage.removeItem(AUTH_STORAGE_KEY);
+
+    AUTH_FALLBACK_KEYS.forEach((key) => {
+        localStorage.removeItem(key);
+    });
 }
 
 function decodeJwtPayload(token: string): { exp?: number } | null {
@@ -210,79 +220,74 @@ function getToken(): string | null {
 
     const rawSession = localStorage.getItem(AUTH_STORAGE_KEY);
 
-    if (rawSession) {
-        try {
-            const parsedSession = JSON.parse(rawSession) as {
-                accessToken?: string;
-                token?: string;
-                access_token?: string;
-                data?: {
-                    accessToken?: string;
-                    token?: string;
-                    access_token?: string;
-                };
-                session?: {
-                    accessToken?: string;
-                    token?: string;
-                    access_token?: string;
-                };
-            };
-
-            const token = cleanToken(
-                parsedSession.accessToken ??
-                parsedSession.token ??
-                parsedSession.access_token ??
-                parsedSession.data?.accessToken ??
-                parsedSession.data?.token ??
-                parsedSession.data?.access_token ??
-                parsedSession.session?.accessToken ??
-                parsedSession.session?.token ??
-                parsedSession.session?.access_token,
-            );
-
-            if (!token) {
-                clearAuthSession();
-                return null;
-            }
-
-            if (isTokenExpired(token)) {
-                clearAuthSession();
-                return null;
-            }
-
-            return token;
-        } catch {
-            const token = cleanToken(rawSession);
-
-            if (!token) {
-                clearAuthSession();
-                return null;
-            }
-
-            if (isTokenExpired(token)) {
-                clearAuthSession();
-                return null;
-            }
-
-            return token;
-        }
-    }
-
-    const fallbackToken = cleanToken(
-        localStorage.getItem("token") ||
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("authToken"),
-    );
-
-    if (!fallbackToken) return null;
-
-    if (isTokenExpired(fallbackToken)) {
+    if (!rawSession) {
         clearAuthSession();
         return null;
     }
 
-    return fallbackToken;
+    try {
+        const parsedSession = JSON.parse(rawSession) as {
+            accessToken?: string;
+            token?: string;
+            access_token?: string;
+            data?: {
+                accessToken?: string;
+                token?: string;
+                access_token?: string;
+            };
+            session?: {
+                accessToken?: string;
+                token?: string;
+                access_token?: string;
+            };
+            user?: {
+                accessToken?: string;
+                token?: string;
+                access_token?: string;
+            };
+        };
+
+        const token = cleanToken(
+            parsedSession.accessToken ??
+            parsedSession.token ??
+            parsedSession.access_token ??
+            parsedSession.data?.accessToken ??
+            parsedSession.data?.token ??
+            parsedSession.data?.access_token ??
+            parsedSession.session?.accessToken ??
+            parsedSession.session?.token ??
+            parsedSession.session?.access_token ??
+            parsedSession.user?.accessToken ??
+            parsedSession.user?.token ??
+            parsedSession.user?.access_token,
+        );
+
+        if (!token) {
+            clearAuthSession();
+            return null;
+        }
+
+        if (isTokenExpired(token)) {
+            clearAuthSession();
+            return null;
+        }
+
+        return token;
+    } catch {
+        const token = cleanToken(rawSession);
+
+        if (!token) {
+            clearAuthSession();
+            return null;
+        }
+
+        if (isTokenExpired(token)) {
+            clearAuthSession();
+            return null;
+        }
+
+        return token;
+    }
 }
 
 function getHeaders(): HeadersInit {
@@ -356,6 +361,15 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
             throw new CertificateServiceError(
                 "Tu sesión expiró o no es válida. Inicia sesión nuevamente.",
+                response.status,
+                data,
+            );
+        }
+
+        if (response.status === 403) {
+            throw new CertificateServiceError(
+                getApiErrorMessage(data) ||
+                "No tienes permisos para realizar esta acción. Inicia sesión con un usuario ADMIN o DOCENTE.",
                 response.status,
                 data,
             );
@@ -915,9 +929,11 @@ export async function updateCertificateTemplate(
         signatureFiles,
     );
 
+    const headers = getHeaders();
+
     const response = await fetch(`${CERTIFICATE_TEMPLATES_URL}/${templateId}`, {
         method: "PUT",
-        headers: getHeaders(),
+        headers,
         body: formData,
     });
 

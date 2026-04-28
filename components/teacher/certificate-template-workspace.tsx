@@ -786,10 +786,17 @@ export function CertificateTemplateWorkspace({
                 "Plantilla guardada correctamente. El QR se envió en qr_config.",
             );
         } catch (err) {
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : "No se pudo guardar la plantilla del certificado.",
+                    : "No se pudo guardar la plantilla del certificado.";
+
+            setError(
+                message.includes("403") ||
+                    message.toLowerCase().includes("forbidden") ||
+                    message.toLowerCase().includes("not authenticated")
+                    ? "No tienes permiso para guardar esta plantilla. Inicia sesión nuevamente con un usuario ADMIN o DOCENTE."
+                    : message,
             );
         } finally {
             setIsSavingTemplate(false);
@@ -1368,7 +1375,7 @@ export function CertificateTemplateWorkspace({
                                                     : null,
                                             });
                                         }}
-                                        
+
                                         className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                     >
                                         {fieldTypeOptions.map((option) => (
