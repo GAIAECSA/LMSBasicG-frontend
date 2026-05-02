@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type {
     ChangeEvent,
     PointerEvent as ReactPointerEvent,
@@ -16,6 +17,7 @@ import {
     Save,
     Trash2,
 } from "lucide-react";
+import { getAllCourses, type Course } from "@/services/courses.service";
 import {
     createCertificateField,
     createEmptyCertificateTemplate,
@@ -33,7 +35,14 @@ import {
 } from "@/services/certificates.service";
 
 type CertificateTemplateWorkspaceProps = {
-    courseId: string;
+    courseId?: string;
+};
+
+type CertificateTextCase = "none" | "uppercase" | "lowercase" | "sentence";
+
+type CertificateFieldWithFormat = CertificateField & {
+    fontFamily?: string;
+    textCase?: CertificateTextCase;
 };
 
 const fieldTypeOptions: {
@@ -60,12 +69,44 @@ const alignOptions: {
         { value: "right", label: "Derecha" },
     ];
 
+const fontFamilyOptions = [
+    { value: "helvetica", label: "Helvetica" },
+    { value: "Arial", label: "Arial" },
+    { value: "Roboto", label: "Roboto" },
+    { value: "Georgia", label: "Georgia" },
+    { value: "Times New Roman", label: "Times New Roman" },
+    { value: "Courier New", label: "Courier New" },
+    { value: "Verdana", label: "Verdana" },
+    { value: "Montserrat", label: "Montserrat" },
+];
+
+const textCaseOptions: {
+    value: CertificateTextCase;
+    label: string;
+}[] = [
+        { value: "none", label: "Como está escrito" },
+        { value: "uppercase", label: "MAYÚSCULAS" },
+        { value: "lowercase", label: "minúsculas" },
+        { value: "sentence", label: "Tipo oración" },
+    ];
+
 const DEFAULT_QR_CONFIG: CertificateQrConfig = {
     enabled: true,
     x: 86,
     y: 84,
     size: 10,
 };
+
+function getCourseIdFromPathname(pathname: string) {
+    const teacherMatch = pathname.match(
+        /^\/teacher\/courses\/([^/]+)\/certificates/,
+    );
+    const adminMatch = pathname.match(
+        /^\/admin\/courses\/([^/]+)\/certificates/,
+    );
+
+    return teacherMatch?.[1] ?? adminMatch?.[1] ?? "";
+}
 
 function pxToPt(px: number) {
     return px * 0.75;
@@ -99,6 +140,65 @@ function hexToRgb(color: string): [number, number, number] {
     }
 
     return fallback;
+}
+
+function getFieldFontFamily(field: CertificateField | CertificateFieldWithFormat) {
+    return (field as CertificateFieldWithFormat).fontFamily || "helvetica";
+}
+
+function getFieldTextCase(field: CertificateField | CertificateFieldWithFormat) {
+    return (field as CertificateFieldWithFormat).textCase || "none";
+}
+
+function getCssFontFamily(fontFamily: string) {
+    if (fontFamily === "helvetica") return "Helvetica, Arial, sans-serif";
+    if (fontFamily === "Arial") return "Arial, Helvetica, sans-serif";
+    if (fontFamily === "Roboto") return "Roboto, Arial, sans-serif";
+    if (fontFamily === "Georgia") return "Georgia, serif";
+    if (fontFamily === "Times New Roman") {
+        return '"Times New Roman", Times, serif';
+    }
+    if (fontFamily === "Courier New") {
+        return '"Courier New", Courier, monospace';
+    }
+    if (fontFamily === "Verdana") return "Verdana, Geneva, sans-serif";
+    if (fontFamily === "Montserrat") return "Montserrat, Arial, sans-serif";
+
+    return "Helvetica, Arial, sans-serif";
+}
+
+function getPdfFontFamily(fontFamily: string) {
+    if (fontFamily === "Georgia" || fontFamily === "Times New Roman") {
+        return "times";
+    }
+
+    if (fontFamily === "Courier New") {
+        return "courier";
+    }
+
+    return "helvetica";
+}
+
+function applySentenceCase(text: string) {
+    const lowerText = text.toLowerCase();
+
+    return lowerText.replace(/(^\s*[a-záéíóúñü])|([.!?]\s+[a-záéíóúñü])|(\n\s*[a-záéíóúñü])/g, (match) =>
+        match.toUpperCase(),
+    );
+}
+
+function applyTextCase(text: string, textCase: CertificateTextCase) {
+    if (textCase === "uppercase") return text.toUpperCase();
+    if (textCase === "lowercase") return text.toLowerCase();
+    if (textCase === "sentence") return applySentenceCase(text);
+
+    return text;
+}
+
+function getFormattedFieldPreviewValue(field: CertificateField) {
+    const rawValue = getCertificateFieldPreviewValue(field);
+
+    return applyTextCase(rawValue, getFieldTextCase(field));
 }
 
 function getPdfImageFormat(image: string) {
@@ -434,10 +534,27 @@ function drawQrPreviewInPdf(params: {
 export function CertificateTemplateWorkspace({
     courseId,
 }: CertificateTemplateWorkspaceProps) {
-    const numericCourseId = useMemo(() => Number(courseId), [courseId]);
+    const pathname = usePathname();
+
+    const routeCourseId = useMemo(() => {
+        const rawCourseId = courseId ?? getCourseIdFromPathname(pathname);
+        const parsedCourseId = Number(rawCourseId);
+
+        return Number.isFinite(parsedCourseId) && parsedCourseId > 0
+            ? parsedCourseId
+            : 0;
+    }, [courseId, pathname]);
+
+    const isAdminRoute = pathname.startsWith("/admin");
+
+    const [selectedCourseId, setSelectedCourseId] = useState(0);
+
+    const numericCourseId =
+        routeCourseId > 0 ? routeCourseId : selectedCourseId;
 
     const certificateRef = useRef<HTMLDivElement | null>(null);
 
+    const [courses, setCourses] = useState<Course[]>([]);
     const [template, setTemplate] = useState<CertificateTemplate | null>(null);
     const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
     const [draggingFieldId, setDraggingFieldId] = useState<string | null>(null);
@@ -452,15 +569,38 @@ export function CertificateTemplateWorkspace({
     const [error, setError] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+    const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
     const [isAddFieldsOpen, setIsAddFieldsOpen] = useState(true);
+
+    const courseOptions = useMemo(
+        () => [...courses].sort((a, b) => a.name.localeCompare(b.name)),
+        [courses],
+    );
+
+    const selectedCourseName = useMemo(() => {
+        const selectedCourse = courses.find(
+            (courseItem) => Number(courseItem.id) === numericCourseId,
+        );
+
+        return selectedCourse?.name ?? `Curso #${numericCourseId}`;
+    }, [courses, numericCourseId]);
 
     const loadTemplate = useCallback(async () => {
         try {
+            setIsLoadingTemplate(true);
             setError("");
             setNotice("");
 
+            const coursesData = await getAllCourses();
+
+            setCourses(Array.isArray(coursesData) ? coursesData : []);
+
             if (!numericCourseId || Number.isNaN(numericCourseId)) {
-                throw new Error("No se pudo identificar el curso.");
+                setTemplate(null);
+                setBackgroundImageFile(null);
+                setSignatureFiles({});
+                setSelectedFieldId(null);
+                return;
             }
 
             const currentTemplate =
@@ -487,6 +627,16 @@ export function CertificateTemplateWorkspace({
             setSignatureFiles({});
             setSelectedFieldId(safeTemplate.fields[0]?.id ?? null);
         } catch {
+            if (!numericCourseId || Number.isNaN(numericCourseId)) {
+                setTemplate(null);
+                setBackgroundImageFile(null);
+                setSignatureFiles({});
+                setSelectedFieldId(null);
+                setError("");
+                setNotice("");
+                return;
+            }
+
             const emptyTemplate = createEmptyCertificateTemplate(numericCourseId);
 
             setTemplate({
@@ -498,6 +648,8 @@ export function CertificateTemplateWorkspace({
             setSelectedFieldId(emptyTemplate.fields[0]?.id ?? null);
             setError("");
             setNotice("");
+        } finally {
+            setIsLoadingTemplate(false);
         }
     }, [numericCourseId]);
 
@@ -515,6 +667,24 @@ export function CertificateTemplateWorkspace({
         template?.fields.find((field) => field.id === selectedFieldId) ?? null;
 
     const qrConfig = normalizeQrConfig(template?.qrConfig);
+
+    function handleSelectCourse(value: string) {
+        const parsedCourseId = Number(value);
+
+        setSelectedCourseId(
+            Number.isFinite(parsedCourseId) && parsedCourseId > 0
+                ? parsedCourseId
+                : 0,
+        );
+        setTemplate(null);
+        setSelectedFieldId(null);
+        setDraggingFieldId(null);
+        setIsDraggingQr(false);
+        setBackgroundImageFile(null);
+        setSignatureFiles({});
+        setNotice("");
+        setError("");
+    }
 
     function updateTemplate(nextTemplate: CertificateTemplate) {
         setTemplate(nextTemplate);
@@ -534,7 +704,10 @@ export function CertificateTemplateWorkspace({
         });
     }
 
-    function updateField(fieldId: string, changes: Partial<CertificateField>) {
+    function updateField(
+        fieldId: string,
+        changes: Partial<CertificateFieldWithFormat>,
+    ) {
         if (!template) return;
 
         updateTemplate({
@@ -613,7 +786,11 @@ export function CertificateTemplateWorkspace({
     function handleAddField(type: CertificateFieldType) {
         if (!template) return;
 
-        const newField = createCertificateField(type);
+        const newField: CertificateFieldWithFormat = {
+            ...createCertificateField(type),
+            fontFamily: "helvetica",
+            textCase: "none",
+        };
 
         updateTemplate({
             ...template,
@@ -743,6 +920,11 @@ export function CertificateTemplateWorkspace({
             const safeTemplate: CertificateTemplate = {
                 ...template,
                 qrConfig: normalizeQrConfig(template.qrConfig),
+                fields: template.fields.map((field) => ({
+                    ...field,
+                    fontFamily: getFieldFontFamily(field),
+                    textCase: getFieldTextCase(field),
+                })),
             };
 
             const savedTemplate = await saveCertificateTemplate(
@@ -881,7 +1063,7 @@ export function CertificateTemplateWorkspace({
 
                 pdf.setTextColor(r, g, b);
                 pdf.setFont(
-                    "helvetica",
+                    getPdfFontFamily(getFieldFontFamily(field)),
                     field.fontWeight === "bold" ? "bold" : "normal",
                 );
 
@@ -948,7 +1130,7 @@ export function CertificateTemplateWorkspace({
 
                     const labelFontPt = Math.max(6, pxToPt(field.fontSize));
                     pdf.setFont(
-                        "helvetica",
+                        getPdfFontFamily(getFieldFontFamily(field)),
                         field.fontWeight === "bold" ? "bold" : "normal",
                     );
                     pdf.setFontSize(labelFontPt);
@@ -957,21 +1139,23 @@ export function CertificateTemplateWorkspace({
                     const labelMm = ptToMm(labelFontPt);
                     const labelY = lineY + labelMm * 1.15;
 
-                    pdf.text(
-                        getCertificateFieldPreviewValue(field),
-                        centerX,
-                        labelY,
-                        {
-                            align: "center",
-                            maxWidth: fieldWidthMm,
-                        },
-                    );
+                    const signatureText = getFormattedFieldPreviewValue(field);
+
+                    pdf.text(signatureText, centerX, labelY, {
+                        align: "center",
+                        maxWidth: fieldWidthMm,
+                    });
 
                     continue;
                 }
 
-                const safeText = getCertificateFieldPreviewValue(field);
-                const lines = pdf.splitTextToSize(safeText, fieldWidthMm);
+                const safeText = getFormattedFieldPreviewValue(field);
+
+                const lines = safeText
+                    .split("\n")
+                    .flatMap((line) =>
+                        pdf.splitTextToSize(line || " ", fieldWidthMm),
+                    );
 
                 const lineHeightMm = ptToMm(fontSizePt) * 1.15;
                 const totalTextHeight = lines.length * lineHeightMm;
@@ -993,7 +1177,7 @@ export function CertificateTemplateWorkspace({
                 pageHeight,
             });
 
-            pdf.save(`certificado-curso-${courseId}.pdf`);
+            pdf.save(`certificado-curso-${numericCourseId}.pdf`);
             setNotice("Certificado generado correctamente con el QR visible.");
         } catch (err) {
             console.error("Error al generar certificado PDF:", err);
@@ -1008,32 +1192,149 @@ export function CertificateTemplateWorkspace({
         }
     }
 
-    if (!template) {
+    if (isLoadingTemplate) {
         return (
             <section className="space-y-6">
                 <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
                     <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
 
                     <p className="mt-4 text-sm font-semibold text-slate-600">
-                        Cargando plantilla del certificado...
+                        {numericCourseId > 0
+                            ? "Cargando plantilla del certificado..."
+                            : "Cargando cursos disponibles..."}
                     </p>
                 </div>
             </section>
         );
     }
 
+    if (numericCourseId <= 0) {
+        return (
+            <section className="space-y-6">
+                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-6 md:px-7">
+                        <div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-100">
+                                <BadgeCheck className="h-3.5 w-3.5" />
+                                {isAdminRoute
+                                    ? "Panel del administrador"
+                                    : "Panel del profesor"}
+                            </div>
+
+                            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+                                Gestión de certificados
+                            </h1>
+
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                                Selecciona primero un curso para cargar o crear
+                                la plantilla del certificado.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="p-5">
+                        {error ? (
+                            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                                {error}
+                            </div>
+                        ) : null}
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                Curso
+                            </label>
+
+                            <select
+                                value=""
+                                onChange={(event) =>
+                                    handleSelectCourse(event.target.value)
+                                }
+                                className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                            >
+                                <option value="">Selecciona un curso</option>
+                                {courseOptions.map((courseItem) => (
+                                    <option
+                                        key={courseItem.id}
+                                        value={courseItem.id}
+                                    >
+                                        {courseItem.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {courseOptions.length === 0 ? (
+                                <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    No hay cursos registrados para mostrar.
+                                </p>
+                            ) : (
+                                <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    Al seleccionar un curso se cargará su
+                                    plantilla de certificado.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    if (!template) {
+        return (
+            <section className="space-y-6">
+                <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
+                    <p className="text-sm font-semibold text-slate-600">
+                        No se pudo cargar la plantilla del certificado.
+                    </p>
+                </div>
+            </section>
+        );
+    }
+
+    const backHref = isAdminRoute
+        ? routeCourseId > 0
+            ? "/admin/courses"
+            : "/admin"
+        : `/teacher/courses/${numericCourseId}`;
+
+    const backLabel = isAdminRoute
+        ? routeCourseId > 0
+            ? "Volver a cursos"
+            : "Volver al panel"
+        : "Volver al curso";
+
     return (
         <section className="space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Link
-                    href={`/teacher/courses/${courseId}`}
+                    href={backHref}
                     className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver al curso
+                    {backLabel}
                 </Link>
 
                 <div className="flex flex-col gap-2 sm:flex-row">
+                    {isAdminRoute && routeCourseId <= 0 ? (
+                        <select
+                            value={numericCourseId || ""}
+                            onChange={(event) =>
+                                handleSelectCourse(event.target.value)
+                            }
+                            className="h-11 min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        >
+                            <option value="">Selecciona un curso</option>
+                            {courseOptions.map((courseItem) => (
+                                <option
+                                    key={courseItem.id}
+                                    value={courseItem.id}
+                                >
+                                    {courseItem.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : null}
+
                     <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50">
                         <ImagePlus className="h-4 w-4" />
                         Subir fondo
@@ -1079,6 +1380,16 @@ export function CertificateTemplateWorkspace({
                 </div>
             ) : null}
 
+            <div className="rounded-[28px] border border-blue-100 bg-blue-50 px-5 py-4">
+                <p className="text-sm font-black text-blue-950">
+                    Curso seleccionado: {selectedCourseName}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-blue-700">
+                    Esta plantilla se guardará para el curso seleccionado y se
+                    usará al emitir certificados.
+                </p>
+            </div>
+
             <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <div className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="mb-4 flex flex-col gap-1 px-1">
@@ -1122,6 +1433,10 @@ export function CertificateTemplateWorkspace({
                             {template.fields.map((field) => {
                                 const isSelected = selectedFieldId === field.id;
                                 const isSignature = isSignatureField(field);
+                                const currentFontFamily =
+                                    getFieldFontFamily(field);
+                                const formattedText =
+                                    getFormattedFieldPreviewValue(field);
 
                                 return (
                                     <div
@@ -1132,8 +1447,8 @@ export function CertificateTemplateWorkspace({
                                             handlePointerDown(event, field.id)
                                         }
                                         className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-move rounded-xl px-2 py-1 transition ${isSelected
-                                            ? "ring-2 ring-blue-600 ring-offset-2"
-                                            : "hover:ring-2 hover:ring-blue-200"
+                                                ? "ring-2 ring-blue-600 ring-offset-2"
+                                                : "hover:ring-2 hover:ring-blue-200"
                                             }`}
                                         style={{
                                             left: `${field.x}%`,
@@ -1144,6 +1459,10 @@ export function CertificateTemplateWorkspace({
                                             fontSize: `${field.fontSize}px`,
                                             fontWeight: field.fontWeight,
                                             textAlign: field.textAlign,
+                                            fontFamily:
+                                                getCssFontFamily(
+                                                    currentFontFamily,
+                                                ),
                                         }}
                                     >
                                         {isSignature ? (
@@ -1152,6 +1471,10 @@ export function CertificateTemplateWorkspace({
                                                 style={{
                                                     color: field.color,
                                                     textAlign: "center",
+                                                    fontFamily:
+                                                        getCssFontFamily(
+                                                            currentFontFamily,
+                                                        ),
                                                 }}
                                             >
                                                 <div className="relative flex h-[66%] w-full items-center justify-center">
@@ -1180,11 +1503,13 @@ export function CertificateTemplateWorkspace({
                                                         fontSize: `${field.fontSize}px`,
                                                         fontWeight:
                                                             field.fontWeight,
+                                                        fontFamily:
+                                                            getCssFontFamily(
+                                                                currentFontFamily,
+                                                            ),
                                                     }}
                                                 >
-                                                    {getCertificateFieldPreviewValue(
-                                                        field,
-                                                    )}
+                                                    {formattedText}
                                                 </p>
                                             </div>
                                         ) : (
@@ -1194,6 +1519,10 @@ export function CertificateTemplateWorkspace({
                                                     justifyContent:
                                                         getJustifyContentByAlign(
                                                             field.textAlign,
+                                                        ),
+                                                    fontFamily:
+                                                        getCssFontFamily(
+                                                            currentFontFamily,
                                                         ),
                                                 }}
                                             >
@@ -1206,11 +1535,13 @@ export function CertificateTemplateWorkspace({
                                                         color: field.color,
                                                         textAlign:
                                                             field.textAlign,
+                                                        fontFamily:
+                                                            getCssFontFamily(
+                                                                currentFontFamily,
+                                                            ),
                                                     }}
                                                 >
-                                                    {getCertificateFieldPreviewValue(
-                                                        field,
-                                                    )}
+                                                    {formattedText}
                                                 </p>
                                             </div>
                                         )}
@@ -1224,8 +1555,8 @@ export function CertificateTemplateWorkspace({
                                     tabIndex={0}
                                     onPointerDown={handleQrPointerDown}
                                     className={`absolute flex -translate-x-1/2 -translate-y-1/2 cursor-move flex-col items-center justify-center rounded-xl border-2 bg-white p-1 shadow-sm transition ${isDraggingQr
-                                        ? "border-blue-700 ring-2 ring-blue-600 ring-offset-2"
-                                        : "border-slate-900 hover:ring-2 hover:ring-blue-200"
+                                            ? "border-blue-700 ring-2 ring-blue-600 ring-offset-2"
+                                            : "border-slate-900 hover:ring-2 hover:ring-blue-200"
                                         }`}
                                     style={{
                                         left: `${qrConfig.x}%`,
@@ -1302,8 +1633,7 @@ export function CertificateTemplateWorkspace({
                     </div>
 
                     <div className="rounded-[28px] border border-blue-200 bg-white p-5 shadow-sm">
-
-                        <div className="mt-5 space-y-4">
+                        <div className="space-y-4">
                             <label className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                                 <span>
                                     <span className="block text-sm font-black text-slate-800">
@@ -1349,16 +1679,24 @@ export function CertificateTemplateWorkspace({
                                     <select
                                         value={selectedField.type}
                                         onChange={(event) => {
-                                            const nextType = event.target.value as CertificateFieldType;
+                                            const nextType = event.target
+                                                .value as CertificateFieldType;
 
                                             const isSignature =
-                                                nextType === "signature_instructor" ||
-                                                nextType === "signature_director";
+                                                nextType ===
+                                                "signature_instructor" ||
+                                                nextType ===
+                                                "signature_director";
 
                                             if (!isSignature) {
                                                 setSignatureFiles((current) => {
-                                                    const nextFiles = { ...current };
-                                                    delete nextFiles[selectedField.id];
+                                                    const nextFiles = {
+                                                        ...current,
+                                                    };
+                                                    delete nextFiles[
+                                                        selectedField.id
+                                                    ];
+
                                                     return nextFiles;
                                                 });
                                             }
@@ -1366,16 +1704,23 @@ export function CertificateTemplateWorkspace({
                                             updateField(selectedField.id, {
                                                 name: nextType,
                                                 type: nextType,
-                                                variableKey: getVariableKeyByFieldType(nextType),
+                                                variableKey:
+                                                    getVariableKeyByFieldType(
+                                                        nextType,
+                                                    ),
                                                 label: getFieldLabel(nextType),
-                                                value: getFieldDefaultValue(nextType),
-                                                fieldMode: isSignature ? "signature" : "text",
+                                                value: getFieldDefaultValue(
+                                                    nextType,
+                                                ),
+                                                fieldMode: isSignature
+                                                    ? "signature"
+                                                    : "text",
                                                 signatureImage: isSignature
-                                                    ? selectedField.signatureImage ?? null
+                                                    ? selectedField.signatureImage ??
+                                                    null
                                                     : null,
                                             });
                                         }}
-
                                         className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                     >
                                         {fieldTypeOptions.map((option) => (
@@ -1387,8 +1732,6 @@ export function CertificateTemplateWorkspace({
                                             </option>
                                         ))}
                                     </select>
-
-
                                 </div>
 
                                 {isSignatureField(selectedField) ? (
@@ -1398,8 +1741,9 @@ export function CertificateTemplateWorkspace({
                                         </p>
 
                                         <p className="mt-1 text-xs leading-5 text-blue-700">
-                                            La firma se muestra como vista previa,
-                                            pero se guarda como archivo separado.
+                                            La firma se muestra como vista
+                                            previa, pero se guarda como archivo
+                                            separado.
                                         </p>
 
                                         <label className="mt-3 inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 text-sm font-bold text-white transition hover:bg-blue-800">
@@ -1434,22 +1778,6 @@ export function CertificateTemplateWorkspace({
                                     </div>
                                 ) : null}
 
-                                {/* <div className="space-y-2">
-                                    <label className="block text-[13px] font-bold text-slate-700">
-                                        Etiqueta
-                                    </label>
-
-                                    <input
-                                        value={selectedField.label}
-                                        onChange={(event) =>
-                                            updateField(selectedField.id, {
-                                                label: event.target.value,
-                                            })
-                                        }
-                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                    />
-                                </div>
- */}
                                 <div className="space-y-2">
                                     <label className="block text-[13px] font-bold text-slate-700">
                                         Texto visible / variable
@@ -1464,7 +1792,57 @@ export function CertificateTemplateWorkspace({
                                         }
                                         className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                     />
+                                </div>
 
+                                <div className="space-y-2">
+                                    <label className="block text-[13px] font-bold text-slate-700">
+                                        Tipografía
+                                    </label>
+
+                                    <select
+                                        value={getFieldFontFamily(selectedField)}
+                                        onChange={(event) =>
+                                            updateField(selectedField.id, {
+                                                fontFamily: event.target.value,
+                                            })
+                                        }
+                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                    >
+                                        {fontFamilyOptions.map((option) => (
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="block text-[13px] font-bold text-slate-700">
+                                        Formato del texto
+                                    </label>
+
+                                    <select
+                                        value={getFieldTextCase(selectedField)}
+                                        onChange={(event) =>
+                                            updateField(selectedField.id, {
+                                                textCase: event.target
+                                                    .value as CertificateTextCase,
+                                            })
+                                        }
+                                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                    >
+                                        {textCaseOptions.map((option) => (
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="grid gap-3 sm:grid-cols-3">
@@ -1531,8 +1909,6 @@ export function CertificateTemplateWorkspace({
                                         />
                                     </div>
                                 </div>
-
-
 
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="space-y-2">
@@ -1605,50 +1981,6 @@ export function CertificateTemplateWorkspace({
                                     </select>
                                 </div>
 
-                                {/*   <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <label className="block text-[13px] font-bold text-slate-700">
-                                            X %
-                                        </label>
-
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            value={selectedField.x}
-                                            onChange={(event) =>
-                                                updateField(selectedField.id, {
-                                                    x: Number(
-                                                        event.target.value,
-                                                    ),
-                                                })
-                                            }
-                                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="block text-[13px] font-bold text-slate-700">
-                                            Y %
-                                        </label>
-
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            value={selectedField.y}
-                                            onChange={(event) =>
-                                                updateField(selectedField.id, {
-                                                    y: Number(
-                                                        event.target.value,
-                                                    ),
-                                                })
-                                            }
-                                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                        />
-                                    </div>
-                                </div> */}
-
                                 <button
                                     type="button"
                                     onClick={() =>
@@ -1667,3 +1999,5 @@ export function CertificateTemplateWorkspace({
         </section>
     );
 }
+
+export default CertificateTemplateWorkspace;

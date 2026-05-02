@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import type { DragEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -19,6 +20,7 @@ import {
     Trash2,
     X,
 } from "lucide-react";
+import { getAllCourses, type Course } from "@/services/courses.service";
 import {
     createModule,
     deleteModule,
@@ -49,7 +51,7 @@ type TeacherCourseModulesPageProps = {
 
 type LessonItemType = "text" | "image" | "pdf" | "video" | "quiz";
 
-type LessonCompletionType = "VER" | "RESPONDER" | "SUBIR" ;
+type LessonCompletionType = "VER" | "RESPONDER" | "SUBIR";
 
 const DEFAULT_LESSON_BLOCK_TYPE_IDS: Record<LessonItemType, number> = {
     video: 1,
@@ -176,6 +178,19 @@ type LessonBlockWithOptionalType = LessonBlock & {
 type LessonBlockPayloadWithoutContent = Omit<LessonBlockPayload, "content"> & {
     content?: LessonBlockPayload["content"];
 };
+
+function getCourseIdFromPathname(pathname: string) {
+    const teacherMatch = pathname.match(/^\/teacher\/courses\/([^/]+)\/modules/);
+    const adminCourseMatch = pathname.match(/^\/admin\/courses\/([^/]+)\/modules/);
+    const adminModuleMatch = pathname.match(/^\/admin\/modules\/([^/]+)/);
+
+    return (
+        teacherMatch?.[1] ??
+        adminCourseMatch?.[1] ??
+        adminModuleMatch?.[1] ??
+        ""
+    );
+}
 
 function sortByOrder<T extends { order: number }>(items: T[]) {
     return [...items].sort((a, b) => a.order - b.order);
@@ -313,8 +328,9 @@ function getLessonItemType(block: LessonBlock): LessonItemType {
     ]).toLowerCase();
 
     const fallbackKey =
-        (block as LessonBlockWithOptionalType).lesson_block_type?.key?.toLowerCase() ??
-        "";
+        (
+            block as LessonBlockWithOptionalType
+        ).lesson_block_type?.key?.toLowerCase() ?? "";
 
     const contentBlockTypeId = block.content?.block_type_id;
     const optionalBlock = block as LessonBlockWithOptionalType;
@@ -420,7 +436,10 @@ function buildCreateLessonBlockPayload(params: {
     };
 
     if (shouldSendContent(params.type)) {
-        payload.content = buildInitialLessonBlockContent(params.title, params.type);
+        payload.content = buildInitialLessonBlockContent(
+            params.title,
+            params.type,
+        );
     }
 
     return payload;
@@ -483,18 +502,35 @@ export function TeacherCourseModulesPage({
     courseId,
     params,
 }: TeacherCourseModulesPageProps) {
-    const currentCourseId = courseId ?? params?.courseId ?? "";
+    const pathname = usePathname();
+    const router = useRouter();
 
-    const numericCourseId = useMemo(
-        () => Number(currentCourseId),
-        [currentCourseId],
-    );
+    const routeCourseId = useMemo(() => {
+        const rawCourseId =
+            courseId ?? params?.courseId ?? getCourseIdFromPathname(pathname);
 
+        const parsedCourseId = Number(rawCourseId);
+
+        return Number.isFinite(parsedCourseId) && parsedCourseId > 0
+            ? parsedCourseId
+            : 0;
+    }, [courseId, params?.courseId, pathname]);
+
+    const isAdminRoute = pathname.startsWith("/admin");
+
+    const [selectedCourseId, setSelectedCourseId] = useState(0);
+
+    const numericCourseId =
+        routeCourseId > 0 ? routeCourseId : selectedCourseId;
+
+    const [courses, setCourses] = useState<Course[]>([]);
     const [modules, setModules] = useState<CourseModuleView[]>([]);
     const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
     const [openLessons, setOpenLessons] = useState<Record<string, boolean>>({});
 
-    const [createModal, setCreateModal] = useState<CreateModalState | null>(null);
+    const [createModal, setCreateModal] = useState<CreateModalState | null>(
+        null,
+    );
     const [createTitle, setCreateTitle] = useState("");
     const [createError, setCreateError] = useState("");
 
@@ -502,7 +538,9 @@ export function TeacherCourseModulesPage({
     const [editTitle, setEditTitle] = useState("");
     const [editError, setEditError] = useState("");
 
-    const [deleteModal, setDeleteModal] = useState<DeleteModalState | null>(null);
+    const [deleteModal, setDeleteModal] = useState<DeleteModalState | null>(
+        null,
+    );
 
     const [dragging, setDragging] = useState<DragState | null>(null);
     const [dragOver, setDragOver] = useState<DragState | null>(null);
@@ -512,15 +550,29 @@ export function TeacherCourseModulesPage({
     const [errorMessage, setErrorMessage] = useState("");
     const [actionError, setActionError] = useState("");
 
+    const courseOptions = useMemo(
+        () => [...courses].sort((a, b) => a.name.localeCompare(b.name)),
+        [courses],
+    );
+
+    const selectedCourseName = useMemo(() => {
+        const selectedCourse = courses.find(
+            (courseItem) => Number(courseItem.id) === numericCourseId,
+        );
+
+        return selectedCourse?.name ?? `Curso #${numericCourseId}`;
+    }, [courses, numericCourseId]);
+
+    const itemEditorBasePath = isAdminRoute
+        ? `/admin/modules/${numericCourseId}/items`
+        : `/teacher/courses/${numericCourseId}/modules/items`;
+
+    const backHref = isAdminRoute ? "/admin" : `/teacher/courses/${numericCourseId}`;
+
+    const backLabel = isAdminRoute ? "Volver al panel" : "Volver al curso";
+
     const refreshModules = useCallback(
         async (showLoading = false) => {
-            if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
-                setModules([]);
-                setErrorMessage("El identificador del curso no es válido.");
-                setIsLoading(false);
-                return;
-            }
-
             try {
                 if (showLoading) {
                     setIsLoading(true);
@@ -529,45 +581,60 @@ export function TeacherCourseModulesPage({
                 setErrorMessage("");
                 setActionError("");
 
+                const coursesData = await getAllCourses();
+
+                setCourses(Array.isArray(coursesData) ? coursesData : []);
+
+                if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
+                    setModules([]);
+                    return;
+                }
+
                 const courseModulesResponse =
                     await getModulesByCourse(numericCourseId);
 
                 const modulesWithLessons = await Promise.all(
-                    sortByOrder(courseModulesResponse).map(async (courseModule) => {
-                        const lessonsResponse = await getLessonsByModule(
-                            courseModule.id,
-                        );
+                    sortByOrder(courseModulesResponse).map(
+                        async (courseModule) => {
+                            const lessonsResponse = await getLessonsByModule(
+                                courseModule.id,
+                            );
 
-                        const lessonsWithBlocks = await Promise.all(
-                            sortByOrder(lessonsResponse).map(async (lesson) => {
-                                const blocksResponse =
-                                    await getLessonBlocksByLesson(lesson.id);
+                            const lessonsWithBlocks = await Promise.all(
+                                sortByOrder(lessonsResponse).map(
+                                    async (lesson) => {
+                                        const blocksResponse =
+                                            await getLessonBlocksByLesson(
+                                                lesson.id,
+                                            );
 
-                                const lessonView: LessonView = {
-                                    id: String(lesson.id),
-                                    title: lesson.name,
-                                    order: lesson.order,
-                                    moduleId: String(lesson.module_id),
-                                    raw: lesson,
-                                    items: sortByOrder(blocksResponse).map(
-                                        mapLessonBlockToView,
-                                    ),
-                                };
+                                        const lessonView: LessonView = {
+                                            id: String(lesson.id),
+                                            title: lesson.name,
+                                            order: lesson.order,
+                                            moduleId: String(lesson.module_id),
+                                            raw: lesson,
+                                            items: sortByOrder(
+                                                blocksResponse,
+                                            ).map(mapLessonBlockToView),
+                                        };
 
-                                return lessonView;
-                            }),
-                        );
+                                        return lessonView;
+                                    },
+                                ),
+                            );
 
-                        const moduleView: CourseModuleView = {
-                            id: String(courseModule.id),
-                            title: courseModule.name,
-                            order: courseModule.order,
-                            raw: courseModule,
-                            lessons: lessonsWithBlocks,
-                        };
+                            const moduleView: CourseModuleView = {
+                                id: String(courseModule.id),
+                                title: courseModule.name,
+                                order: courseModule.order,
+                                raw: courseModule,
+                                lessons: lessonsWithBlocks,
+                            };
 
-                        return moduleView;
-                    }),
+                            return moduleView;
+                        },
+                    ),
                 );
 
                 setModules(modulesWithLessons);
@@ -590,6 +657,29 @@ export function TeacherCourseModulesPage({
             window.clearTimeout(timeoutId);
         };
     }, [refreshModules]);
+
+    function handleSelectCourse(value: string) {
+        const parsedCourseId = Number(value);
+
+        const nextCourseId =
+            Number.isFinite(parsedCourseId) && parsedCourseId > 0
+                ? parsedCourseId
+                : 0;
+
+        setSelectedCourseId(nextCourseId);
+        setModules([]);
+        setOpenModules({});
+        setOpenLessons({});
+        setCreateModal(null);
+        setEditModal(null);
+        setDeleteModal(null);
+        setErrorMessage("");
+        setActionError("");
+
+        if (isAdminRoute && nextCourseId > 0) {
+            router.push(`/admin/modules/${nextCourseId}`);
+        }
+    }
 
     function resetDragState(event?: DragEvent<HTMLElement>) {
         event?.currentTarget.classList.remove("cursor-grabbing");
@@ -791,11 +881,15 @@ export function TeacherCourseModulesPage({
     }
 
     function isDraggingItem(targetState: DragState) {
-        return dragging?.type === targetState.type && dragging.id === targetState.id;
+        return (
+            dragging?.type === targetState.type && dragging.id === targetState.id
+        );
     }
 
     function isDragOverItem(targetState: DragState) {
-        return dragOver?.type === targetState.type && dragOver.id === targetState.id;
+        return (
+            dragOver?.type === targetState.type && dragOver.id === targetState.id
+        );
     }
 
     function openCreateModuleModal() {
@@ -877,6 +971,11 @@ export function TeacherCourseModulesPage({
 
         if (!title) {
             setCreateError("Ingresa un nombre para continuar.");
+            return;
+        }
+
+        if (!numericCourseId || numericCourseId <= 0) {
+            setCreateError("Primero selecciona un curso.");
             return;
         }
 
@@ -1029,26 +1128,131 @@ export function TeacherCourseModulesPage({
         }
     }
 
+    if (isLoading) {
+        return (
+            <section className="space-y-6">
+                <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
+                    <p className="mt-4 text-sm font-bold text-slate-600">
+                        {numericCourseId > 0
+                            ? "Cargando módulos del curso..."
+                            : "Cargando cursos disponibles..."}
+                    </p>
+                </div>
+            </section>
+        );
+    }
+
+    if (numericCourseId <= 0) {
+        return (
+            <section className="space-y-6">
+                <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
+                    <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-8 md:px-8">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
+                            <Layers3 className="h-3.5 w-3.5" />
+                            Gestión de módulos
+                        </div>
+
+                        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white md:text-4xl">
+                            Selecciona un curso
+                        </h1>
+
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
+                            Primero selecciona el curso para cargar sus módulos,
+                            lecciones y contenido.
+                        </p>
+                    </div>
+
+                    <div className="p-6 md:p-8">
+                        {errorMessage ? (
+                            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                                <span>{errorMessage}</span>
+                            </div>
+                        ) : null}
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                Curso
+                            </label>
+
+                            <select
+                                value=""
+                                onChange={(event) =>
+                                    handleSelectCourse(event.target.value)
+                                }
+                                className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                            >
+                                <option value="">Selecciona un curso</option>
+                                {courseOptions.map((courseItem) => (
+                                    <option
+                                        key={courseItem.id}
+                                        value={courseItem.id}
+                                    >
+                                        {courseItem.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {courseOptions.length === 0 ? (
+                                <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    No hay cursos registrados.
+                                </p>
+                            ) : (
+                                <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    Al seleccionar un curso se cargará su
+                                    estructura académica.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Link
-                    href={`/student/courses`}
+                    href={backHref}
                     className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Volver al curso
+                    {backLabel}
                 </Link>
 
-                <button
-                    type="button"
-                    onClick={openCreateModuleModal}
-                    className="inline-flex w-fit items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isLoading}
-                >
-                    <Plus className="h-4 w-4" />
-                    Agregar módulo
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    {isAdminRoute && routeCourseId <= 0 ? (
+                        <select
+                            value={numericCourseId || ""}
+                            onChange={(event) =>
+                                handleSelectCourse(event.target.value)
+                            }
+                            className="h-10 min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        >
+                            <option value="">Selecciona un curso</option>
+                            {courseOptions.map((courseItem) => (
+                                <option
+                                    key={courseItem.id}
+                                    value={courseItem.id}
+                                >
+                                    {courseItem.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : null}
+
+                    <button
+                        type="button"
+                        onClick={openCreateModuleModal}
+                        className="inline-flex w-fit items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isLoading || numericCourseId <= 0}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Agregar módulo
+                    </button>
+                </div>
             </div>
 
             {errorMessage ? (
@@ -1079,9 +1283,12 @@ export function TeacherCourseModulesPage({
                             </h1>
 
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
-                                Organiza el curso por módulos, lecciones y bloques de
-                                aprendizaje. Puedes editar títulos, agregar recursos y
-                                arrastrar para cambiar el orden.
+                                Curso seleccionado:{" "}
+                                <span className="font-bold text-white">
+                                    {selectedCourseName}
+                                </span>
+                                . Organiza el curso por módulos, lecciones y
+                                bloques de aprendizaje.
                             </p>
                         </div>
 
@@ -1091,33 +1298,26 @@ export function TeacherCourseModulesPage({
                             </p>
 
                             <p className="mt-2 text-3xl font-black">
-                                {isLoading ? "..." : modules.length}
+                                {modules.length}
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <div className="p-6 md:p-8">
-                    {isLoading ? (
-                        <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-                            <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
-                            <p className="mt-4 text-sm font-bold text-slate-600">
-                                Cargando módulos del curso...
-                            </p>
-                        </div>
-                    ) : modules.length === 0 ? (
+                    {modules.length === 0 ? (
                         <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
                                 <Layers3 className="h-6 w-6" />
                             </div>
 
                             <h3 className="mt-4 text-lg font-black text-slate-950">
-                                Todavía no tienes módulos
+                                Este curso todavía no tiene módulos
                             </h3>
 
                             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                                Agrega el primer módulo para empezar a construir la
-                                estructura del curso.
+                                Agrega el primer módulo para empezar a construir
+                                la estructura del curso.
                             </p>
 
                             <button
@@ -1154,7 +1354,10 @@ export function TeacherCourseModulesPage({
                                         className={`relative transition ${moduleIsDragging ? "opacity-50" : ""
                                             }`}
                                         onDragOver={(event) =>
-                                            handleDragOver(event, moduleDragState)
+                                            handleDragOver(
+                                                event,
+                                                moduleDragState,
+                                            )
                                         }
                                         onDrop={(event) =>
                                             handleDrop(event, moduleDragState)
@@ -1172,8 +1375,8 @@ export function TeacherCourseModulesPage({
                                             }
                                             onDragEnd={resetDragState}
                                             className={`cursor-grab rounded-[26px] border bg-slate-50 p-4 shadow-sm transition active:cursor-grabbing ${moduleIsOver
-                                                    ? "border-blue-500 ring-4 ring-blue-100"
-                                                    : "border-slate-200"
+                                                ? "border-blue-500 ring-4 ring-blue-100"
+                                                : "border-slate-200"
                                                 }`}
                                         >
                                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1202,14 +1405,16 @@ export function TeacherCourseModulesPage({
                                                             </span>
 
                                                             <span className="block truncate text-lg font-black text-slate-950">
-                                                                {courseModule.title}
+                                                                {
+                                                                    courseModule.title
+                                                                }
                                                             </span>
                                                         </span>
 
                                                         <ChevronDown
                                                             className={`h-5 w-5 text-slate-500 transition ${moduleOpen
-                                                                    ? ""
-                                                                    : "-rotate-90"
+                                                                ? ""
+                                                                : "-rotate-90"
                                                                 }`}
                                                         />
                                                     </button>
@@ -1261,11 +1466,11 @@ export function TeacherCourseModulesPage({
 
                                             {moduleOpen ? (
                                                 <div className="mt-5 space-y-4 border-l-2 border-slate-200 pl-5">
-                                                    {courseModule.lessons.length ===
-                                                        0 ? (
+                                                    {courseModule.lessons
+                                                        .length === 0 ? (
                                                         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
-                                                            Este módulo todavía no
-                                                            tiene lecciones.
+                                                            Este módulo todavía
+                                                            no tiene lecciones.
                                                         </div>
                                                     ) : (
                                                         courseModule.lessons.map(
@@ -1275,7 +1480,8 @@ export function TeacherCourseModulesPage({
                                                             ) => {
                                                                 const lessonOpen =
                                                                     openLessons[
-                                                                    lesson.id
+                                                                    lesson
+                                                                        .id
                                                                     ] ?? true;
 
                                                                 const lessonDragState: DragState =
@@ -1303,8 +1509,8 @@ export function TeacherCourseModulesPage({
                                                                         }
                                                                         draggable
                                                                         className={`cursor-grab rounded-2xl border bg-white p-4 transition active:cursor-grabbing ${lessonIsDragging
-                                                                                ? "opacity-50"
-                                                                                : ""
+                                                                            ? "opacity-50"
+                                                                            : ""
                                                                             } ${lessonIsOver
                                                                                 ? "border-blue-500 ring-4 ring-blue-100"
                                                                                 : "border-slate-200"
@@ -1370,8 +1576,8 @@ export function TeacherCourseModulesPage({
 
                                                                                     <ChevronDown
                                                                                         className={`h-5 w-5 text-slate-500 transition ${lessonOpen
-                                                                                                ? ""
-                                                                                                : "-rotate-90"
+                                                                                            ? ""
+                                                                                            : "-rotate-90"
                                                                                             }`}
                                                                                     />
                                                                                 </button>
@@ -1491,12 +1697,7 @@ export function TeacherCourseModulesPage({
                                                                                         todavía
                                                                                         no
                                                                                         tiene
-                                                                                        texto,
-                                                                                        imágenes,
-                                                                                        PDF,
-                                                                                        videos
-                                                                                        ni
-                                                                                        pruebas.
+                                                                                        contenido.
                                                                                     </div>
                                                                                 ) : (
                                                                                     lesson.items.map(
@@ -1528,8 +1729,8 @@ export function TeacherCourseModulesPage({
                                                                                                     }
                                                                                                     draggable
                                                                                                     className={`flex cursor-grab items-center justify-between gap-3 rounded-xl border bg-slate-50 px-4 py-3 transition active:cursor-grabbing ${itemIsDragging
-                                                                                                            ? "opacity-50"
-                                                                                                            : ""
+                                                                                                        ? "opacity-50"
+                                                                                                        : ""
                                                                                                         } ${itemIsOver
                                                                                                             ? "border-blue-500 ring-4 ring-blue-100"
                                                                                                             : "border-slate-200"
@@ -1572,7 +1773,7 @@ export function TeacherCourseModulesPage({
 
                                                                                                         <div className="min-w-0">
                                                                                                             <Link
-                                                                                                                href={`/teacher/courses/${currentCourseId}/modules/items/${item.id}`}
+                                                                                                                href={`${itemEditorBasePath}/${item.id}`}
                                                                                                                 className="block truncate text-sm font-black text-slate-950 transition hover:text-blue-700 hover:underline"
                                                                                                             >
                                                                                                                 {
@@ -1650,7 +1851,10 @@ export function TeacherCourseModulesPage({
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateSubmit} className="space-y-5 p-6">
+                        <form
+                            onSubmit={handleCreateSubmit}
+                            className="space-y-5 p-6"
+                        >
                             {createError ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                                     {createError}
@@ -1673,7 +1877,9 @@ export function TeacherCourseModulesPage({
                                             ? "Ej: Unidad I. Presentación"
                                             : createModal.type === "lesson"
                                                 ? "Ej: Lección 1"
-                                                : `Ej: ${getItemLabel(createModal.itemType)} introductorio`
+                                                : `Ej: ${getItemLabel(
+                                                    createModal.itemType,
+                                                )} introductorio`
                                     }
                                     className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                     disabled={isSaving}
@@ -1734,7 +1940,10 @@ export function TeacherCourseModulesPage({
                             </button>
                         </div>
 
-                        <form onSubmit={handleEditSubmit} className="space-y-5 p-6">
+                        <form
+                            onSubmit={handleEditSubmit}
+                            className="space-y-5 p-6"
+                        >
                             {editError ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                                     {editError}

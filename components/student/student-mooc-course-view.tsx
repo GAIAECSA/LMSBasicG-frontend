@@ -5,9 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     AlertCircle,
     ArrowLeft,
+    Award,
     CheckCircle2,
     ChevronDown,
     ClipboardList,
+    Download,
+    FileCheck2,
     FileText,
     ImageIcon,
     Layers3,
@@ -40,6 +43,12 @@ import {
     type QuizzResponse,
     type QuizzResponseByLessonBlock,
 } from "@/services/quizz-response.service";
+import {
+    createCertificateFromTemplate,
+    getCertificatesByCourse,
+    getCertificateTemplate,
+    type Certificate,
+} from "@/services/certificates.service";
 import { getAuthSession } from "@/lib/auth";
 
 type StudentMoocCourseViewProps = {
@@ -81,6 +90,14 @@ type SessionUserWithRole = {
     role?: string;
     role_id?: number | string;
     roleId?: number | string;
+};
+
+type CertificateWithFileFields = Certificate & {
+    pdf_url?: string | null;
+    file_url?: string | null;
+    url?: string | null;
+    certificate_url?: string | null;
+    path?: string | null;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000";
@@ -500,6 +517,7 @@ function findApprovedEnrollment(
         null
     );
 }
+
 function parseStoredQuizResponse(value: string | null | undefined) {
     if (!value) {
         return {
@@ -613,6 +631,60 @@ function getQuizLimitMessage(
     return "";
 }
 
+function getCertificateFileUrl(certificate: Certificate | null) {
+    if (!certificate) return "";
+
+    const currentCertificate = certificate as CertificateWithFileFields;
+
+    const fileUrl =
+        currentCertificate.pdf_url ||
+        currentCertificate.file_url ||
+        currentCertificate.certificate_url ||
+        currentCertificate.url ||
+        currentCertificate.path ||
+        "";
+
+    return fileUrl ? normalizeResourceUrl(fileUrl) : "";
+}
+
+function getCertificateVerifyUrl(certificate: Certificate | null) {
+    if (!certificate?.certificate_code) return "";
+
+    return `/certificates/verify/${certificate.certificate_code}`;
+}
+
+function getUniqueNumbers(values: number[]) {
+    return Array.from(new Set(values));
+}
+
+function getQuizBlocks(blocks: LessonBlock[]) {
+    return blocks.filter((block) => getLessonItemType(block) === "quiz");
+}
+
+function getAverageQuizScore(
+    responses: QuizzResponse[],
+    blocks: LessonBlock[],
+) {
+    const quizBlockIds = new Set(getQuizBlocks(blocks).map((block) => block.id));
+
+    const quizScores = responses
+        .filter((response) => quizBlockIds.has(Number(response.lesson_block_id)))
+        .map((response) => Number(response.score || 0));
+
+    if (quizScores.length === 0) return 0;
+
+    const total = quizScores.reduce((sum, score) => sum + score, 0);
+
+    return Math.round((total / quizScores.length) * 100) / 100;
+}
+
+function getEnrollmentStudentName(enrollment: Enrollment | null) {
+    const firstname = enrollment?.user?.firstname ?? "";
+    const lastname = enrollment?.user?.lastname ?? "";
+    const fullName = `${firstname} ${lastname}`.trim();
+
+    return fullName || "Estudiante";
+}
 
 export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) {
     const numericCourseId = useMemo(() => Number(courseId), [courseId]);
@@ -634,6 +706,13 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
 
+    const [studentUserId, setStudentUserId] = useState<number | null>(null);
+    const [studentName, setStudentName] = useState("");
+    const [courseName, setCourseName] = useState("");
+    const [certificate, setCertificate] = useState<Certificate | null>(null);
+    const [certificateMessage, setCertificateMessage] = useState("");
+    const [certificateGenerating, setCertificateGenerating] = useState(false);
+
     const allBlocks = useMemo(
         () =>
             modules.flatMap((moduleItem) =>
@@ -654,6 +733,10 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     const progress =
         totalBlocks > 0 ? Math.round((completedCount / totalBlocks) * 100) : 0;
 
+    const courseCompleted = totalBlocks > 0 && completedCount === totalBlocks;
+    const certificateFileUrl = getCertificateFileUrl(certificate);
+    const certificateVerifyUrl = getCertificateVerifyUrl(certificate);
+
     async function refreshProgress(currentEnrollmentId: number) {
         const progressResponse = await getProgressByEnrollment(currentEnrollmentId);
 
@@ -663,6 +746,8 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 .filter((item) => item.is_completed)
                 .map((item) => item.lesson_block_id),
         );
+
+        return progressResponse;
     }
 
     async function refreshQuizResponseForBlock(
@@ -688,6 +773,7 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
         try {
             setLoading(true);
             setErrorMessage("");
+            setCertificateMessage("");
 
             if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
                 throw new Error("No se pudo identificar el curso.");
@@ -715,6 +801,14 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 throw new Error(
                     "No se encontró una matrícula aprobada para este curso.",
                 );
+            }
+
+            let courseCertificates: Certificate[] = [];
+
+            try {
+                courseCertificates = await getCertificatesByCourse(numericCourseId);
+            } catch {
+                courseCertificates = [];
             }
 
             const progressResponse = await getProgressByEnrollment(
@@ -757,7 +851,22 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 }),
             );
 
+            const existingCertificate =
+                courseCertificates.find(
+                    (item) =>
+                        Number(item.user_id) === userId &&
+                        Number(item.course_id) === numericCourseId &&
+                        item.is_valid !== false,
+                ) ?? null;
+
             setEnrollmentId(activeEnrollment.id);
+            setStudentUserId(userId);
+            setStudentName(getEnrollmentStudentName(activeEnrollment));
+            setCourseName(activeEnrollment.course?.name ?? `Curso #${numericCourseId}`);
+            setCertificate(existingCertificate);
+            setCertificateMessage(
+                existingCertificate ? "Tu certificado ya está disponible." : "",
+            );
             setProgressRecords(progressResponse);
             setQuizResponses(quizResponsesResponse);
             setCompletedBlocks(
@@ -793,6 +902,11 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
             setProgressRecords([]);
             setQuizResponses([]);
             setEnrollmentId(null);
+            setStudentUserId(null);
+            setStudentName("");
+            setCourseName("");
+            setCertificate(null);
+            setCertificateMessage("");
         } finally {
             setLoading(false);
         }
@@ -807,6 +921,85 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
             window.clearTimeout(timeoutId);
         };
     }, [loadCourseContent]);
+
+    function canGenerateCertificate(
+        nextCompletedBlocks: number[],
+        nextQuizResponses: QuizzResponse[],
+    ) {
+        const completedSet = new Set(nextCompletedBlocks);
+
+        const allCourseBlocksCompleted =
+            allBlocks.length > 0 &&
+            allBlocks.every((block) => completedSet.has(block.id));
+
+        const quizBlocks = getQuizBlocks(allBlocks);
+
+        const allQuizzesApproved = quizBlocks.every((block) => {
+            const response = getQuizResponseForBlock(
+                nextQuizResponses,
+                block.id,
+            );
+
+            return response?.is_passed === true;
+        });
+
+        return allCourseBlocksCompleted && allQuizzesApproved;
+    }
+
+    async function generateCertificateIfCourseFinished(
+        nextCompletedBlocks: number[],
+        nextQuizResponses: QuizzResponse[] = quizResponses,
+    ) {
+        if (certificate || certificateGenerating) return;
+
+        if (!studentUserId || !enrollmentId || !numericCourseId) return;
+
+        if (!canGenerateCertificate(nextCompletedBlocks, nextQuizResponses)) {
+            return;
+        }
+
+        try {
+            setCertificateGenerating(true);
+            setCertificateMessage("");
+
+            const template = await getCertificateTemplate(numericCourseId);
+
+            if (!template.id) {
+                setCertificateMessage(
+                    "Curso terminado, pero aún no existe una plantilla de certificado para este curso.",
+                );
+                return;
+            }
+
+            const finalGrade = getAverageQuizScore(
+                nextQuizResponses,
+                allBlocks,
+            );
+
+            const createdCertificate = await createCertificateFromTemplate({
+                userId: studentUserId,
+                courseId: numericCourseId,
+                template,
+                values: {
+                    studentName: studentName || "Estudiante",
+                    courseName: courseName || `Curso #${numericCourseId}`,
+                    completionDate: new Date().toLocaleDateString("es-EC"),
+                    instructorName: "Instructor",
+                    certificateCode: "",
+                    finalGrade,
+                },
+            });
+
+            setCertificate(createdCertificate);
+            setCertificateMessage(
+                "Curso terminado. Tu certificado se generó automáticamente.",
+            );
+        } catch (error) {
+            setCertificateMessage(getErrorMessage(error));
+        } finally {
+            setCertificateGenerating(false);
+        }
+    }
 
     async function registerBlockStarted(blockId: number) {
         if (!enrollmentId) return;
@@ -832,29 +1025,57 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
         }
     }
 
-    async function markBlockAsCompleted(blockId: number) {
-        if (completedBlocks.includes(blockId)) return;
+    async function markBlockAsCompleted(
+        blockId: number,
+        nextQuizResponses: QuizzResponse[] = quizResponses,
+    ) {
+        if (completedBlocks.includes(blockId)) {
+            await generateCertificateIfCourseFinished(
+                completedBlocks,
+                nextQuizResponses,
+            );
+
+            return completedBlocks;
+        }
 
         if (!enrollmentId) {
             setErrorMessage("No se pudo identificar la matrícula del estudiante.");
-            return;
+            return null;
         }
 
         try {
             setProgressSavingBlockId(blockId);
             setErrorMessage("");
 
-            setCompletedBlocks((current) =>
-                current.includes(blockId) ? current : [...current, blockId],
-            );
+            const nextCompletedBlocks = getUniqueNumbers([
+                ...completedBlocks,
+                blockId,
+            ]);
+
+            setCompletedBlocks(nextCompletedBlocks);
 
             await completeBlockProgress(enrollmentId, blockId);
-            await refreshProgress(enrollmentId);
+
+            const progressResponse = await refreshProgress(enrollmentId);
+
+            const freshCompletedBlocks = progressResponse
+                .filter((item) => item.is_completed)
+                .map((item) => item.lesson_block_id);
+
+            setCompletedBlocks(freshCompletedBlocks);
+
+            await generateCertificateIfCourseFinished(
+                freshCompletedBlocks,
+                nextQuizResponses,
+            );
+
+            return freshCompletedBlocks;
         } catch (error) {
             setCompletedBlocks((current) =>
                 current.filter((currentBlockId) => currentBlockId !== blockId),
             );
             setErrorMessage(getErrorMessage(error));
+            return null;
         } finally {
             setProgressSavingBlockId(null);
         }
@@ -872,7 +1093,8 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                     if (!studentResponse) return;
 
                     setQuizResult(
-                        getQuizAttemptsCount(studentResponse) >= MAX_QUIZ_ATTEMPTS
+                        getQuizAttemptsCount(studentResponse) >=
+                            MAX_QUIZ_ATTEMPTS
                             ? "Ya alcanzaste el máximo de 3 intentos para esta evaluación."
                             : "",
                     );
@@ -1001,12 +1223,18 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                     is_passed: isPassed,
                 });
 
-            setQuizResponses((current) =>
-                upsertQuizResponse(current, savedQuizResponse),
+            const updatedQuizResponses = upsertQuizResponse(
+                quizResponses,
+                savedQuizResponse,
             );
 
+            setQuizResponses(updatedQuizResponses);
+
             if (isPassed) {
-                await markBlockAsCompleted(selectedBlock.id);
+                await markBlockAsCompleted(
+                    selectedBlock.id,
+                    updatedQuizResponses,
+                );
 
                 setQuizResult(
                     `Evaluación aprobada. Intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}.`,
@@ -1058,6 +1286,100 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
         );
     }
 
+    function renderCertificatePanel() {
+        return (
+            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-start gap-4">
+                        <div
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${certificate
+                                ? "bg-emerald-50 text-emerald-700"
+                                : courseCompleted
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-blue-50 text-blue-700"
+                                }`}
+                        >
+                            {certificate ? (
+                                <FileCheck2 className="h-6 w-6" />
+                            ) : (
+                                <Award className="h-6 w-6" />
+                            )}
+                        </div>
+
+                        <div>
+                            <h2 className="text-lg font-black text-slate-950">
+                                Certificado del curso
+                            </h2>
+
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
+                                {certificate
+                                    ? "Ya puedes visualizar tu certificado de finalización."
+                                    : courseCompleted
+                                        ? "Terminaste el curso. Estamos preparando tu certificado."
+                                        : "Cuando completes el curso y apruebes las evaluaciones, aquí aparecerá tu certificado."}
+                            </p>
+
+                            {certificateMessage ? (
+                                <p className="mt-2 text-sm font-bold text-blue-700">
+                                    {certificateMessage}
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        {certificateVerifyUrl ? (
+                            <a
+                                href={certificateVerifyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700"
+                            >
+                                <FileCheck2 className="h-4 w-4" />
+                                Ver certificado
+                            </a>
+                        ) : null}
+
+                        {certificateFileUrl ? (
+                            <a
+                                href={certificateFileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                            >
+                                <Download className="h-4 w-4" />
+                                Descargar PDF
+                            </a>
+                        ) : null}
+
+                        {!certificate && courseCompleted ? (
+                            <button
+                                type="button"
+                                disabled={certificateGenerating}
+                                onClick={() =>
+                                    void generateCertificateIfCourseFinished(
+                                        completedBlocks,
+                                        quizResponses,
+                                    )
+                                }
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {certificateGenerating ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Award className="h-4 w-4" />
+                                )}
+                                {certificateGenerating
+                                    ? "Generando..."
+                                    : "Generar certificado"}
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     function renderSelectedBlockContent() {
         if (!selectedBlock) {
             return (
@@ -1104,8 +1426,9 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                                 <PlayCircle className="mb-3 h-10 w-10 text-white/70" />
                                 <p>No se pudo generar la vista previa del video.</p>
                                 <p className="mt-2 max-w-xl text-xs font-medium leading-5 text-white/60">
-                                    Verifica que el enlace sea de YouTube, Microsoft Stream,
-                                    SharePoint, OneDrive o un archivo de video válido.
+                                    Verifica que el enlace sea de YouTube,
+                                    Microsoft Stream, SharePoint, OneDrive o un
+                                    archivo de video válido.
                                 </p>
                             </div>
                         )}
@@ -1226,7 +1549,8 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
 
                     <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                         <p className="text-sm font-bold text-blue-800">
-                            Intentos usados: {usedAttempts} de {MAX_QUIZ_ATTEMPTS}
+                            Intentos usados: {usedAttempts} de{" "}
+                            {MAX_QUIZ_ATTEMPTS}
                         </p>
 
                         <p className="mt-1 text-sm leading-6 text-blue-700">
@@ -1427,6 +1751,8 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                         </div>
                     </div>
 
+                    {renderCertificatePanel()}
+
                     <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
                         <aside className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
                             <h2 className="text-lg font-black text-slate-950">
@@ -1451,11 +1777,13 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        setOpenModules((current) => ({
-                                                            ...current,
-                                                            [moduleItem.id]:
-                                                                !isModuleOpen,
-                                                        }))
+                                                        setOpenModules(
+                                                            (current) => ({
+                                                                ...current,
+                                                                [moduleItem.id]:
+                                                                    !isModuleOpen,
+                                                            }),
+                                                        )
                                                     }
                                                     className="flex w-full items-center justify-between gap-3 text-left"
                                                 >

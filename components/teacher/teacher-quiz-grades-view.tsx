@@ -100,9 +100,10 @@ function getErrorMessage(error: unknown) {
 }
 
 function getCourseIdFromPathname(pathname: string) {
-    const match = pathname.match(/\/teacher\/courses\/(\d+)\/grades/);
+    const teacherMatch = pathname.match(/^\/teacher\/courses\/([^/]+)\/grades/);
+    const adminMatch = pathname.match(/^\/admin\/courses\/([^/]+)\/grades/);
 
-    return match?.[1] ?? "";
+    return teacherMatch?.[1] ?? adminMatch?.[1] ?? "";
 }
 
 function sortByOrder<T extends { order: number }>(items: T[]) {
@@ -385,15 +386,24 @@ export function TeacherQuizGradesView({
 }: TeacherQuizGradesViewProps) {
     const pathname = usePathname();
 
-    const currentCourseId = useMemo(() => {
+    const routeCourseId = useMemo(() => {
         const rawCourseId =
             courseId ?? params?.courseId ?? getCourseIdFromPathname(pathname);
 
         const parsedCourseId = Number(rawCourseId);
 
-        return Number.isFinite(parsedCourseId) ? parsedCourseId : 0;
+        return Number.isFinite(parsedCourseId) && parsedCourseId > 0
+            ? parsedCourseId
+            : 0;
     }, [courseId, params?.courseId, pathname]);
 
+    const isAdminRoute = pathname.startsWith("/admin");
+    const [selectedCourseId, setSelectedCourseId] = useState(0);
+
+    const currentCourseId =
+        routeCourseId > 0 ? routeCourseId : selectedCourseId;
+
+    const [courses, setCourses] = useState<Course[]>([]);
     const [course, setCourse] = useState<Course | null>(null);
     const [quizBlocks, setQuizBlocks] = useState<QuizBlockInfo[]>([]);
     const [grades, setGrades] = useState<GradeRow[]>([]);
@@ -416,6 +426,11 @@ export function TeacherQuizGradesView({
     const [editScores, setEditScores] = useState<Record<number, string>>({});
     const [editPassed, setEditPassed] = useState<Record<number, boolean>>({});
     const [modalError, setModalError] = useState("");
+
+    const courseOptions = useMemo(
+        () => [...courses].sort((a, b) => a.name.localeCompare(b.name)),
+        [courses],
+    );
 
     const filteredGrades = useMemo(() => {
         const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -483,8 +498,14 @@ export function TeacherQuizGradesView({
                         (item) =>
                             Number(item.user_id) === userId &&
                             Number(item.course_id) === currentCourseId &&
-                            item.is_valid,
-                    ) ?? null;
+                            item.is_valid !== false,
+                    ) ??
+                    certificates.find(
+                        (item) =>
+                            Number(item.user_id) === userId &&
+                            Number(item.course_id) === currentCourseId,
+                    ) ??
+                    null;
 
                 return {
                     enrollmentId,
@@ -544,16 +565,6 @@ export function TeacherQuizGradesView({
 
     const loadGrades = useCallback(
         async (showRefresh = false) => {
-            if (!currentCourseId || currentCourseId <= 0) {
-                setCourse(null);
-                setQuizBlocks([]);
-                setGrades([]);
-                setCertificates([]);
-                setErrorMessage("No se pudo identificar el curso actual.");
-                setIsLoading(false);
-                return;
-            }
-
             try {
                 if (showRefresh) {
                     setIsRefreshing(true);
@@ -564,12 +575,26 @@ export function TeacherQuizGradesView({
                 setErrorMessage("");
                 setNotice("");
 
+                if (!currentCourseId || currentCourseId <= 0) {
+                    const coursesData = await getAllCourses();
+
+                    setCourses(Array.isArray(coursesData) ? coursesData : []);
+                    setCourse(null);
+                    setQuizBlocks([]);
+                    setGrades([]);
+                    setCertificates([]);
+                    setCurrentPage(1);
+                    return;
+                }
+
                 const [coursesData, courseModules, courseCertificates] =
                     await Promise.all([
                         getAllCourses(),
                         getModulesByCourse(currentCourseId),
                         getCertificatesByCourse(currentCourseId),
                     ]);
+
+                setCourses(Array.isArray(coursesData) ? coursesData : []);
 
                 const currentCourse =
                     coursesData.find(
@@ -658,6 +683,22 @@ export function TeacherQuizGradesView({
         };
     }, [loadGrades]);
 
+    function handleSelectCourse(value: string) {
+        const parsedCourseId = Number(value);
+
+        setSelectedCourseId(
+            Number.isFinite(parsedCourseId) && parsedCourseId > 0
+                ? parsedCourseId
+                : 0,
+        );
+        setSearchTerm("");
+        setSelectedBlockId(0);
+        setCurrentPage(1);
+        setErrorMessage("");
+        setNotice("");
+        setGroupModal(null);
+    }
+
     function openGroupModal(group: EnrollmentGroup) {
         const scores: Record<number, string> = {};
         const passed: Record<number, boolean> = {};
@@ -694,8 +735,7 @@ export function TeacherQuizGradesView({
                 (item) =>
                     !(
                         Number(item.user_id) === Number(certificate.user_id) &&
-                        Number(item.course_id) ===
-                        Number(certificate.course_id)
+                        Number(item.course_id) === Number(certificate.course_id)
                     ),
             );
 
@@ -826,18 +866,38 @@ export function TeacherQuizGradesView({
                 );
             }
 
+            const freshCertificates = await getCertificatesByCourse(currentCourseId);
+
+            const validCertificate =
+                freshCertificates.find(
+                    (item) =>
+                        Number(item.user_id) === group.userId &&
+                        Number(item.course_id) === currentCourseId &&
+                        item.is_valid !== false,
+                ) ?? null;
+
+            const anyExistingCertificate =
+                validCertificate ??
+                freshCertificates.find(
+                    (item) =>
+                        Number(item.user_id) === group.userId &&
+                        Number(item.course_id) === currentCourseId,
+                ) ??
+                group.certificate ??
+                null;
+
             const values = {
                 studentName: group.studentName,
                 courseName: course.name,
                 completionDate: new Date().toLocaleDateString("es-EC"),
                 instructorName: "Instructor",
-                certificateCode: group.certificate?.certificate_code ?? "",
+                certificateCode: anyExistingCertificate?.certificate_code ?? "",
                 finalGrade: group.averageScore,
             };
 
-            const certificate = group.certificate
+            const certificate = anyExistingCertificate
                 ? await reissueCertificateFromTemplate({
-                    certificateId: group.certificate.id,
+                    certificateId: anyExistingCertificate.id,
                     userId: group.userId,
                     courseId: currentCourseId,
                     template,
@@ -850,10 +910,25 @@ export function TeacherQuizGradesView({
                     values,
                 });
 
-            updateCertificateState(certificate);
+            const updatedCertificates = await getCertificatesByCourse(currentCourseId);
+
+            setCertificates(updatedCertificates);
+
+            setGroupModal((current) => {
+                if (!current) return current;
+
+                if (current.group.userId !== group.userId) return current;
+
+                return {
+                    group: {
+                        ...current.group,
+                        certificate,
+                    },
+                };
+            });
 
             setNotice(
-                group.certificate
+                anyExistingCertificate
                     ? "Certificado reemitido correctamente."
                     : "Certificado generado correctamente.",
             );
@@ -872,8 +947,80 @@ export function TeacherQuizGradesView({
             <section className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
                 <p className="mt-4 text-sm font-bold text-slate-600">
-                    Cargando calificaciones del curso...
+                    {currentCourseId > 0
+                        ? "Cargando calificaciones del curso..."
+                        : "Cargando cursos disponibles..."}
                 </p>
+            </section>
+        );
+    }
+
+    if (currentCourseId <= 0) {
+        return (
+            <section className="space-y-6">
+                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-6 md:px-7">
+                        <div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-100">
+                                <Award className="h-3.5 w-3.5" />
+                                Panel del administrador
+                            </div>
+
+                            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+                                Gestión de calificaciones
+                            </h1>
+
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
+                                Selecciona primero un curso para cargar sus
+                                cuestionarios, matrículas, notas y certificados.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="p-5">
+                        {errorMessage ? (
+                            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                                <span>{errorMessage}</span>
+                            </div>
+                        ) : null}
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                Curso
+                            </label>
+
+                            <select
+                                value=""
+                                onChange={(event) =>
+                                    handleSelectCourse(event.target.value)
+                                }
+                                className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                            >
+                                <option value="">Selecciona un curso</option>
+                                {courseOptions.map((courseItem) => (
+                                    <option
+                                        key={courseItem.id}
+                                        value={courseItem.id}
+                                    >
+                                        {courseItem.name}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {courseOptions.length === 0 ? (
+                                <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    No hay cursos registrados para mostrar.
+                                </p>
+                            ) : (
+                                <p className="mt-3 text-sm font-semibold text-slate-500">
+                                    Al seleccionar un curso se cargarán las
+                                    calificaciones agrupadas por matrícula.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </section>
         );
     }
@@ -886,7 +1033,9 @@ export function TeacherQuizGradesView({
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-100">
                                 <Award className="h-3.5 w-3.5" />
-                                Panel del profesor
+                                {isAdminRoute
+                                    ? "Panel del administrador"
+                                    : "Panel del profesor"}
                             </div>
 
                             <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
@@ -943,7 +1092,7 @@ export function TeacherQuizGradesView({
                 </div>
 
                 <div className="border-t border-slate-100 bg-white p-5">
-                    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 xl:grid-cols-[1fr_auto] xl:items-end">
+                    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 xl:grid-cols-[minmax(0,1fr)_320px_auto] xl:items-end">
                         <div className="space-y-2">
                             <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
                                 Buscar dentro del curso
@@ -962,6 +1111,32 @@ export function TeacherQuizGradesView({
                                 />
                             </div>
                         </div>
+
+                        {isAdminRoute && routeCourseId <= 0 ? (
+                            <div className="space-y-2">
+                                <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    Curso seleccionado
+                                </label>
+
+                                <select
+                                    value={currentCourseId || ""}
+                                    onChange={(event) =>
+                                        handleSelectCourse(event.target.value)
+                                    }
+                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+                                    <option value="">Selecciona un curso</option>
+                                    {courseOptions.map((courseItem) => (
+                                        <option
+                                            key={courseItem.id}
+                                            value={courseItem.id}
+                                        >
+                                            {courseItem.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ) : null}
 
                         <button
                             type="button"
@@ -1207,8 +1382,8 @@ export function TeacherQuizGradesView({
                                                             : undefined
                                                     }
                                                     className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${group.certificate
-                                                            ? "bg-amber-600 hover:bg-amber-700"
-                                                            : "bg-emerald-600 hover:bg-emerald-700"
+                                                        ? "bg-amber-600 hover:bg-amber-700"
+                                                        : "bg-emerald-600 hover:bg-emerald-700"
                                                         }`}
                                                 >
                                                     {generatingCertificateUserId ===
@@ -1350,22 +1525,22 @@ export function TeacherQuizGradesView({
 
                                 <div
                                     className={`rounded-xl border px-4 py-3 ${groupModal.group.certificate
-                                            ? "border-emerald-100 bg-emerald-50"
-                                            : "border-slate-200 bg-slate-50"
+                                        ? "border-emerald-100 bg-emerald-50"
+                                        : "border-slate-200 bg-slate-50"
                                         }`}
                                 >
                                     <p
                                         className={`text-[11px] font-black uppercase tracking-[0.12em] ${groupModal.group.certificate
-                                                ? "text-emerald-700"
-                                                : "text-slate-500"
+                                            ? "text-emerald-700"
+                                            : "text-slate-500"
                                             }`}
                                     >
                                         Certificado
                                     </p>
                                     <p
                                         className={`mt-1 text-sm font-black ${groupModal.group.certificate
-                                                ? "text-emerald-700"
-                                                : "text-slate-700"
+                                            ? "text-emerald-700"
+                                            : "text-slate-700"
                                             }`}
                                     >
                                         {groupModal.group.certificate
@@ -1402,8 +1577,8 @@ export function TeacherQuizGradesView({
                                         )
                                     }
                                     className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${groupModal.group.certificate
-                                            ? "bg-amber-600 hover:bg-amber-700"
-                                            : "bg-emerald-600 hover:bg-emerald-700"
+                                        ? "bg-amber-600 hover:bg-amber-700"
+                                        : "bg-emerald-600 hover:bg-emerald-700"
                                         }`}
                                 >
                                     {generatingCertificateUserId ===
@@ -1558,8 +1733,8 @@ export function TeacherQuizGradesView({
 
                                                                                                 <span
                                                                                                     className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${isCorrect
-                                                                                                            ? "bg-emerald-50 text-emerald-700"
-                                                                                                            : "bg-red-50 text-red-700"
+                                                                                                        ? "bg-emerald-50 text-emerald-700"
+                                                                                                        : "bg-red-50 text-red-700"
                                                                                                         }`}
                                                                                                 >
                                                                                                     {isCorrect
@@ -1603,8 +1778,7 @@ export function TeacherQuizGradesView({
                                                                             .response
                                                                             .score
                                                                     }
-                                                                    {maxScore >
-                                                                        0
+                                                                    {maxScore > 0
                                                                         ? ` / ${maxScore}`
                                                                         : ""}
                                                                 </span>
@@ -1615,8 +1789,7 @@ export function TeacherQuizGradesView({
                                                                     {
                                                                         minimumScore
                                                                     }
-                                                                    {maxScore >
-                                                                        0
+                                                                    {maxScore > 0
                                                                         ? ` / ${maxScore}`
                                                                         : ""}
                                                                 </span>
@@ -1669,8 +1842,7 @@ export function TeacherQuizGradesView({
                                                                     value={
                                                                         editScores[
                                                                         responseId
-                                                                        ] ??
-                                                                        ""
+                                                                        ] ?? ""
                                                                     }
                                                                     onChange={(
                                                                         event,

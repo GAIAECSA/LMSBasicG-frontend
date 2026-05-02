@@ -66,6 +66,8 @@ export type CertificateField = {
     textAlign: CertificateTextAlign;
     fieldMode: CertificateFieldMode;
     signatureImage?: string | null;
+    fontFamily?: string;
+    textCase?: "none" | "uppercase" | "lowercase" | "sentence";
 };
 
 export type CertificateQrConfig = {
@@ -749,6 +751,8 @@ export function createCertificateField(
         textAlign: "center",
         fieldMode: isSignature ? "signature" : "text",
         signatureImage: null,
+        fontFamily: "helvetica",
+        textCase: "none",
     };
 
     if (type === "student_name") {

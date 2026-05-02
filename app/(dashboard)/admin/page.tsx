@@ -179,6 +179,18 @@ export default function AdminPage() {
             href: "/admin/courses",
             count: dashboardData.courses.length,
         },
+        {
+            title: "Calificaciones",
+            description: "Revisión y gestión de notas por curso y matrícula.",
+            href: "/admin/grades",
+            count: approvedEnrollments.length,
+        },
+        {
+            title: "Certificados",
+            description: "Gestión de plantillas y emisión de certificados.",
+            href: "/admin/certificates",
+            count: publishedCourses.length,
+        },
     ];
 
     const quickActions = [
@@ -201,6 +213,16 @@ export default function AdminPage() {
             title: "Revisar matrículas",
             description: "Aprobar solicitudes y revisar comprobantes.",
             href: "/admin/enrollments",
+        },
+        {
+            title: "Gestionar calificaciones",
+            description: "Revisar notas, intentos y resultados por estudiante.",
+            href: "/admin/grades",
+        },
+        {
+            title: "Gestionar certificados",
+            description: "Administrar plantillas y emisión de certificados.",
+            href: "/admin/certificates",
         },
     ];
 
@@ -241,7 +263,7 @@ export default function AdminPage() {
                 </div>
             ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                 {modules.map((item) => (
                     <Link
                         key={item.title}

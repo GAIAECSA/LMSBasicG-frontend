@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -285,7 +286,9 @@ function normalizeQuizQuestions(value: unknown): QuizQuestion[] {
             question: typeof item.question === "string" ? item.question : "",
             options: getValidOptions(item.options),
             correct_answer:
-                typeof item.correct_answer === "number" ? item.correct_answer : 0,
+                typeof item.correct_answer === "number"
+                    ? item.correct_answer
+                    : 0,
             points: typeof item.points === "number" ? item.points : 1,
         };
     });
@@ -429,6 +432,13 @@ export function LessonItemEditorPage({
     courseId,
     itemId,
 }: LessonItemEditorPageProps) {
+    const pathname = usePathname();
+    const isAdminRoute = pathname.startsWith("/admin");
+
+    const backHref = isAdminRoute
+        ? `/admin/modules/${courseId}`
+        : `/teacher/courses/${courseId}/modules`;
+
     const numericCourseId = useMemo(() => Number(courseId), [courseId]);
     const numericItemId = useMemo(() => Number(itemId), [itemId]);
 
@@ -443,7 +453,9 @@ export function LessonItemEditorPage({
     const itemType = getItemType(block);
     const itemTypeLabel = getItemTypeLabel(itemType);
     const existingFileUrl = block ? getExistingFileUrl(block.content ?? {}) : "";
-    const fullExistingFileUrl = existingFileUrl ? normalizeUrl(existingFileUrl) : "";
+    const fullExistingFileUrl = existingFileUrl
+        ? normalizeUrl(existingFileUrl)
+        : "";
 
     const loadDetail = useCallback(async () => {
         try {
@@ -696,7 +708,7 @@ export function LessonItemEditorPage({
         <section className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Link
-                    href={`/teacher/courses/${courseId}/modules`}
+                    href={backHref}
                     className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -728,7 +740,7 @@ export function LessonItemEditorPage({
                     </p>
 
                     <Link
-                        href={`/teacher/courses/${courseId}/modules`}
+                        href={backHref}
                         className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-red-600 px-5 text-sm font-bold text-white transition hover:bg-red-700"
                     >
                         Volver a módulos
@@ -793,7 +805,8 @@ export function LessonItemEditorPage({
                                 </h2>
 
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Edita la información principal que verá el estudiante.
+                                    Edita la información principal que verá el
+                                    estudiante.
                                 </p>
 
                                 <div className="mt-6 space-y-2">
@@ -862,7 +875,8 @@ export function LessonItemEditorPage({
                                             onChange={(event) =>
                                                 setForm((current) => ({
                                                     ...current,
-                                                    description: event.target.value,
+                                                    description:
+                                                        event.target.value,
                                                 }))
                                             }
                                             placeholder="Describe brevemente el material..."
@@ -910,14 +924,21 @@ export function LessonItemEditorPage({
                                                     </p>
 
                                                     <p className="text-xs font-semibold text-blue-700">
-                                                        Nuevo archivo seleccionado ·{" "}
-                                                        {(selectedFile.size / 1024).toFixed(1)} KB
+                                                        Nuevo archivo
+                                                        seleccionado ·{" "}
+                                                        {(
+                                                            selectedFile.size /
+                                                            1024
+                                                        ).toFixed(1)}{" "}
+                                                        KB
                                                     </p>
                                                 </div>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedFile(null)}
+                                                    onClick={() =>
+                                                        setSelectedFile(null)
+                                                    }
                                                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-red-700 transition hover:bg-red-50"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -948,9 +969,11 @@ export function LessonItemEditorPage({
                                             </div>
                                         ) : null}
 
-                                        {!selectedFile && !fullExistingFileUrl ? (
+                                        {!selectedFile &&
+                                            !fullExistingFileUrl ? (
                                             <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">
-                                                Todavía no has seleccionado archivo.
+                                                Todavía no has seleccionado
+                                                archivo.
                                             </div>
                                         ) : null}
                                     </div>
@@ -964,7 +987,8 @@ export function LessonItemEditorPage({
                                     </h2>
 
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Se guardará con block_type_id 1 y completion_type VIDEO.
+                                        Se guardará con block_type_id 1 y
+                                        completion_type VER.
                                     </p>
 
                                     <div className="mt-5 grid gap-4 md:grid-cols-[1fr_180px]">
@@ -978,7 +1002,8 @@ export function LessonItemEditorPage({
                                                 onChange={(event) =>
                                                     setForm((current) => ({
                                                         ...current,
-                                                        video_url: event.target.value,
+                                                        video_url:
+                                                            event.target.value,
                                                     }))
                                                 }
                                                 placeholder="https://www.youtube.com/watch?v=..."
@@ -1039,7 +1064,8 @@ export function LessonItemEditorPage({
                                             </h2>
 
                                             <p className="mt-1 text-sm text-slate-500">
-                                                Se guardará con block_type_id 2 y completion_type RESPONDER.
+                                                Se guardará con block_type_id 2
+                                                y completion_type RESPONDER.
                                             </p>
                                         </div>
 
@@ -1098,7 +1124,8 @@ export function LessonItemEditorPage({
                                     <div className="mt-6 space-y-4">
                                         {form.quiz_questions.length === 0 ? (
                                             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                                                Todavía no has agregado preguntas.
+                                                Todavía no has agregado
+                                                preguntas.
                                             </div>
                                         ) : (
                                             form.quiz_questions.map(
@@ -1109,7 +1136,8 @@ export function LessonItemEditorPage({
                                                     >
                                                         <div className="mb-4 flex items-center justify-between gap-3">
                                                             <p className="text-sm font-black text-slate-950">
-                                                                Pregunta {index + 1}
+                                                                Pregunta{" "}
+                                                                {index + 1}
                                                             </p>
 
                                                             <button
@@ -1128,7 +1156,8 @@ export function LessonItemEditorPage({
                                                         <div className="space-y-4">
                                                             <div className="space-y-2">
                                                                 <label className="block text-xs font-bold text-slate-600">
-                                                                    Texto de la pregunta
+                                                                    Texto de la
+                                                                    pregunta
                                                                 </label>
 
                                                                 <input
@@ -1194,7 +1223,8 @@ export function LessonItemEditorPage({
                                                             <div className="grid gap-3 md:grid-cols-2">
                                                                 <div className="space-y-2">
                                                                     <label className="block text-xs font-bold text-slate-600">
-                                                                        Respuesta correcta
+                                                                        Respuesta
+                                                                        correcta
                                                                     </label>
 
                                                                     <select
@@ -1215,17 +1245,37 @@ export function LessonItemEditorPage({
                                                                         }
                                                                         className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                                                     >
-                                                                        <option value={0}>
-                                                                            Opción 1
+                                                                        <option
+                                                                            value={
+                                                                                0
+                                                                            }
+                                                                        >
+                                                                            Opción
+                                                                            1
                                                                         </option>
-                                                                        <option value={1}>
-                                                                            Opción 2
+                                                                        <option
+                                                                            value={
+                                                                                1
+                                                                            }
+                                                                        >
+                                                                            Opción
+                                                                            2
                                                                         </option>
-                                                                        <option value={2}>
-                                                                            Opción 3
+                                                                        <option
+                                                                            value={
+                                                                                2
+                                                                            }
+                                                                        >
+                                                                            Opción
+                                                                            3
                                                                         </option>
-                                                                        <option value={3}>
-                                                                            Opción 4
+                                                                        <option
+                                                                            value={
+                                                                                3
+                                                                            }
+                                                                        >
+                                                                            Opción
+                                                                            4
                                                                         </option>
                                                                     </select>
                                                                 </div>

@@ -8,27 +8,78 @@ export interface SidebarItem {
 
 export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
     admin: [
-        { label: "Inicio", href: "/admin" },
-        { label: "Docentes", href: "/admin/teachers" },
-        { label: "Estudiantes", href: "/admin/students" },
+        {
+            label: "Inicio",
+            href: "/admin",
+        },
+        {
+            label: "Usuarios",
+            href: "/admin/users",
+        },
+        {
+            label: "Docentes",
+            href: "/admin/teachers",
+        },
+        {
+            label: "Estudiantes",
+            href: "/admin/students",
+        },
         {
             label: "Cursos",
             href: "/admin/courses",
             children: [
-                { label: "Categoría", href: "/admin/courses/categories" },
-                { label: "Subcategoría", href: "/admin/courses/subcategories" },
+                {
+                    label: "Lista de cursos",
+                    href: "/admin/courses",
+                },
+                {
+                    label: "Categoría",
+                    href: "/admin/courses/categories",
+                },
+                {
+                    label: "Subcategoría",
+                    href: "/admin/courses/subcategories",
+                },
             ],
         },
-        { label: "Matrículas", href: "/admin/enrollments" },
-        { label: "Usuarios", href: "/admin/users" },
+        {
+            label: "Módulos",
+            href: "/admin/modules",
+        },
+        {
+            label: "Matrículas",
+            href: "/admin/enrollments",
+        },
+        {
+            label: "Calificaciones",
+            href: "/admin/grades",
+        },
+        {
+            label: "Certificados",
+            href: "/admin/certificates",
+        },
     ],
 
-    teacher: [{ label: "Mis cursos", href: "/teacher/courses" }],
+    teacher: [
+        {
+            label: "Mis cursos",
+            href: "/teacher/courses",
+        },
+    ],
 
     student: [
-        { label: "Inicio", href: "/student" },
-        { label: "Mis cursos", href: "/student/courses" },
-        { label: "Certificados", href: "/student/certificates" },
+        {
+            label: "Inicio",
+            href: "/student",
+        },
+        {
+            label: "Mis cursos",
+            href: "/student/courses",
+        },
+        {
+            label: "Certificados",
+            href: "/student/certificates",
+        },
     ],
 };
 
@@ -71,6 +122,10 @@ export function getSidebarItemsByRoute(
         return sidebarByRole.student;
     }
 
+    if (effectiveRole === "admin") {
+        return sidebarByRole.admin;
+    }
+
     if (effectiveRole !== "teacher") {
         return sidebarByRole[effectiveRole];
     }
@@ -103,6 +158,10 @@ export function getSidebarItemsByRoute(
                     href: `/teacher/courses/${courseId}/certificates`,
                 },
             ],
+        },
+        {
+            label: "Mis cursos",
+            href: "/teacher/courses",
         },
     ];
 }
