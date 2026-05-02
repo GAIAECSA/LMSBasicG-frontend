@@ -47,6 +47,7 @@ import {
     createCertificateFromTemplate,
     getCertificatesByCourse,
     getCertificateTemplate,
+    reissueCertificateFromTemplate,
     type Certificate,
 } from "@/services/certificates.service";
 import { getAuthSession } from "@/lib/auth";
@@ -653,6 +654,15 @@ function getCertificateVerifyUrl(certificate: Certificate | null) {
     return `/certificates/verify/${certificate.certificate_code}`;
 }
 
+function getCertificateTargetUrl(certificate: Certificate | null) {
+    if (!certificate) return "";
+
+    const verifyUrl = getCertificateVerifyUrl(certificate);
+    const fileUrl = getCertificateFileUrl(certificate);
+
+    return verifyUrl || fileUrl;
+}
+
 function getUniqueNumbers(values: number[]) {
     return Array.from(new Set(values));
 }
@@ -735,7 +745,8 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
 
     const courseCompleted = totalBlocks > 0 && completedCount === totalBlocks;
     const certificateFileUrl = getCertificateFileUrl(certificate);
-    const certificateVerifyUrl = getCertificateVerifyUrl(certificate);
+    const certificateTargetUrl = getCertificateTargetUrl(certificate);
+    const certificateReady = Boolean(certificate && certificateTargetUrl);
 
     async function refreshProgress(currentEnrollmentId: number) {
         const progressResponse = await getProgressByEnrollment(currentEnrollmentId);
@@ -949,13 +960,31 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     async function generateCertificateIfCourseFinished(
         nextCompletedBlocks: number[],
         nextQuizResponses: QuizzResponse[] = quizResponses,
-    ) {
-        if (certificate || certificateGenerating) return;
+    ): Promise<Certificate | null> {
+        if (certificateGenerating) return null;
 
-        if (!studentUserId || !enrollmentId || !numericCourseId) return;
+        const currentCertificateTargetUrl = getCertificateTargetUrl(certificate);
+
+        if (certificate && currentCertificateTargetUrl) {
+            setCertificateMessage(
+                "Tu certificado ya fue generado. Puedes visualizarlo.",
+            );
+
+            return certificate;
+        }
+
+        if (!studentUserId || !enrollmentId || !numericCourseId) {
+            setCertificateMessage(
+                "No se pudo identificar al estudiante o la matrícula.",
+            );
+            return null;
+        }
 
         if (!canGenerateCertificate(nextCompletedBlocks, nextQuizResponses)) {
-            return;
+            setCertificateMessage(
+                "Primero debes completar el 100% del curso y aprobar las evaluaciones.",
+            );
+            return null;
         }
 
         try {
@@ -968,37 +997,102 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 setCertificateMessage(
                     "Curso terminado, pero aún no existe una plantilla de certificado para este curso.",
                 );
-                return;
+                return null;
             }
 
-            const finalGrade = getAverageQuizScore(
-                nextQuizResponses,
-                allBlocks,
-            );
+            const finalGrade = getAverageQuizScore(nextQuizResponses, allBlocks);
 
-            const createdCertificate = await createCertificateFromTemplate({
-                userId: studentUserId,
-                courseId: numericCourseId,
-                template,
-                values: {
-                    studentName: studentName || "Estudiante",
-                    courseName: courseName || `Curso #${numericCourseId}`,
-                    completionDate: new Date().toLocaleDateString("es-EC"),
-                    instructorName: "Instructor",
-                    certificateCode: "",
-                    finalGrade,
-                },
-            });
+            const values = {
+                studentName: studentName || "Estudiante",
+                courseName: courseName || `Curso #${numericCourseId}`,
+                completionDate: new Date().toLocaleDateString("es-EC"),
+                instructorName: "Instructor",
+                certificateCode: certificate?.certificate_code ?? "",
+                finalGrade,
+            };
 
-            setCertificate(createdCertificate);
+            const generatedCertificate = certificate
+                ? await reissueCertificateFromTemplate({
+                    certificateId: certificate.id,
+                    userId: studentUserId,
+                    courseId: numericCourseId,
+                    template,
+                    values,
+                })
+                : await createCertificateFromTemplate({
+                    userId: studentUserId,
+                    courseId: numericCourseId,
+                    template,
+                    values,
+                });
+
+            setCertificate(generatedCertificate);
             setCertificateMessage(
-                "Curso terminado. Tu certificado se generó automáticamente.",
+                "Tu certificado se generó correctamente. Ahora puedes visualizarlo.",
             );
+
+            return generatedCertificate;
         } catch (error) {
-            setCertificateMessage(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            console.error("Error generando certificado:", error);
+
+            setCertificateMessage(
+                message.includes("403") ||
+                    message.toLowerCase().includes("forbidden") ||
+                    message.toLowerCase().includes("permisos")
+                    ? "No se pudo generar el certificado porque el backend no permite que el estudiante cree o actualice certificados."
+                    : message,
+            );
+
+            return null;
         } finally {
             setCertificateGenerating(false);
         }
+    }
+
+    async function handleViewCertificate() {
+        setCertificateMessage("");
+
+        if (!courseCompleted) {
+            setCertificateMessage(
+                `El certificado se habilitará cuando llegues al 100%. Progreso actual: ${progress}%.`,
+            );
+            return;
+        }
+
+        if (certificateGenerating) return;
+
+        const currentCertificateTargetUrl = getCertificateTargetUrl(certificate);
+
+        if (certificate && currentCertificateTargetUrl) {
+            window.open(currentCertificateTargetUrl, "_blank", "noopener,noreferrer");
+            return;
+        }
+
+        const generatedCertificate = await generateCertificateIfCourseFinished(
+            completedBlocks,
+            quizResponses,
+        );
+
+        if (!generatedCertificate) {
+            setCertificateMessage(
+                "No se pudo generar el certificado. Revisa que el curso tenga plantilla, que el progreso esté al 100% y que el backend permita emitir certificados.",
+            );
+            return;
+        }
+
+        const generatedCertificateTargetUrl =
+            getCertificateTargetUrl(generatedCertificate);
+
+        if (!generatedCertificateTargetUrl) {
+            setCertificateMessage(
+                "El certificado fue generado, pero no se encontró una URL para visualizarlo.",
+            );
+            return;
+        }
+
+        window.open(generatedCertificateTargetUrl, "_blank", "noopener,noreferrer");
     }
 
     async function registerBlockStarted(blockId: number) {
@@ -1025,16 +1119,8 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
         }
     }
 
-    async function markBlockAsCompleted(
-        blockId: number,
-        nextQuizResponses: QuizzResponse[] = quizResponses,
-    ) {
+    async function markBlockAsCompleted(blockId: number) {
         if (completedBlocks.includes(blockId)) {
-            await generateCertificateIfCourseFinished(
-                completedBlocks,
-                nextQuizResponses,
-            );
-
             return completedBlocks;
         }
 
@@ -1063,11 +1149,6 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 .map((item) => item.lesson_block_id);
 
             setCompletedBlocks(freshCompletedBlocks);
-
-            await generateCertificateIfCourseFinished(
-                freshCompletedBlocks,
-                nextQuizResponses,
-            );
 
             return freshCompletedBlocks;
         } catch (error) {
@@ -1231,10 +1312,7 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
             setQuizResponses(updatedQuizResponses);
 
             if (isPassed) {
-                await markBlockAsCompleted(
-                    selectedBlock.id,
-                    updatedQuizResponses,
-                );
+                await markBlockAsCompleted(selectedBlock.id);
 
                 setQuizResult(
                     `Evaluación aprobada. Intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}.`,
@@ -1287,19 +1365,28 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     }
 
     function renderCertificatePanel() {
+        const isViewCertificateDisabled =
+            !courseCompleted || certificateGenerating;
+
+        const buttonLabel = certificateGenerating
+            ? "Generando..."
+            : certificateReady
+                ? "Visualizar certificado"
+                : "Generar certificado";
+
         return (
             <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-start gap-4">
                         <div
-                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${certificate
-                                ? "bg-emerald-50 text-emerald-700"
-                                : courseCompleted
-                                    ? "bg-amber-50 text-amber-700"
-                                    : "bg-blue-50 text-blue-700"
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${certificateReady
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : courseCompleted
+                                        ? "bg-amber-50 text-amber-700"
+                                        : "bg-blue-50 text-blue-700"
                                 }`}
                         >
-                            {certificate ? (
+                            {certificateReady ? (
                                 <FileCheck2 className="h-6 w-6" />
                             ) : (
                                 <Award className="h-6 w-6" />
@@ -1312,12 +1399,20 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                             </h2>
 
                             <p className="mt-1 text-sm leading-6 text-slate-500">
-                                {certificate
-                                    ? "Ya puedes visualizar tu certificado de finalización."
+                                {certificateReady
+                                    ? "Tu certificado ya fue generado. Puedes visualizarlo cuando lo necesites."
                                     : courseCompleted
-                                        ? "Terminaste el curso. Estamos preparando tu certificado."
-                                        : "Cuando completes el curso y apruebes las evaluaciones, aquí aparecerá tu certificado."}
+                                        ? "Presiona Generar certificado. Luego el botón cambiará a visualización."
+                                        : "El certificado se habilitará cuando completes el 100% del curso."}
                             </p>
+
+                            {!courseCompleted ? (
+                                <p className="mt-2 text-sm font-bold text-slate-600">
+                                    Progreso actual: {progress}%. Completa todos
+                                    los contenidos y evaluaciones para
+                                    desbloquearlo.
+                                </p>
+                            ) : null}
 
                             {certificateMessage ? (
                                 <p className="mt-2 text-sm font-bold text-blue-700">
@@ -1328,17 +1423,22 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                     </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        {certificateVerifyUrl ? (
-                            <a
-                                href={certificateVerifyUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700"
-                            >
+                        <button
+                            type="button"
+                            disabled={isViewCertificateDisabled}
+                            onClick={() => void handleViewCertificate()}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {certificateGenerating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : certificateReady ? (
                                 <FileCheck2 className="h-4 w-4" />
-                                Ver certificado
-                            </a>
-                        ) : null}
+                            ) : (
+                                <Award className="h-4 w-4" />
+                            )}
+
+                            {buttonLabel}
+                        </button>
 
                         {certificateFileUrl ? (
                             <a
@@ -1350,29 +1450,6 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                                 <Download className="h-4 w-4" />
                                 Descargar PDF
                             </a>
-                        ) : null}
-
-                        {!certificate && courseCompleted ? (
-                            <button
-                                type="button"
-                                disabled={certificateGenerating}
-                                onClick={() =>
-                                    void generateCertificateIfCourseFinished(
-                                        completedBlocks,
-                                        quizResponses,
-                                    )
-                                }
-                                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {certificateGenerating ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Award className="h-4 w-4" />
-                                )}
-                                {certificateGenerating
-                                    ? "Generando..."
-                                    : "Generar certificado"}
-                            </button>
                         ) : null}
                     </div>
                 </div>

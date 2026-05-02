@@ -656,6 +656,7 @@ function normalizeTemplate(apiTemplate: ApiCertificateTemplate): CertificateTemp
 function serializeFields(fields: CertificateField[]) {
     return fields.map((field) => ({
         name: field.name ?? field.type,
+        type: field.type,
         x: field.x,
         y: field.y,
         id: field.id,
@@ -672,6 +673,8 @@ function serializeFields(fields: CertificateField[]) {
             field.fieldMode ??
             (isSignatureType(field.type) ? "signature" : "text"),
         signatureImage: null,
+        fontFamily: field.fontFamily ?? "georgia",
+        textCase: field.textCase ?? "none",
     }));
 }
 
@@ -1287,13 +1290,42 @@ function certificateBlobToDataUrl(blob: Blob) {
     });
 }
 
+function getCertificateImageFetchUrl(image: string) {
+    if (
+        image.startsWith("data:image/") ||
+        image.startsWith("blob:")
+    ) {
+        return image;
+    }
+
+    if (
+        image.startsWith("http://") ||
+        image.startsWith("https://")
+    ) {
+        return `/api/certificate-image-proxy?url=${encodeURIComponent(image)}`;
+    }
+
+    return image;
+}
+
 async function certificateImageToDataUrl(image: string) {
+    if (!image) {
+        throw new Error("No se encontró la imagen del certificado.");
+    }
+
     if (image.startsWith("data:image/")) return image;
 
-    const response = await fetch(image);
+    const imageFetchUrl = getCertificateImageFetchUrl(image);
+
+    const response = await fetch(imageFetchUrl, {
+        method: "GET",
+        cache: "no-store",
+    });
 
     if (!response.ok) {
-        throw new Error("No se pudo cargar una imagen del certificado.");
+        throw new Error(
+            "No se pudo cargar una imagen del certificado. Verifica que la imagen de fondo o firma exista en /uploads.",
+        );
     }
 
     const blob = await response.blob();
@@ -1488,6 +1520,39 @@ async function drawCertificateQrInPdf(params: {
     );
 }
 
+function getCertificatePdfFontFamily(fontFamily?: string) {
+    if (fontFamily === "Georgia" || fontFamily === "Times New Roman") {
+        return "times";
+    }
+
+    if (fontFamily === "Courier New") {
+        return "courier";
+    }
+
+    return "helvetica";
+}
+
+function applyCertificateSentenceCase(text: string) {
+    const lowerText = text.toLowerCase();
+
+    return lowerText.replace(
+        /(^\s*[a-záéíóúñü])|([.!?]\s+[a-záéíóúñü])|(\n\s*[a-záéíóúñü])/g,
+        (match) => match.toUpperCase(),
+    );
+}
+
+function applyCertificateTextCase(
+    text: string,
+    textCase?: "none" | "uppercase" | "lowercase" | "sentence",
+) {
+    if (textCase === "uppercase") return text.toUpperCase();
+    if (textCase === "lowercase") return text.toLowerCase();
+    if (textCase === "sentence") return applyCertificateSentenceCase(text);
+
+    return text;
+}
+
+
 export async function generateCertificatePdfFile(params: {
     template: CertificateTemplate;
     values: CertificatePdfValues;
@@ -1561,7 +1626,7 @@ export async function generateCertificatePdfFile(params: {
 
         pdf.setTextColor(r, g, b);
         pdf.setFont(
-            "helvetica",
+            getCertificatePdfFontFamily(field.fontFamily),
             field.fontWeight === "bold" ? "bold" : "normal",
         );
 
@@ -1629,9 +1694,12 @@ export async function generateCertificatePdfFile(params: {
             const labelMm = certificatePtToMm(labelFontPt);
             const labelY = lineY + labelMm * 1.15;
 
-            const signatureText = replaceCertificateTemplateVariables(
-                field.value || field.label,
-                params.values,
+            const signatureText = applyCertificateTextCase(
+                replaceCertificateTemplateVariables(
+                    field.value || field.label,
+                    params.values,
+                ),
+                field.textCase,
             );
 
             pdf.text(signatureText, centerX, labelY, {
@@ -1642,12 +1710,17 @@ export async function generateCertificatePdfFile(params: {
             continue;
         }
 
-        const safeText = replaceCertificateTemplateVariables(
-            field.value || field.label,
-            params.values,
+        const safeText = applyCertificateTextCase(
+            replaceCertificateTemplateVariables(
+                field.value || field.label,
+                params.values,
+            ),
+            field.textCase,
         );
 
-        const lines = pdf.splitTextToSize(safeText, fieldWidthMm);
+        const lines = safeText
+            .split("\n")
+            .flatMap((line) => pdf.splitTextToSize(line || " ", fieldWidthMm));
 
         const lineHeightMm = certificatePtToMm(fontSizePt) * 1.15;
         const totalTextHeight = lines.length * lineHeightMm;

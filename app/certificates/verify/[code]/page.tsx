@@ -19,14 +19,27 @@ function normalizeApiBaseUrl(url: string) {
 const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL);
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, "");
 
+type CertificateResponse = {
+    id?: number;
+    certificate_code?: string;
+    file_url?: string | null;
+    pdf_url?: string | null;
+    certificate_url?: string | null;
+    url?: string | null;
+    path?: string | null;
+};
+
 function buildFileUrl(url: string | null | undefined) {
     if (!url) return "";
 
     const cleanUrl = url.trim();
 
+    if (!cleanUrl) return "";
+
     if (
         cleanUrl.startsWith("http://") ||
-        cleanUrl.startsWith("https://")
+        cleanUrl.startsWith("https://") ||
+        cleanUrl.startsWith("data:")
     ) {
         return cleanUrl;
     }
@@ -38,9 +51,22 @@ function buildFileUrl(url: string | null | undefined) {
     return `${API_ORIGIN}/${cleanUrl}`;
 }
 
+function getCertificateFileUrl(certificate: CertificateResponse) {
+    return buildFileUrl(
+        certificate.file_url ||
+        certificate.pdf_url ||
+        certificate.certificate_url ||
+        certificate.url ||
+        certificate.path ||
+        "",
+    );
+}
+
 export default function VerifyCertificatePage() {
     const params = useParams<{ code: string }>();
+
     const [message, setMessage] = useState("Verificando certificado...");
+    const [fileUrl, setFileUrl] = useState("");
 
     useEffect(() => {
         async function redirectToCurrentFile() {
@@ -52,13 +78,18 @@ export default function VerifyCertificatePage() {
                     return;
                 }
 
+                setMessage("Buscando certificado generado...");
+
                 const response = await fetch(
-                    `${API_BASE_URL}/certificates/code/${encodeURIComponent(code)}`,
+                    `${API_BASE_URL}/certificates/code/${encodeURIComponent(
+                        code,
+                    )}`,
                     {
                         method: "GET",
                         headers: {
                             Accept: "application/json",
                         },
+                        cache: "no-store",
                     },
                 );
 
@@ -67,16 +98,20 @@ export default function VerifyCertificatePage() {
                     return;
                 }
 
-                const certificate = await response.json();
+                const certificate =
+                    (await response.json()) as CertificateResponse;
 
-                const fileUrl = buildFileUrl(certificate.file_url);
+                const nextFileUrl = getCertificateFileUrl(certificate);
 
-                if (!fileUrl) {
+                if (!nextFileUrl) {
                     setMessage("El certificado no tiene archivo disponible.");
                     return;
                 }
 
-                window.location.href = fileUrl;
+                setFileUrl(nextFileUrl);
+                setMessage("Abriendo certificado...");
+
+                window.location.replace(nextFileUrl);
             } catch {
                 setMessage("Ocurrió un error al abrir el certificado.");
             }
@@ -97,6 +132,15 @@ export default function VerifyCertificatePage() {
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
                     {message}
                 </p>
+
+                {fileUrl ? (
+                    <a
+                        href={fileUrl}
+                        className="mt-5 inline-flex h-11 items-center justify-center rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800"
+                    >
+                        Abrir certificado
+                    </a>
+                ) : null}
             </div>
         </main>
     );
