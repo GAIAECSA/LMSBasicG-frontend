@@ -380,6 +380,24 @@ function isValidGroupForCertificate(group: EnrollmentGroup) {
     return group.rows.length > 0 && group.failedCount === 0;
 }
 
+function getCertificateVerifyHref(certificate: Certificate | null) {
+    if (!certificate?.certificate_code) return "";
+
+    return `/certificates/verify/${encodeURIComponent(
+        certificate.certificate_code,
+    )}`;
+}
+
+function openCertificateByRoute(certificate: Certificate | null) {
+    const certificateHref = getCertificateVerifyHref(certificate);
+
+    if (!certificateHref) return false;
+
+    window.open(certificateHref, "_blank", "noopener,noreferrer");
+
+    return true;
+}
+
 export function TeacherQuizGradesView({
     courseId,
     params,
@@ -727,19 +745,16 @@ export function TeacherQuizGradesView({
 
     function updateCertificateState(certificate: Certificate) {
         setCertificates((current) => {
-            const withoutSameCertificate = current.filter(
-                (item) => item.id !== certificate.id,
-            );
-
-            const withoutSameUserCourse = withoutSameCertificate.filter(
+            const nextCertificates = current.filter(
                 (item) =>
+                    item.id !== certificate.id &&
                     !(
                         Number(item.user_id) === Number(certificate.user_id) &&
                         Number(item.course_id) === Number(certificate.course_id)
                     ),
             );
 
-            return [certificate, ...withoutSameUserCourse];
+            return [certificate, ...nextCertificates];
         });
 
         setGroupModal((current) => {
@@ -747,7 +762,7 @@ export function TeacherQuizGradesView({
 
             if (
                 Number(current.group.userId) !== Number(certificate.user_id) ||
-                Number(certificate.course_id) !== currentCourseId
+                Number(certificate.course_id) !== Number(currentCourseId)
             ) {
                 return current;
             }
@@ -868,20 +883,17 @@ export function TeacherQuizGradesView({
 
             const freshCertificates = await getCertificatesByCourse(currentCourseId);
 
-            const validCertificate =
+            const existingCertificate =
                 freshCertificates.find(
                     (item) =>
-                        Number(item.user_id) === group.userId &&
-                        Number(item.course_id) === currentCourseId &&
+                        Number(item.user_id) === Number(group.userId) &&
+                        Number(item.course_id) === Number(currentCourseId) &&
                         item.is_valid !== false,
-                ) ?? null;
-
-            const anyExistingCertificate =
-                validCertificate ??
+                ) ??
                 freshCertificates.find(
                     (item) =>
-                        Number(item.user_id) === group.userId &&
-                        Number(item.course_id) === currentCourseId,
+                        Number(item.user_id) === Number(group.userId) &&
+                        Number(item.course_id) === Number(currentCourseId),
                 ) ??
                 group.certificate ??
                 null;
@@ -891,13 +903,13 @@ export function TeacherQuizGradesView({
                 courseName: course.name,
                 completionDate: new Date().toLocaleDateString("es-EC"),
                 instructorName: "Instructor",
-                certificateCode: anyExistingCertificate?.certificate_code ?? "",
+                certificateCode: existingCertificate?.certificate_code ?? "",
                 finalGrade: group.averageScore,
             };
 
-            const certificate = anyExistingCertificate
+            const certificate = existingCertificate
                 ? await reissueCertificateFromTemplate({
-                    certificateId: anyExistingCertificate.id,
+                    certificateId: existingCertificate.id,
                     userId: group.userId,
                     courseId: currentCourseId,
                     template,
@@ -910,27 +922,18 @@ export function TeacherQuizGradesView({
                     values,
                 });
 
-            const updatedCertificates = await getCertificatesByCourse(currentCourseId);
+            updateCertificateState(certificate);
 
-            setCertificates(updatedCertificates);
-
-            setGroupModal((current) => {
-                if (!current) return current;
-
-                if (current.group.userId !== group.userId) return current;
-
-                return {
-                    group: {
-                        ...current.group,
-                        certificate,
-                    },
-                };
-            });
+            const wasOpened = openCertificateByRoute(certificate);
 
             setNotice(
-                anyExistingCertificate
-                    ? "Certificado reemitido correctamente."
-                    : "Certificado generado correctamente.",
+                existingCertificate
+                    ? wasOpened
+                        ? "Certificado reemitido correctamente y abierto en otra pestaña."
+                        : "Certificado reemitido correctamente, pero no se pudo abrir porque no tiene código."
+                    : wasOpened
+                        ? "Certificado generado correctamente y abierto en otra pestaña."
+                        : "Certificado generado correctamente, pero no se pudo abrir porque no tiene código.",
             );
         } catch (error) {
             const message = getErrorMessage(error);
@@ -1362,6 +1365,22 @@ export function TeacherQuizGradesView({
                                                     Ver resumen
                                                 </button>
 
+                                                {group.certificate
+                                                    ?.certificate_code ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            openCertificateByRoute(
+                                                                group.certificate,
+                                                            )
+                                                        }
+                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                        Ver certificado
+                                                    </button>
+                                                ) : null}
+
                                                 <button
                                                     type="button"
                                                     onClick={() =>
@@ -1382,8 +1401,8 @@ export function TeacherQuizGradesView({
                                                             : undefined
                                                     }
                                                     className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${group.certificate
-                                                        ? "bg-amber-600 hover:bg-amber-700"
-                                                        : "bg-emerald-600 hover:bg-emerald-700"
+                                                            ? "bg-amber-600 hover:bg-amber-700"
+                                                            : "bg-emerald-600 hover:bg-emerald-700"
                                                         }`}
                                                 >
                                                     {generatingCertificateUserId ===
@@ -1525,22 +1544,22 @@ export function TeacherQuizGradesView({
 
                                 <div
                                     className={`rounded-xl border px-4 py-3 ${groupModal.group.certificate
-                                        ? "border-emerald-100 bg-emerald-50"
-                                        : "border-slate-200 bg-slate-50"
+                                            ? "border-emerald-100 bg-emerald-50"
+                                            : "border-slate-200 bg-slate-50"
                                         }`}
                                 >
                                     <p
                                         className={`text-[11px] font-black uppercase tracking-[0.12em] ${groupModal.group.certificate
-                                            ? "text-emerald-700"
-                                            : "text-slate-500"
+                                                ? "text-emerald-700"
+                                                : "text-slate-500"
                                             }`}
                                     >
                                         Certificado
                                     </p>
                                     <p
                                         className={`mt-1 text-sm font-black ${groupModal.group.certificate
-                                            ? "text-emerald-700"
-                                            : "text-slate-700"
+                                                ? "text-emerald-700"
+                                                : "text-slate-700"
                                             }`}
                                     >
                                         {groupModal.group.certificate
@@ -1562,41 +1581,59 @@ export function TeacherQuizGradesView({
                                     </p>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        void handleGenerateOrReissueCertificate(
-                                            groupModal.group,
-                                        )
-                                    }
-                                    disabled={
-                                        generatingCertificateUserId ===
-                                        groupModal.group.userId ||
-                                        !isValidGroupForCertificate(
-                                            groupModal.group,
-                                        )
-                                    }
-                                    className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${groupModal.group.certificate
-                                        ? "bg-amber-600 hover:bg-amber-700"
-                                        : "bg-emerald-600 hover:bg-emerald-700"
-                                        }`}
-                                >
-                                    {generatingCertificateUserId ===
-                                        groupModal.group.userId ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : groupModal.group.certificate ? (
-                                        <RotateCcw className="h-4 w-4" />
-                                    ) : (
-                                        <FileCheck2 className="h-4 w-4" />
-                                    )}
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    {groupModal.group.certificate
+                                        ?.certificate_code ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                openCertificateByRoute(
+                                                    groupModal.group.certificate,
+                                                )
+                                            }
+                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                            Ver certificado
+                                        </button>
+                                    ) : null}
 
-                                    {generatingCertificateUserId ===
-                                        groupModal.group.userId
-                                        ? "Procesando..."
-                                        : groupModal.group.certificate
-                                            ? "Reemitir certificado"
-                                            : "Generar certificado"}
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void handleGenerateOrReissueCertificate(
+                                                groupModal.group,
+                                            )
+                                        }
+                                        disabled={
+                                            generatingCertificateUserId ===
+                                            groupModal.group.userId ||
+                                            !isValidGroupForCertificate(
+                                                groupModal.group,
+                                            )
+                                        }
+                                        className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${groupModal.group.certificate
+                                                ? "bg-amber-600 hover:bg-amber-700"
+                                                : "bg-emerald-600 hover:bg-emerald-700"
+                                            }`}
+                                    >
+                                        {generatingCertificateUserId ===
+                                            groupModal.group.userId ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : groupModal.group.certificate ? (
+                                            <RotateCcw className="h-4 w-4" />
+                                        ) : (
+                                            <FileCheck2 className="h-4 w-4" />
+                                        )}
+
+                                        {generatingCertificateUserId ===
+                                            groupModal.group.userId
+                                            ? "Procesando..."
+                                            : groupModal.group.certificate
+                                                ? "Reemitir certificado"
+                                                : "Generar certificado"}
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="overflow-hidden rounded-2xl border border-slate-200">
@@ -1733,8 +1770,8 @@ export function TeacherQuizGradesView({
 
                                                                                                 <span
                                                                                                     className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${isCorrect
-                                                                                                        ? "bg-emerald-50 text-emerald-700"
-                                                                                                        : "bg-red-50 text-red-700"
+                                                                                                            ? "bg-emerald-50 text-emerald-700"
+                                                                                                            : "bg-red-50 text-red-700"
                                                                                                         }`}
                                                                                                 >
                                                                                                     {isCorrect

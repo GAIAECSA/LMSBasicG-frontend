@@ -1380,15 +1380,6 @@ export function CertificateTemplateWorkspace({
                 </div>
             ) : null}
 
-            <div className="rounded-[28px] border border-blue-100 bg-blue-50 px-5 py-4">
-                <p className="text-sm font-black text-blue-950">
-                    Curso seleccionado: {selectedCourseName}
-                </p>
-                <p className="mt-1 text-xs font-semibold text-blue-700">
-                    Esta plantilla se guardará para el curso seleccionado y se
-                    usará al emitir certificados.
-                </p>
-            </div>
 
             <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
                 <div className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-sm">
