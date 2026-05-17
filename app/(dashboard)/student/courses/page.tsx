@@ -28,6 +28,8 @@ type RawCourse = {
     image_url?: string | null;
     image?: string | null;
     thumbnail?: string | null;
+    is_free?: boolean | null;
+    price?: number | string | null;
 };
 
 type EnrollmentStatus = boolean | null;
@@ -66,6 +68,26 @@ function resolveCourseImageUrl(value?: string | null): string | null {
     if (trimmed.startsWith("/")) return `${API_BASE_URL}${trimmed}`;
 
     return `${API_BASE_URL}/${trimmed.replace(/^\/+/, "")}`;
+}
+
+function toSafeNumber(value: unknown, fallback = 0): number {
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    if (typeof value === "string") {
+        const parsed = Number(value.trim().replace(",", "."));
+
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    return fallback;
+}
+
+function isFreeCourse(course?: RawCourse | null): boolean {
+    if (!course) return false;
+
+    return Boolean(course.is_free) || toSafeNumber(course.price) <= 0;
 }
 
 function getEnrollmentStatus(enrollment: Enrollment): EnrollmentStatus {
@@ -114,12 +136,16 @@ function getStatusStyles(status: EnrollmentStatus) {
 export default function StudentCoursesPage() {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [currentRoleId, setCurrentRoleId] = useState<number | null>(null);
-    const [courseImages, setCourseImages] = useState<Record<number, string | null>>({});
+    const [courseImages, setCourseImages] = useState<
+        Record<number, string | null>
+    >({});
+    const [freeCourses, setFreeCourses] = useState<Record<number, boolean>>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
     const [editModalOpen, setEditModalOpen] = useState(false);
-    const [selectedEnrollment, setSelectedEnrollment] = useState<Enrollment | null>(null);
+    const [selectedEnrollment, setSelectedEnrollment] =
+        useState<Enrollment | null>(null);
     const [editReferenceCode, setEditReferenceCode] = useState("");
     const [editVoucherFile, setEditVoucherFile] = useState<File | null>(null);
     const [updating, setUpdating] = useState(false);
@@ -187,8 +213,65 @@ export default function StudentCoursesPage() {
                 {},
             );
 
-            setEnrollments(validEnrollments);
+            const freeCoursesByCourseId = courses.reduce<Record<number, boolean>>(
+                (acc, course) => {
+                    const courseId = Number(course.id ?? 0);
+
+                    if (courseId > 0) {
+                        acc[courseId] = isFreeCourse(course);
+                    }
+
+                    return acc;
+                },
+                {},
+            );
+
+            const freeStudentEnrollmentsToApprove = validEnrollments.filter(
+                (enrollment) => {
+                    const courseId = Number(enrollment.course?.id ?? 0);
+                    const roleId = Number(enrollment.role?.id ?? 0);
+
+                    return (
+                        roleId === 4 &&
+                        freeCoursesByCourseId[courseId] === true &&
+                        enrollment.accepted !== true
+                    );
+                },
+            );
+
+            let finalEnrollments = validEnrollments;
+
+            if (freeStudentEnrollmentsToApprove.length > 0) {
+                const approvedFreeEnrollments = await Promise.all(
+                    freeStudentEnrollmentsToApprove.map((enrollment) =>
+                        updateEnrollment(enrollment.id, {
+                            accepted: true,
+                            reference_code:
+                                enrollment.reference_code ||
+                                `GRATIS-AUTO-${enrollment.course.id}-${userId}`,
+                            comment: null,
+                            user_id: enrollment.user.id,
+                            course_id: enrollment.course.id,
+                            role_id: enrollment.role.id,
+                        }),
+                    ),
+                );
+
+                const approvedById = new Map(
+                    approvedFreeEnrollments.map((enrollment) => [
+                        enrollment.id,
+                        enrollment,
+                    ]),
+                );
+
+                finalEnrollments = validEnrollments.map(
+                    (enrollment) => approvedById.get(enrollment.id) ?? enrollment,
+                );
+            }
+
+            setEnrollments(finalEnrollments);
             setCourseImages(imagesByCourseId);
+            setFreeCourses(freeCoursesByCourseId);
         } catch (err) {
             setError(
                 err instanceof Error
@@ -256,7 +339,7 @@ export default function StudentCoursesPage() {
     const pageTitle = isTeacher ? "Mis cursos asignados" : "Mis cursos";
     const pageDescription = isTeacher
         ? "Revisa los cursos asignados a tu perfil de profesor."
-        : "Revisa tus cursos aprobados, solicitudes en revisión y matrículas no aprobadas.";
+        : "Revisa tus cursos aprobados, solicitudes en revisión y matrículas no aprobadas. Los cursos gratuitos se activan automáticamente.";
 
     const emptyTitle = isTeacher
         ? "Todavía no tienes cursos asignados"
@@ -324,14 +407,17 @@ export default function StudentCoursesPage() {
     }
 
     function renderCourseCard(enrollment: Enrollment) {
-        const status = getEnrollmentStatus(enrollment);
+        const courseId = Number(enrollment.course?.id ?? 0);
+        const enrollmentRoleId = Number(enrollment.role?.id ?? 0);
+        const isTeacherEnrollment = enrollmentRoleId === 3;
+        const isFreeStudentEnrollment =
+            !isTeacherEnrollment && freeCourses[courseId] === true;
+        const rawStatus = getEnrollmentStatus(enrollment);
+        const status = isFreeStudentEnrollment ? true : rawStatus;
         const styles = getStatusStyles(status);
         const StatusIcon = styles.icon;
         const voucherUrl = resolveEnrollmentVoucherUrl(enrollment.voucher_url);
-        const courseId = Number(enrollment.course?.id ?? 0);
         const courseImageUrl = courseImages[courseId] ?? null;
-        const enrollmentRoleId = Number(enrollment.role?.id ?? 0);
-        const isTeacherEnrollment = enrollmentRoleId === 3;
 
         return (
             <article
@@ -365,9 +451,17 @@ export default function StudentCoursesPage() {
                             {getStatusLabel(status)}
                         </span>
 
-                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold uppercase text-blue-700">
-                            {enrollment.role?.name || "Rol"}
-                        </span>
+                        <div className="flex flex-wrap justify-end gap-2">
+                            {isFreeStudentEnrollment ? (
+                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold uppercase text-emerald-700">
+                                    Gratis
+                                </span>
+                            ) : null}
+
+                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold uppercase text-blue-700">
+                                {enrollment.role?.name || "Rol"}
+                            </span>
+                        </div>
                     </div>
 
                     <h3 className="mt-4 line-clamp-2 text-lg font-extrabold leading-6 text-slate-950">
@@ -379,14 +473,21 @@ export default function StudentCoursesPage() {
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-slate-500">Código</span>
                                 <span className="max-w-[58%] truncate text-right font-bold text-slate-900">
-                                    {enrollment.reference_code || "Sin referencia"}
+                                    {enrollment.reference_code ||
+                                        (isFreeStudentEnrollment
+                                            ? "GRATIS-AUTO"
+                                            : "Sin referencia")}
                                 </span>
                             </div>
 
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-slate-500">Comprobante</span>
 
-                                {voucherUrl ? (
+                                {isFreeStudentEnrollment ? (
+                                    <span className="font-bold text-emerald-700">
+                                        No requiere
+                                    </span>
+                                ) : voucherUrl ? (
                                     <a
                                         href={voucherUrl}
                                         target="_blank"
@@ -407,8 +508,7 @@ export default function StudentCoursesPage() {
 
                     {enrollment.accepted === false && enrollment.comment ? (
                         <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                            <span className="font-bold">Motivo:</span>{" "}
-                            {enrollment.comment}
+                            <span className="font-bold">Motivo:</span> {enrollment.comment}
                         </div>
                     ) : null}
 
@@ -639,7 +739,8 @@ export default function StudentCoursesPage() {
                                     Corregir comprobante
                                 </h3>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Sube un nuevo comprobante para que tu matrícula vuelva a revisión.
+                                    Sube un nuevo comprobante para que tu matrícula vuelva a
+                                    revisión.
                                 </p>
                             </div>
 

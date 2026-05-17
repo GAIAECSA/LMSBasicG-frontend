@@ -1776,10 +1776,15 @@ export async function createCertificateFromTemplate(params: {
         filename: `certificado-${params.courseId}-${params.userId}.pdf`,
     });
 
+    const finalGradeFromCertificate = createdCertificate.final_grade?.trim()
+        ? createdCertificate.final_grade
+        : String(params.values.finalGrade ?? "");
+
     const finalPdf = await generateCertificatePdfFile({
         template: params.template,
         values: {
             ...params.values,
+            finalGrade: finalGradeFromCertificate,
             certificateCode: createdCertificate.certificate_code,
             fileUrl: createdCertificate.file_url,
         },
@@ -1797,8 +1802,7 @@ export async function createCertificateFromTemplate(params: {
     return {
         ...updatedCertificate,
         final_grade:
-            updatedCertificate.final_grade ||
-            String(params.values.finalGrade ?? ""),
+            updatedCertificate.final_grade || finalGradeFromCertificate,
     };
 }
 
@@ -1811,10 +1815,15 @@ export async function reissueCertificateFromTemplate(params: {
 }) {
     const currentCertificate = await getCertificateById(params.certificateId);
 
+    const finalGradeFromCertificate = currentCertificate.final_grade?.trim()
+        ? currentCertificate.final_grade
+        : String(params.values.finalGrade ?? "");
+
     const finalPdf = await generateCertificatePdfFile({
         template: params.template,
         values: {
             ...params.values,
+            finalGrade: finalGradeFromCertificate,
             certificateCode:
                 params.values.certificateCode ||
                 currentCertificate.certificate_code,
@@ -1834,7 +1843,6 @@ export async function reissueCertificateFromTemplate(params: {
     return {
         ...updatedCertificate,
         final_grade:
-            updatedCertificate.final_grade ||
-            String(params.values.finalGrade ?? ""),
+            updatedCertificate.final_grade || finalGradeFromCertificate,
     };
 }

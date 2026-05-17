@@ -376,6 +376,16 @@ function getGroupAverage(rows: GradeRow[]) {
     return Math.round((total / rows.length) * 100) / 100;
 }
 
+function getCertificateFinalGrade(certificate: Certificate | null) {
+    const finalGrade = certificate?.final_grade?.trim();
+
+    return finalGrade || "";
+}
+
+function getCertificateFinalGradeLabel(certificate: Certificate | null) {
+    return getCertificateFinalGrade(certificate) || "Pendiente";
+}
+
 function isValidGroupForCertificate(group: EnrollmentGroup) {
     return group.rows.length > 0 && group.failedCount === 0;
 }
@@ -795,6 +805,8 @@ export function TeacherQuizGradesView({
                 is_passed: editPassed[responseId] ?? false,
             });
 
+            let updatedModalRows: GradeRow[] = [];
+
             setGrades((current) =>
                 current.map((item) =>
                     item.response.id === updatedResponse.id
@@ -813,7 +825,7 @@ export function TeacherQuizGradesView({
             setGroupModal((current) => {
                 if (!current) return current;
 
-                const updatedRows = current.group.rows.map((item) =>
+                updatedModalRows = current.group.rows.map((item) =>
                     item.response.id === updatedResponse.id
                         ? {
                             ...item,
@@ -826,22 +838,54 @@ export function TeacherQuizGradesView({
                         : item,
                 );
 
-                const passedGroupCount = updatedRows.filter((item) =>
+                const passedGroupCount = updatedModalRows.filter((item) =>
                     getCalculatedPassed(item),
                 ).length;
 
                 return {
                     group: {
                         ...current.group,
-                        rows: updatedRows,
-                        averageScore: getGroupAverage(updatedRows),
+                        rows: updatedModalRows,
+                        averageScore: getGroupAverage(updatedModalRows),
                         passedCount: passedGroupCount,
-                        failedCount: updatedRows.length - passedGroupCount,
+                        failedCount: updatedModalRows.length - passedGroupCount,
                     },
                 };
             });
 
-            setNotice("Calificación actualizada correctamente.");
+            if (currentCourseId > 0) {
+                const freshCertificates = await getCertificatesByCourse(currentCourseId);
+
+                setCertificates(freshCertificates);
+
+                setGroupModal((current) => {
+                    if (!current) return current;
+
+                    const freshCertificate =
+                        freshCertificates.find(
+                            (item) =>
+                                Number(item.user_id) === Number(current.group.userId) &&
+                                Number(item.course_id) === Number(currentCourseId) &&
+                                item.is_valid !== false,
+                        ) ??
+                        freshCertificates.find(
+                            (item) =>
+                                Number(item.user_id) === Number(current.group.userId) &&
+                                Number(item.course_id) === Number(currentCourseId),
+                        ) ??
+                        current.group.certificate ??
+                        null;
+
+                    return {
+                        group: {
+                            ...current.group,
+                            certificate: freshCertificate,
+                        },
+                    };
+                });
+            }
+
+            setNotice("Calificación actualizada correctamente. El promedio del certificado fue actualizado.");
         } catch (error) {
             setModalError(getErrorMessage(error));
         } finally {
@@ -898,13 +942,18 @@ export function TeacherQuizGradesView({
                 group.certificate ??
                 null;
 
+            const certificateFinalGrade =
+                existingCertificate?.final_grade?.trim()
+                    ? existingCertificate.final_grade
+                    : group.averageScore;
+
             const values = {
                 studentName: group.studentName,
                 courseName: course.name,
                 completionDate: new Date().toLocaleDateString("es-EC"),
                 instructorName: "Instructor",
                 certificateCode: existingCertificate?.certificate_code ?? "",
-                finalGrade: group.averageScore,
+                finalGrade: certificateFinalGrade,
             };
 
             const certificate = existingCertificate
@@ -1316,10 +1365,18 @@ export function TeacherQuizGradesView({
                                             </span>
                                         </td>
 
+
+
                                         <td className="px-5 py-4 text-center">
-                                            <span className="inline-flex rounded-xl bg-blue-50 px-3 py-1 text-sm font-black text-blue-700">
-                                                {group.averageScore}
-                                            </span>
+                                            {getCertificateFinalGrade(group.certificate) ? (
+                                                <span className="inline-flex rounded-xl bg-indigo-50 px-3 py-1 text-sm font-black text-indigo-700">
+                                                    {getCertificateFinalGrade(group.certificate)}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+                                                    Pendiente
+                                                </span>
+                                            )}
                                         </td>
 
                                         <td className="px-5 py-4 text-center">
@@ -1401,8 +1458,8 @@ export function TeacherQuizGradesView({
                                                             : undefined
                                                     }
                                                     className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${group.certificate
-                                                            ? "bg-amber-600 hover:bg-amber-700"
-                                                            : "bg-emerald-600 hover:bg-emerald-700"
+                                                        ? "bg-amber-600 hover:bg-amber-700"
+                                                        : "bg-emerald-600 hover:bg-emerald-700"
                                                         }`}
                                                 >
                                                     {generatingCertificateUserId ===
@@ -1505,7 +1562,7 @@ export function TeacherQuizGradesView({
                                 </div>
                             ) : null}
 
-                            <div className="mb-4 grid gap-3 sm:grid-cols-5">
+                            <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                                     <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
                                         Cuestionarios
@@ -1515,12 +1572,27 @@ export function TeacherQuizGradesView({
                                     </p>
                                 </div>
 
-                                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
-                                        Promedio
+                                <div
+                                    className={`rounded-xl border px-4 py-3 ${getCertificateFinalGrade(groupModal.group.certificate)
+                                        ? "border-indigo-100 bg-indigo-50"
+                                        : "border-slate-200 bg-slate-50"
+                                        }`}
+                                >
+                                    <p
+                                        className={`text-[11px] font-black uppercase tracking-[0.12em] ${getCertificateFinalGrade(groupModal.group.certificate)
+                                            ? "text-indigo-700"
+                                            : "text-slate-500"
+                                            }`}
+                                    >
+                                        Promedio certificado
                                     </p>
-                                    <p className="mt-1 text-xl font-black text-slate-950">
-                                        {groupModal.group.averageScore}
+                                    <p
+                                        className={`mt-1 text-xl font-black ${getCertificateFinalGrade(groupModal.group.certificate)
+                                            ? "text-indigo-700"
+                                            : "text-slate-500"
+                                            }`}
+                                    >
+                                        {getCertificateFinalGradeLabel(groupModal.group.certificate)}
                                     </p>
                                 </div>
 
@@ -1544,22 +1616,22 @@ export function TeacherQuizGradesView({
 
                                 <div
                                     className={`rounded-xl border px-4 py-3 ${groupModal.group.certificate
-                                            ? "border-emerald-100 bg-emerald-50"
-                                            : "border-slate-200 bg-slate-50"
+                                        ? "border-emerald-100 bg-emerald-50"
+                                        : "border-slate-200 bg-slate-50"
                                         }`}
                                 >
                                     <p
                                         className={`text-[11px] font-black uppercase tracking-[0.12em] ${groupModal.group.certificate
-                                                ? "text-emerald-700"
-                                                : "text-slate-500"
+                                            ? "text-emerald-700"
+                                            : "text-slate-500"
                                             }`}
                                     >
                                         Certificado
                                     </p>
                                     <p
                                         className={`mt-1 text-sm font-black ${groupModal.group.certificate
-                                                ? "text-emerald-700"
-                                                : "text-slate-700"
+                                            ? "text-emerald-700"
+                                            : "text-slate-700"
                                             }`}
                                     >
                                         {groupModal.group.certificate
@@ -1576,8 +1648,8 @@ export function TeacherQuizGradesView({
                                     </p>
                                     <p className="mt-1 text-xs font-semibold text-slate-500">
                                         Se genera usando la plantilla guardada
-                                        del curso y el promedio actual del
-                                        estudiante.
+                                        del curso y el promedio final devuelto por el
+                                        certificado.
                                     </p>
                                 </div>
 
@@ -1613,8 +1685,8 @@ export function TeacherQuizGradesView({
                                             )
                                         }
                                         className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${groupModal.group.certificate
-                                                ? "bg-amber-600 hover:bg-amber-700"
-                                                : "bg-emerald-600 hover:bg-emerald-700"
+                                            ? "bg-amber-600 hover:bg-amber-700"
+                                            : "bg-emerald-600 hover:bg-emerald-700"
                                             }`}
                                     >
                                         {generatingCertificateUserId ===
@@ -1770,8 +1842,8 @@ export function TeacherQuizGradesView({
 
                                                                                                 <span
                                                                                                     className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${isCorrect
-                                                                                                            ? "bg-emerald-50 text-emerald-700"
-                                                                                                            : "bg-red-50 text-red-700"
+                                                                                                        ? "bg-emerald-50 text-emerald-700"
+                                                                                                        : "bg-red-50 text-red-700"
                                                                                                         }`}
                                                                                                 >
                                                                                                     {isCorrect

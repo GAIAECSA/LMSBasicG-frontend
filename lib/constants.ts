@@ -63,7 +63,7 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
     teacher: [
         {
             label: "Mis cursos",
-            href: "/teacher/courses",
+            href: "/student/courses",
         },
     ],
 
@@ -161,7 +161,7 @@ export function getSidebarItemsByRoute(
         },
         {
             label: "Mis cursos",
-            href: "/teacher/courses",
+            href: "/student/courses",
         },
     ];
 }
