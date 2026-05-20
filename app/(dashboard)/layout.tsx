@@ -18,15 +18,10 @@ function getPathSegments(path?: string | null): string[] {
     return normalized.split("/").filter(Boolean);
 }
 
-function isStudentCourseWorkspace(pathname: string) {
+function isStudentRoute(pathname: string) {
     const segments = getPathSegments(pathname);
 
-    return (
-        segments.length === 3 &&
-        segments[0] === "student" &&
-        segments[1] === "courses" &&
-        !!segments[2]
-    );
+    return segments[0] === "student";
 }
 
 function getRoleLabel(role?: string) {
@@ -37,45 +32,80 @@ function getRoleLabel(role?: string) {
     return "Usuario";
 }
 
+function getUserFullName(user: unknown) {
+    if (!user || typeof user !== "object") return "Usuario";
+
+    const value = user as {
+        firstname?: string;
+        lastname?: string;
+        fullName?: string;
+        name?: string;
+        username?: string;
+        email?: string;
+    };
+
+    const fullName = `${value.firstname ?? ""} ${value.lastname ?? ""}`.trim();
+
+    return (
+        value.fullName ||
+        fullName ||
+        value.name ||
+        value.username ||
+        value.email?.split("@")[0] ||
+        "Usuario"
+    );
+}
+
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
 
-    const hideSidebar = isStudentCourseWorkspace(pathname);
+    const studentRoute = isStudentRoute(pathname);
+
+    /*
+     * El sidebar se mantiene visible también en:
+     * /student/courses/[courseId]
+     */
+    const hideSidebar = false;
+
+    /*
+     * El header superior se oculta solo en estudiante.
+     * Admin y docente mantienen header.
+     */
+    const hideHeader = studentRoute;
 
     function handleLogout() {
-        localStorage.removeItem("lmsbasicg_auth");
+        if (typeof signOut === "function") {
+            signOut();
+        } else {
+            localStorage.removeItem("lmsbasicg_auth");
+        }
+
         router.push("/login");
     }
 
     return (
-        <div
-            className={
-                hideSidebar
-                    ? "min-h-screen bg-slate-100"
-                    : "grid min-h-screen bg-slate-100 md:grid-cols-[240px_1fr]"
-            }
-        >
+        <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
             {!hideSidebar ? <Sidebar /> : null}
 
-            <div className="flex min-w-0 flex-col">
-                {!hideSidebar ? (
-                    <header className="flex min-h-[72px] items-center justify-between border-b border-slate-200 bg-white px-5 md:px-6">
+            <div className="min-h-screen w-full md:pl-[280px]">
+                {!hideHeader ? (
+                    <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-5 md:px-6">
                         <div>
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm font-semibold text-[var(--muted-foreground)]">
                                 Bienvenido
                             </p>
 
-                            <h1 className="text-lg font-black text-slate-950">
-                                {user?.fullName || "Usuario"}
+                            <h1 className="text-lg font-black text-[var(--foreground)]">
+                                {getUserFullName(user)}
                             </h1>
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <span className="rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-700">
+                            <span className="rounded-2xl bg-[var(--muted)] px-4 py-2 text-sm text-[var(--muted-foreground)]">
                                 Rol:{" "}
-                                <span className="font-bold">
+                                <span className="font-bold text-[var(--foreground)]">
                                     {getRoleLabel(user?.role)}
                                 </span>
                             </span>
@@ -83,7 +113,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                             <button
                                 type="button"
                                 onClick={handleLogout}
-                                className="text-sm font-semibold text-slate-700 transition hover:text-blue-700"
+                                className="text-sm font-semibold text-[var(--muted-foreground)] transition hover:text-[var(--primary)]"
                             >
                                 Cerrar sesión
                             </button>
@@ -93,9 +123,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
                 <main
                     className={
-                        hideSidebar
-                            ? "min-h-screen w-full bg-slate-100 px-4 py-4 md:px-6"
-                            : "min-h-[calc(100vh-72px)] w-full bg-slate-100 p-5 md:p-6"
+                        hideHeader
+                            ? "min-h-screen w-full bg-[var(--background)]"
+                            : "min-h-[calc(100vh-72px)] w-full bg-[var(--background)] p-5 md:p-6"
                     }
                 >
                     {children}

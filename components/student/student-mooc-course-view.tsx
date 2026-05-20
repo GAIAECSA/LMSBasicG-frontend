@@ -6,17 +6,26 @@ import {
     AlertCircle,
     ArrowLeft,
     Award,
+    Bell,
+    BookOpen,
+    CalendarDays,
     CheckCircle2,
     ChevronDown,
+    ChevronRight,
     ClipboardList,
+    Clock3,
     Download,
     FileCheck2,
     FileText,
+    GraduationCap,
     ImageIcon,
     Layers3,
     Loader2,
     Lock,
+    MoreVertical,
     PlayCircle,
+    Star,
+    Trophy,
 } from "lucide-react";
 import { getModulesByCourse, type CourseModule } from "@/services/modules.service";
 import {
@@ -51,12 +60,23 @@ import {
     type Certificate,
 } from "@/services/certificates.service";
 import { getAuthSession } from "@/lib/auth";
+import { getCourseById, type Course } from "@/services/courses.service";
 
 type StudentMoocCourseViewProps = {
     courseId: string;
 };
 
 type LessonItemType = "text" | "image" | "pdf" | "video" | "quiz";
+
+type CourseTab = "summary" | "content" | "activities" | "grades" | "certificate";
+
+const COURSE_TABS: Array<{ key: CourseTab; label: string }> = [
+    { key: "summary", label: "Resumen" },
+    { key: "content", label: "Contenido" },
+    { key: "activities", label: "Actividades" },
+    { key: "grades", label: "Calificaciones" },
+    { key: "certificate", label: "Certificado" },
+];
 
 type QuizQuestion = {
     id: number;
@@ -99,6 +119,13 @@ type CertificateWithFileFields = Certificate & {
     url?: string | null;
     certificate_url?: string | null;
     path?: string | null;
+};
+
+type CourseWithImageFields = Course & {
+    image?: string | null;
+    image_url?: string | null;
+    course_image_url?: string | null;
+    thumbnail?: string | null;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000";
@@ -171,6 +198,56 @@ function normalizeResourceUrl(url: string) {
     return `${API_URL}/${url}`;
 }
 
+function getCourseImageUrl(course: CourseWithImageFields | null) {
+    if (!course) return "";
+
+    const imageUrl =
+        course.image_url ||
+        course.course_image_url ||
+        course.image ||
+        course.thumbnail ||
+        "";
+
+    return imageUrl ? normalizeResourceUrl(imageUrl) : "";
+}
+
+function formatCourseLevel(value: unknown) {
+    if (!value) return "Principiante";
+
+    const normalizedValue = String(value).trim().toUpperCase();
+
+    if (normalizedValue === "PRINCIPIANTE") return "Principiante";
+    if (normalizedValue === "INTERMEDIO") return "Intermedio";
+    if (normalizedValue === "AVANZADO") return "Avanzado";
+
+    const cleanValue = String(value).trim();
+
+    return cleanValue
+        ? cleanValue.charAt(0).toUpperCase() + cleanValue.slice(1).toLowerCase()
+        : "Principiante";
+}
+
+function getCourseDurationLabel(course: Course | null) {
+    const durationHours = Number(course?.duration_hours ?? 0);
+
+    if (Number.isFinite(durationHours) && durationHours > 0) {
+        if (durationHours >= 40) return `${Math.round(durationHours / 10)} semanas`;
+
+        return `${durationHours} horas`;
+    }
+
+    return "4 semanas";
+}
+
+function getCourseDescription(course: Course | null) {
+    const description = typeof course?.description === "string" ? course.description.trim() : "";
+
+    return (
+        description ||
+        "Avanza por los módulos, revisa contenidos, videos, imágenes, PDF y evaluaciones para completar tu proceso académico."
+    );
+}
+
 function getProtectedPdfViewerUrl(url: string) {
     if (!url) return "";
 
@@ -192,10 +269,15 @@ function getNestedFileUrl(value: unknown) {
 
     return (
         getStringFromUnknown(record.url) ||
+        getStringFromUnknown(record.src) ||
+        getStringFromUnknown(record.source) ||
+        getStringFromUnknown(record.file) ||
         getStringFromUnknown(record.file_url) ||
         getStringFromUnknown(record.path) ||
         getStringFromUnknown(record.file_path) ||
+        getStringFromUnknown(record.image) ||
         getStringFromUnknown(record.image_url) ||
+        getStringFromUnknown(record.thumbnail) ||
         getStringFromUnknown(record.pdf_url) ||
         getStringFromUnknown(record.document_url)
     );
@@ -210,6 +292,10 @@ function getFileUrlFromBlock(block: LessonBlock | null) {
     const directUrl =
         getContentValue(content, "file_url") ||
         getContentValue(content, "url") ||
+        getContentValue(content, "src") ||
+        getContentValue(content, "source") ||
+        getContentValue(content, "image") ||
+        getContentValue(content, "file") ||
         getContentValue(content, "path") ||
         getContentValue(content, "file_path") ||
         getContentValue(content, "image_url") ||
@@ -219,6 +305,10 @@ function getFileUrlFromBlock(block: LessonBlock | null) {
         getContentValue(content, "attachment_url") ||
         getRootValue(block, "file_url") ||
         getRootValue(block, "url") ||
+        getRootValue(block, "src") ||
+        getRootValue(block, "source") ||
+        getRootValue(block, "image") ||
+        getRootValue(block, "file") ||
         getRootValue(block, "path") ||
         getRootValue(block, "file_path") ||
         getRootValue(block, "image_url") ||
@@ -719,6 +809,11 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     const [studentUserId, setStudentUserId] = useState<number | null>(null);
     const [studentName, setStudentName] = useState("");
     const [courseName, setCourseName] = useState("");
+    const [courseImageUrl, setCourseImageUrl] = useState("");
+    const [courseDescription, setCourseDescription] = useState("");
+    const [courseLevel, setCourseLevel] = useState("Principiante");
+    const [courseDuration, setCourseDuration] = useState("4 semanas");
+    const [activeTab, setActiveTab] = useState<CourseTab>("summary");
     const [certificate, setCertificate] = useState<Certificate | null>(null);
     const [certificateMessage, setCertificateMessage] = useState("");
     const [certificateGenerating, setCertificateGenerating] = useState(false);
@@ -747,6 +842,55 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     const certificateFileUrl = getCertificateFileUrl(certificate);
     const certificateTargetUrl = getCertificateTargetUrl(certificate);
     const certificateReady = Boolean(certificate && certificateTargetUrl);
+
+    const studentInitials = useMemo(() => {
+        const words = (studentName || "Estudiante")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+        if (words.length === 0) return "ES";
+
+        if (words.length === 1) {
+            return words[0].slice(0, 2).toUpperCase();
+        }
+
+        return `${words[0][0]}${words[1][0]}`.toUpperCase();
+    }, [studentName]);
+
+    const heroImageUrl = useMemo(() => {
+        if (courseImageUrl) return courseImageUrl;
+
+        const imageBlock = allBlocks.find(
+            (block) => getLessonItemType(block) === "image",
+        );
+
+        return getFileUrlFromBlock(imageBlock ?? null);
+    }, [allBlocks, courseImageUrl]);
+
+    const upcomingBlocks = useMemo(
+        () =>
+            allBlocks
+                .filter((block) => !completedBlocks.includes(block.id))
+                .slice(0, 3),
+        [allBlocks, completedBlocks],
+    );
+
+    const quizBlocks = useMemo(() => getQuizBlocks(allBlocks), [allBlocks]);
+
+    const videoBlocks = useMemo(
+        () => allBlocks.filter((block) => getLessonItemType(block) === "video"),
+        [allBlocks],
+    );
+
+    const resourceBlocks = useMemo(
+        () =>
+            allBlocks.filter((block) =>
+                ["text", "image", "pdf"].includes(getLessonItemType(block)),
+            ),
+        [allBlocks],
+    );
+
 
     async function refreshProgress(currentEnrollmentId: number) {
         const progressResponse = await getProgressByEnrollment(currentEnrollmentId);
@@ -798,9 +942,10 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 throw new Error("No se pudo identificar al estudiante autenticado.");
             }
 
-            const [courseModules, userEnrollments] = await Promise.all([
+            const [courseModules, userEnrollments, courseDetail] = await Promise.all([
                 getModulesByCourse(numericCourseId),
                 getEnrollmentsByUser(userId),
+                getCourseById(numericCourseId).catch(() => null),
             ]);
 
             const activeEnrollment = findApprovedEnrollment(
@@ -873,7 +1018,16 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
             setEnrollmentId(activeEnrollment.id);
             setStudentUserId(userId);
             setStudentName(getEnrollmentStudentName(activeEnrollment));
-            setCourseName(activeEnrollment.course?.name ?? `Curso #${numericCourseId}`);
+            setCourseName(
+                courseDetail?.name ||
+                activeEnrollment.course?.name ||
+                `Curso #${numericCourseId}`,
+            );
+
+            setCourseImageUrl(getCourseImageUrl(courseDetail as CourseWithImageFields | null));
+            setCourseDescription(getCourseDescription(courseDetail));
+            setCourseLevel(formatCourseLevel(courseDetail?.level));
+            setCourseDuration(getCourseDurationLabel(courseDetail));
             setCertificate(existingCertificate);
             setCertificateMessage(
                 existingCertificate ? "Tu certificado ya está disponible." : "",
@@ -916,6 +1070,11 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
             setStudentUserId(null);
             setStudentName("");
             setCourseName("");
+            setCourseImageUrl("");
+            setCourseDescription("");
+            setCourseLevel("Principiante");
+            setCourseDuration("4 semanas");
+            setActiveTab("content");
             setCertificate(null);
             setCertificateMessage("");
         } finally {
@@ -1352,7 +1511,7 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 type="button"
                 disabled={isCompleted || isSaving}
                 onClick={() => void markBlockAsCompleted(selectedBlock.id)}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--primary-foreground)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
                 {isSaving ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1363,6 +1522,307 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
             </button>
         );
     }
+
+    function renderTopActions() {
+        return (
+            <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-black text-[var(--foreground)] shadow-sm">
+                    <GraduationCap className="h-4 w-4 text-[var(--primary)]" />
+                    Rol: Estudiante
+                </span>
+
+                <button
+                    type="button"
+                    className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:bg-[var(--muted)]"
+                    aria-label="Notificaciones"
+                >
+                    <Bell className="h-5 w-5" />
+
+                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-black text-[var(--primary-foreground)]">
+                        3
+                    </span>
+                </button>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-[var(--primary-foreground)] shadow-sm">
+                    {studentInitials}
+                </div>
+            </div>
+        );
+    }
+
+    function renderCourseHero() {
+        return (
+            <div className="rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)_330px] xl:items-center">
+                    <div className="h-[165px] overflow-hidden rounded-[22px] bg-[var(--muted)]">
+                        {heroImageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={heroImageUrl}
+                                alt={courseName || "Curso"}
+                                className="h-full w-full object-cover object-center"
+                            />
+                        ) : (
+                            <div className="flex h-full w-full items-center justify-center [background:var(--gradient-soft)] text-[var(--primary)]">
+                                <BookOpen className="h-16 w-16" />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <h1 className="text-2xl font-black tracking-tight text-[var(--foreground)] md:text-3xl">
+                                {courseName || "Aula del curso"}
+                            </h1>
+
+                            <span className="rounded-full bg-[var(--success-soft)] px-3 py-1 text-xs font-black uppercase text-[var(--success)]">
+                                Matrícula activa
+                            </span>
+                        </div>
+
+                        <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-[var(--muted-foreground)]">
+                            {courseDescription ||
+                                "Avanza por los módulos, revisa contenidos, videos, imágenes, PDF y evaluaciones para completar tu proceso académico."}
+                        </p>
+
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="flex items-center gap-3">
+                                <BookOpen className="h-6 w-6 text-[var(--primary)]" />
+                                <div>
+                                    <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                        Nivel
+                                    </p>
+                                    <p className="text-sm font-black">
+                                        {courseLevel}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <Clock3 className="h-6 w-6 text-[var(--primary)]" />
+                                <div>
+                                    <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                        Recursos
+                                    </p>
+                                    <p className="text-sm font-black">
+                                        {totalBlocks} contenidos
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <CalendarDays className="h-6 w-6 text-[var(--primary)]" />
+                                <div>
+                                    <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                        Duración
+                                    </p>
+                                    <p className="text-sm font-black">
+                                        {courseDuration}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                    Progreso general
+                                </p>
+
+                                <div className="mt-1 flex items-center gap-3">
+                                    <p className="text-sm font-black">
+                                        {progress}% completado
+                                    </p>
+
+                                    <div className="h-2 flex-1 rounded-full bg-[var(--muted)]">
+                                        <div
+                                            className="h-2 rounded-full bg-[var(--primary)]"
+                                            style={{ width: `${progress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("content")}
+                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95"
+                        >
+                            <PlayCircle className="h-4 w-4" />
+                            Continuar aprendiendo
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("content")}
+                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--primary)] shadow-sm transition hover:bg-[var(--secondary)]"
+                        >
+                            <BookOpen className="h-4 w-4" />
+                            Ir al contenido
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab("certificate")}
+                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--primary)] shadow-sm transition hover:bg-[var(--secondary)]"
+                        >
+                            <Award className="h-4 w-4" />
+                            Ver certificado
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    function renderTabs() {
+        return (
+            <div className="border-b border-[var(--border)]">
+                <div className="flex gap-7 overflow-x-auto text-sm font-black">
+                    {COURSE_TABS.map((tab) => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`whitespace-nowrap border-b-2 px-1 py-4 transition ${activeTab === tab.key
+                                    ? "border-[var(--primary)] text-[var(--primary)]"
+                                    : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    function renderProgressSideCard() {
+        return (
+            <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <h3 className="text-base font-black text-[var(--foreground)]">
+                    Progreso del curso
+                </h3>
+
+                <div className="mt-4 flex items-center gap-4">
+                    <div
+                        className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
+                        style={{
+                            background: `conic-gradient(var(--primary) ${progress}%, var(--muted) 0)`,
+                        }}
+                    >
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-sm font-black">
+                            {progress}%
+                        </div>
+                    </div>
+
+                    <div>
+                        <p className="text-2xl font-black text-[var(--foreground)]">
+                            {completedCount} de {totalBlocks}
+                        </p>
+
+                        <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                            recursos completados
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 h-2 rounded-full bg-[var(--muted)]">
+                    <div
+                        className="h-2 rounded-full bg-[var(--primary)]"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    function renderUpcomingSideCard() {
+        return (
+            <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-base font-black text-[var(--foreground)]">
+                        Próximas actividades
+                    </h3>
+
+                    <span className="text-xs font-black text-[var(--primary)]">
+                        Ver calendario
+                    </span>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                    {upcomingBlocks.length === 0 ? (
+                        <p className="rounded-2xl bg-[var(--muted)] p-4 text-sm font-semibold text-[var(--muted-foreground)]">
+                            No tienes actividades pendientes.
+                        </p>
+                    ) : (
+                        upcomingBlocks.map((block) => {
+                            const type = getLessonItemType(block);
+
+                            return (
+                                <button
+                                    key={block.id}
+                                    type="button"
+                                    onClick={() => handleSelectBlock(block)}
+                                    className="flex w-full items-start gap-3 border-b border-[var(--border)] pb-4 text-left last:border-b-0 last:pb-0"
+                                >
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--secondary)] text-[var(--primary)]">
+                                        {renderItemIcon(type, "h-5 w-5")}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-black text-[var(--foreground)]">
+                                            {getBlockTitle(block)}
+                                        </p>
+
+                                        <p className="text-xs font-semibold text-[var(--muted-foreground)]">
+                                            {getItemLabel(type)}
+                                        </p>
+                                    </div>
+
+                                    <span className="text-right text-xs font-bold text-[var(--muted-foreground)]">
+                                        Pendiente
+                                    </span>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    function renderGradeSideCard() {
+        const averageScore = getAverageQuizScore(quizResponses, allBlocks);
+
+        return (
+            <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <div className="flex gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+                        <Star className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                        <h3 className="text-base font-black text-[var(--foreground)]">
+                            Calificación actual
+                        </h3>
+
+                        <p className="mt-2 text-sm font-black text-[var(--foreground)]">
+                            {averageScore > 0
+                                ? `${averageScore} puntos`
+                                : "Sin calificar aún"}
+                        </p>
+
+                        <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted-foreground)]">
+                            Completa las evaluaciones para obtener tu calificación.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
 
     function renderCertificatePanel() {
         const isViewCertificateDisabled =
@@ -1380,10 +1840,10 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                     <div className="flex items-start gap-4">
                         <div
                             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${certificateReady
-                                    ? "bg-emerald-50 text-emerald-700"
-                                    : courseCompleted
-                                        ? "bg-amber-50 text-amber-700"
-                                        : "bg-blue-50 text-blue-700"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : courseCompleted
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-blue-50 text-blue-700"
                                 }`}
                         >
                             {certificateReady ? (
@@ -1455,6 +1915,660 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                 </div>
             </div>
         );
+    }
+
+
+    function renderSummaryPage() {
+        const objectives = [
+            "Revisar los contenidos principales del curso.",
+            "Completar los recursos y actividades de cada módulo.",
+            "Aprobar las evaluaciones necesarias para obtener el certificado.",
+        ];
+
+        const requirements = [
+            "Contar con acceso activo al curso.",
+            "Revisar los materiales en el orden sugerido.",
+            "Completar videos, lecturas, imágenes, PDF y evaluaciones.",
+        ];
+
+        return (
+            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="space-y-5">
+                    <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <div className="flex gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--secondary)] text-[var(--primary)]">
+                                <FileText className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <h2 className="text-lg font-black text-[var(--foreground)]">
+                                    Descripción del curso
+                                </h2>
+
+                                <p className="mt-3 text-sm font-semibold leading-7 text-[var(--muted-foreground)]">
+                                    {courseDescription ||
+                                        "Este curso está organizado por módulos y recursos para que avances de forma ordenada dentro del aula virtual."}
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <div className="flex gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--success-soft)] text-[var(--success)]">
+                                <CheckCircle2 className="h-5 w-5" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-lg font-black text-[var(--foreground)]">
+                                    Objetivos de aprendizaje
+                                </h2>
+
+                                <div className="mt-3 space-y-2">
+                                    {objectives.map((objective) => (
+                                        <div
+                                            key={objective}
+                                            className="flex items-start gap-2 text-sm font-semibold text-[var(--muted-foreground)]"
+                                        >
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--success)]" />
+                                            <span>{objective}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <div className="flex gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
+                                <ClipboardList className="h-5 w-5" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-lg font-black text-[var(--foreground)]">
+                                    Requisitos
+                                </h2>
+
+                                <ul className="mt-3 space-y-2 text-sm font-semibold text-[var(--muted-foreground)]">
+                                    {requirements.map((requirement) => (
+                                        <li key={requirement} className="flex gap-2">
+                                            <span>•</span>
+                                            <span>{requirement}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+
+                <aside className="space-y-5">
+                    {renderProgressSideCard()}
+                    {renderUpcomingSideCard()}
+                </aside>
+            </div>
+        );
+    }
+
+    function renderCourseContentPage() {
+        return (
+            <div
+                id="contenido"
+                className="mt-5 grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)_360px]"
+            >
+                <aside className="rounded-[26px] border border-[var(--border)] bg-[var(--card)] shadow-sm">
+                    <div className="border-b border-[var(--border)] p-5">
+                        <h2 className="text-lg font-black text-[var(--foreground)]">
+                            Índice del curso
+                        </h2>
+                    </div>
+
+                    <div className="max-h-[calc(100vh-230px)] overflow-y-auto p-4">
+                        {modules.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--muted)] p-5 text-center text-sm font-semibold text-[var(--muted-foreground)]">
+                                Este curso todavía no tiene módulos.
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {modules.map((moduleItem, moduleIndex) => {
+                                    const isModuleOpen =
+                                        openModules[moduleItem.id] ?? true;
+
+                                    const moduleBlocks =
+                                        moduleItem.lessons.flatMap(
+                                            (lessonItem) =>
+                                                lessonItem.blocks,
+                                        );
+
+                                    const moduleCompletedCount =
+                                        moduleBlocks.filter((block) =>
+                                            completedBlocks.includes(
+                                                block.id,
+                                            ),
+                                        ).length;
+
+                                    return (
+                                        <div
+                                            key={moduleItem.id}
+                                            className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--muted)]"
+                                        >
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setOpenModules(
+                                                        (current) => ({
+                                                            ...current,
+                                                            [moduleItem.id]:
+                                                                !isModuleOpen,
+                                                        }),
+                                                    )
+                                                }
+                                                className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+                                            >
+                                                <span>
+                                                    <span className="block text-xs font-black uppercase text-[var(--primary)]">
+                                                        Módulo{" "}
+                                                        {moduleIndex + 1}
+                                                    </span>
+
+                                                    <span className="block text-sm font-black text-[var(--foreground)]">
+                                                        {moduleItem.name}
+                                                    </span>
+                                                </span>
+
+                                                <span className="flex items-center gap-2 text-xs font-black text-[var(--muted-foreground)]">
+                                                    {moduleCompletedCount}/
+                                                    {moduleBlocks.length}
+                                                    <ChevronDown
+                                                        className={`h-4 w-4 transition ${isModuleOpen
+                                                            ? ""
+                                                            : "-rotate-90"
+                                                            }`}
+                                                    />
+                                                </span>
+                                            </button>
+
+                                            {isModuleOpen ? (
+                                                <div className="space-y-3 border-t border-[var(--border)] bg-white p-3">
+                                                    {moduleItem.lessons.map(
+                                                        (
+                                                            lessonItem,
+                                                            lessonIndex,
+                                                        ) => {
+                                                            const isLessonOpen =
+                                                                openLessons[
+                                                                lessonItem.id
+                                                                ] ?? true;
+
+                                                            return (
+                                                                <div
+                                                                    key={
+                                                                        lessonItem.id
+                                                                    }
+                                                                    className="rounded-xl bg-white"
+                                                                >
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setOpenLessons(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    [lessonItem.id]:
+                                                                                        !isLessonOpen,
+                                                                                }),
+                                                                            )
+                                                                        }
+                                                                        className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--muted)]"
+                                                                    >
+                                                                        <span className="text-sm font-black text-[var(--foreground)]">
+                                                                            Lección{" "}
+                                                                            {lessonIndex +
+                                                                                1}
+                                                                            :{" "}
+                                                                            {
+                                                                                lessonItem.name
+                                                                            }
+                                                                        </span>
+
+                                                                        <ChevronDown
+                                                                            className={`h-4 w-4 text-[var(--muted-foreground)] transition ${isLessonOpen
+                                                                                ? ""
+                                                                                : "-rotate-90"
+                                                                                }`}
+                                                                        />
+                                                                    </button>
+
+                                                                    {isLessonOpen ? (
+                                                                        <div className="mt-2 space-y-2">
+                                                                            {lessonItem
+                                                                                .blocks
+                                                                                .length ===
+                                                                                0 ? (
+                                                                                <p className="rounded-xl bg-[var(--muted)] px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)]">
+                                                                                    Sin
+                                                                                    contenido.
+                                                                                </p>
+                                                                            ) : (
+                                                                                lessonItem.blocks.map(
+                                                                                    (
+                                                                                        block,
+                                                                                    ) => {
+                                                                                        const type =
+                                                                                            getLessonItemType(
+                                                                                                block,
+                                                                                            );
+                                                                                        const isSelected =
+                                                                                            selectedBlock?.id ===
+                                                                                            block.id;
+                                                                                        const isCompleted =
+                                                                                            completedBlocks.includes(
+                                                                                                block.id,
+                                                                                            );
+
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={
+                                                                                                    block.id
+                                                                                                }
+                                                                                                type="button"
+                                                                                                onClick={() =>
+                                                                                                    handleSelectBlock(
+                                                                                                        block,
+                                                                                                    )
+                                                                                                }
+                                                                                                className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${isSelected
+                                                                                                    ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
+                                                                                                    : "border-transparent bg-[var(--muted)] text-[var(--foreground)] hover:border-[var(--border)] hover:bg-white"
+                                                                                                    }`}
+                                                                                            >
+                                                                                                <div
+                                                                                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isSelected
+                                                                                                        ? "bg-white/15 text-white"
+                                                                                                        : "bg-white text-[var(--primary)]"
+                                                                                                        }`}
+                                                                                                >
+                                                                                                    {isCompleted ? (
+                                                                                                        <CheckCircle2 className="h-4 w-4" />
+                                                                                                    ) : (
+                                                                                                        renderItemIcon(
+                                                                                                            type,
+                                                                                                            "h-4 w-4",
+                                                                                                        )
+                                                                                                    )}
+                                                                                                </div>
+
+                                                                                                <span className="min-w-0 flex-1">
+                                                                                                    <span className="block truncate text-sm font-black">
+                                                                                                        {getBlockTitle(
+                                                                                                            block,
+                                                                                                        )}
+                                                                                                    </span>
+
+                                                                                                    <span
+                                                                                                        className={`block text-xs font-semibold ${isSelected
+                                                                                                            ? "text-white/80"
+                                                                                                            : "text-[var(--muted-foreground)]"
+                                                                                                            }`}
+                                                                                                    >
+                                                                                                        {getItemLabel(
+                                                                                                            type,
+                                                                                                        )}
+                                                                                                    </span>
+                                                                                                </span>
+
+                                                                                                {isCompleted ? (
+                                                                                                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                                                                                                ) : null}
+                                                                                            </button>
+                                                                                        );
+                                                                                    },
+                                                                                )
+                                                                            )}
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            );
+                                                        },
+                                                    )}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </aside>
+
+                <main className="rounded-[26px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                    {selectedBlock ? (
+                        <div className="mb-5 flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <div className="inline-flex items-center gap-2 rounded-full bg-[var(--secondary)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--primary)]">
+                                    {renderItemIcon(
+                                        selectedType,
+                                        "h-3.5 w-3.5",
+                                    )}
+                                    {getItemLabel(selectedType)}
+                                </div>
+
+                                <h2 className="mt-3 text-2xl font-black text-[var(--foreground)]">
+                                    {selectedTitle}
+                                </h2>
+
+                                <p className="mt-1 text-sm font-semibold text-[var(--muted-foreground)]">
+                                    {completedBlocks.includes(
+                                        selectedBlock.id,
+                                    )
+                                        ? "Este bloque ya está completado."
+                                        : "Completa este bloque para avanzar en tu curso."}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm hover:bg-[var(--muted)]"
+                            >
+                                <MoreVertical className="h-5 w-5" />
+                            </button>
+                        </div>
+                    ) : null}
+
+                    {renderSelectedBlockContent()}
+                </main>
+
+                <aside className="space-y-5">
+                    {renderProgressSideCard()}
+                    {renderUpcomingSideCard()}
+                    {renderGradeSideCard()}
+                </aside>
+            </div>
+        );
+    }
+
+    function renderActivitiesPage() {
+        return (
+            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                    <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-lg font-black text-[var(--foreground)]">
+                                Actividades del curso
+                            </h2>
+
+                            <p className="mt-1 text-sm font-semibold text-[var(--muted-foreground)]">
+                                Revisa tus recursos, evaluaciones y estados de avance.
+                            </p>
+                        </div>
+
+                        <span className="rounded-full bg-[var(--secondary)] px-3 py-1 text-xs font-black uppercase text-[var(--primary)]">
+                            {completedCount}/{totalBlocks} completados
+                        </span>
+                    </div>
+
+                    {allBlocks.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--muted)] p-8 text-center text-sm font-semibold text-[var(--muted-foreground)]">
+                            Este curso todavía no tiene actividades.
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {allBlocks.map((block, index) => {
+                                const type = getLessonItemType(block);
+                                const isCompleted = completedBlocks.includes(block.id);
+
+                                return (
+                                    <button
+                                        key={block.id}
+                                        type="button"
+                                        onClick={() => {
+                                            handleSelectBlock(block);
+                                            setActiveTab("content");
+                                        }}
+                                        className="flex w-full flex-col gap-3 rounded-2xl border border-[var(--border)] bg-white p-4 text-left transition hover:border-[var(--primary)] hover:shadow-sm sm:flex-row sm:items-center"
+                                    >
+                                        <div
+                                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${isCompleted
+                                                    ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                                    : "bg-[var(--secondary)] text-[var(--primary)]"
+                                                }`}
+                                        >
+                                            {isCompleted ? (
+                                                <CheckCircle2 className="h-5 w-5" />
+                                            ) : (
+                                                renderItemIcon(type, "h-5 w-5")
+                                            )}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-black text-[var(--foreground)]">
+                                                {index + 1}. {getBlockTitle(block)}
+                                            </p>
+
+                                            <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)]">
+                                                {getItemLabel(type)}
+                                            </p>
+                                        </div>
+
+                                        <span
+                                            className={`rounded-full px-3 py-1 text-xs font-black uppercase ${isCompleted
+                                                    ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                                    : "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                                                }`}
+                                        >
+                                            {isCompleted ? "Completado" : "Pendiente"}
+                                        </span>
+
+                                        <ChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                <aside className="space-y-5">
+                    {renderProgressSideCard()}
+                    {renderUpcomingSideCard()}
+                </aside>
+            </div>
+        );
+    }
+
+    function renderGradesPage() {
+        const averageScore = getAverageQuizScore(quizResponses, allBlocks);
+
+        return (
+            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="space-y-5">
+                    <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <h2 className="text-lg font-black text-[var(--foreground)]">
+                            Calificaciones
+                        </h2>
+
+                        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                            <div className="rounded-2xl bg-[var(--muted)] p-4">
+                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                    Promedio actual
+                                </p>
+                                <p className="mt-2 text-3xl font-black text-[var(--foreground)]">
+                                    {averageScore > 0 ? averageScore : "-"}
+                                </p>
+                            </div>
+
+                            <div className="rounded-2xl bg-[var(--muted)] p-4">
+                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                    Evaluaciones
+                                </p>
+                                <p className="mt-2 text-3xl font-black text-[var(--foreground)]">
+                                    {quizBlocks.length}
+                                </p>
+                            </div>
+
+                            <div className="rounded-2xl bg-[var(--muted)] p-4">
+                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                    Aprobadas
+                                </p>
+                                <p className="mt-2 text-3xl font-black text-[var(--success)]">
+                                    {
+                                        quizResponses.filter(
+                                            (response) => response.is_passed === true,
+                                        ).length
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <h3 className="text-base font-black text-[var(--foreground)]">
+                            Evaluaciones registradas
+                        </h3>
+
+                        {quizBlocks.length === 0 ? (
+                            <p className="mt-4 rounded-2xl bg-[var(--muted)] p-4 text-sm font-semibold text-[var(--muted-foreground)]">
+                                Este curso todavía no tiene evaluaciones.
+                            </p>
+                        ) : (
+                            <div className="mt-4 space-y-3">
+                                {quizBlocks.map((block) => {
+                                    const response = getQuizResponseForBlock(
+                                        quizResponses,
+                                        block.id,
+                                    );
+                                    const attempts = getQuizAttemptsCount(response);
+                                    const isPassed = response?.is_passed === true;
+
+                                    return (
+                                        <button
+                                            key={block.id}
+                                            type="button"
+                                            onClick={() => {
+                                                handleSelectBlock(block);
+                                                setActiveTab("content");
+                                            }}
+                                            className="flex w-full items-center gap-4 rounded-2xl border border-[var(--border)] bg-white p-4 text-left transition hover:border-[var(--primary)]"
+                                        >
+                                            <div
+                                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${isPassed
+                                                        ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                                        : "bg-[var(--warning-soft)] text-[var(--warning)]"
+                                                    }`}
+                                            >
+                                                <ClipboardList className="h-5 w-5" />
+                                            </div>
+
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-black text-[var(--foreground)]">
+                                                    {getBlockTitle(block)}
+                                                </p>
+                                                <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)]">
+                                                    Intentos usados: {attempts} de {MAX_QUIZ_ATTEMPTS}
+                                                </p>
+                                            </div>
+
+                                            <div className="text-right">
+                                                <p className="text-sm font-black text-[var(--foreground)]">
+                                                    {response ? `${response.score} pts` : "Sin nota"}
+                                                </p>
+                                                <p
+                                                    className={`text-xs font-black ${isPassed
+                                                            ? "text-[var(--success)]"
+                                                            : "text-[var(--muted-foreground)]"
+                                                        }`}
+                                                >
+                                                    {isPassed ? "Aprobada" : "Pendiente"}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </section>
+                </div>
+
+                <aside className="space-y-5">
+                    {renderGradeSideCard()}
+                    {renderProgressSideCard()}
+                </aside>
+            </div>
+        );
+    }
+
+    function renderCertificatePage() {
+        const quizRequirementsCompleted =
+            quizBlocks.length === 0 ||
+            quizBlocks.every((block) => {
+                const response = getQuizResponseForBlock(quizResponses, block.id);
+
+                return response?.is_passed === true;
+            });
+
+        return (
+            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="space-y-5">
+                    {renderCertificatePanel()}
+
+                    <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <h2 className="text-lg font-black text-[var(--foreground)]">
+                            Requisitos del certificado
+                        </h2>
+
+                        <div className="mt-4 space-y-3">
+                            {[
+                                {
+                                    label: "Completar todos los contenidos del curso",
+                                    completed: courseCompleted,
+                                },
+                                {
+                                    label: "Aprobar las evaluaciones del curso",
+                                    completed: quizRequirementsCompleted,
+                                },
+                                {
+                                    label: "Mantener matrícula activa y aprobada",
+                                    completed: Boolean(enrollmentId),
+                                },
+                            ].map((requirement) => (
+                                <div
+                                    key={requirement.label}
+                                    className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-white p-4"
+                                >
+                                    <div
+                                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${requirement.completed
+                                                ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                                : "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                                            }`}
+                                    >
+                                        <CheckCircle2 className="h-5 w-5" />
+                                    </div>
+
+                                    <p className="text-sm font-black text-[var(--foreground)]">
+                                        {requirement.label}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                </div>
+
+                <aside className="space-y-5">
+                    {renderProgressSideCard()}
+                </aside>
+            </div>
+        );
+    }
+
+    function renderActiveTabContent() {
+        if (activeTab === "summary") return renderSummaryPage();
+        if (activeTab === "activities") return renderActivitiesPage();
+        if (activeTab === "grades") return renderGradesPage();
+        if (activeTab === "certificate") return renderCertificatePage();
+
+        return renderCourseContentPage();
     }
 
     function renderSelectedBlockContent() {
@@ -1702,7 +2816,7 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
                         type="button"
                         onClick={() => void handleSubmitQuiz()}
                         disabled={quizSaving || isQuizCompleted || isQuizLimitReached}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--primary-foreground)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {quizSaving ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1754,303 +2868,58 @@ export function StudentMoocCourseView({ courseId }: StudentMoocCourseViewProps) 
     }
 
     return (
-        <section className="space-y-4">
-            <Link
-                href="/student/courses"
-                className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Volver a mis cursos
-            </Link>
+        <section className="min-h-screen bg-[var(--background)] px-4 py-5 pt-16 text-[var(--foreground)] sm:px-5 md:px-8 md:pt-6 xl:px-10">
+            <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-black">
+                    <Link
+                        href="/student/courses"
+                        className="text-[var(--primary)]"
+                    >
+                        Mis cursos
+                    </Link>
+
+                    <ChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
+
+                    <span className="text-[var(--primary)]">
+                        {courseName || "Curso"}
+                    </span>
+
+                    <ChevronRight className="h-4 w-4 text-[var(--muted-foreground)]" />
+
+                    <span className="text-[var(--foreground)]">
+                        Aula del curso
+                    </span>
+                </div>
+
+                {renderTopActions()}
+            </div>
 
             {errorMessage ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                <div className="mb-5 flex items-start gap-3 rounded-2xl border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm font-bold text-[var(--danger)]">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <span>{errorMessage}</span>
                 </div>
             ) : null}
 
             {loading ? (
-                <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
-                    <p className="mt-4 text-sm font-bold text-slate-600">
+                <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
+                    <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
+                    <p className="mt-4 text-sm font-bold text-[var(--muted-foreground)]">
                         Cargando curso...
                     </p>
                 </div>
             ) : (
                 <>
-                    <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-                        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-5 py-5 md:px-6">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="min-w-0">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-100">
-                                        <Layers3 className="h-3.5 w-3.5" />
-                                        Curso MOOC
-                                    </div>
+                    {renderCourseHero()}
 
-                                    <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
-                                        Aula del curso
-                                    </h1>
+                    <div className="mt-5">{renderTabs()}</div>
 
-                                    <p className="mt-2 max-w-3xl text-sm leading-5 text-slate-300">
-                                        Avanza por los módulos, revisa contenidos,
-                                        videos, imágenes, PDF y evaluaciones.
-                                    </p>
-                                </div>
-
-                                <div className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white backdrop-blur-sm lg:w-[260px]">
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div>
-                                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100">
-                                                Progreso
-                                            </p>
-
-                                            <p className="mt-1 text-2xl font-black">
-                                                {progress}%
-                                            </p>
-                                        </div>
-
-                                        <p className="text-right text-xs font-semibold leading-5 text-slate-200">
-                                            {completedCount} de {totalBlocks}
-                                            <br />
-                                            completados
-                                        </p>
-                                    </div>
-
-                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
-                                        <div
-                                            className="h-full rounded-full bg-white"
-                                            style={{ width: `${progress}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {renderCertificatePanel()}
-
-                    <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-                        <aside className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                            <h2 className="text-lg font-black text-slate-950">
-                                Contenido del curso
-                            </h2>
-
-                            <div className="mt-5 space-y-4">
-                                {modules.length === 0 ? (
-                                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-500">
-                                        Este curso todavía no tiene módulos.
-                                    </div>
-                                ) : (
-                                    modules.map((moduleItem, moduleIndex) => {
-                                        const isModuleOpen =
-                                            openModules[moduleItem.id] ?? true;
-
-                                        return (
-                                            <div
-                                                key={moduleItem.id}
-                                                className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setOpenModules(
-                                                            (current) => ({
-                                                                ...current,
-                                                                [moduleItem.id]:
-                                                                    !isModuleOpen,
-                                                            }),
-                                                        )
-                                                    }
-                                                    className="flex w-full items-center justify-between gap-3 text-left"
-                                                >
-                                                    <span>
-                                                        <span className="block text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
-                                                            Módulo {moduleIndex + 1}
-                                                        </span>
-
-                                                        <span className="block text-sm font-black text-slate-950">
-                                                            {moduleItem.name}
-                                                        </span>
-                                                    </span>
-
-                                                    <ChevronDown
-                                                        className={`h-5 w-5 text-slate-500 transition ${isModuleOpen
-                                                            ? ""
-                                                            : "-rotate-90"
-                                                            }`}
-                                                    />
-                                                </button>
-
-                                                {isModuleOpen ? (
-                                                    <div className="mt-4 space-y-3">
-                                                        {moduleItem.lessons.map(
-                                                            (
-                                                                lessonItem,
-                                                                lessonIndex,
-                                                            ) => {
-                                                                const isLessonOpen =
-                                                                    openLessons[
-                                                                    lessonItem.id
-                                                                    ] ?? true;
-
-                                                                return (
-                                                                    <div
-                                                                        key={
-                                                                            lessonItem.id
-                                                                        }
-                                                                        className="rounded-xl bg-white p-3"
-                                                                    >
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                setOpenLessons(
-                                                                                    (
-                                                                                        current,
-                                                                                    ) => ({
-                                                                                        ...current,
-                                                                                        [lessonItem.id]:
-                                                                                            !isLessonOpen,
-                                                                                    }),
-                                                                                )
-                                                                            }
-                                                                            className="flex w-full items-center justify-between gap-3 text-left"
-                                                                        >
-                                                                            <span className="text-sm font-black text-slate-800">
-                                                                                Lección{" "}
-                                                                                {lessonIndex +
-                                                                                    1}
-                                                                                :{" "}
-                                                                                {
-                                                                                    lessonItem.name
-                                                                                }
-                                                                            </span>
-
-                                                                            <ChevronDown
-                                                                                className={`h-4 w-4 text-slate-500 transition ${isLessonOpen
-                                                                                    ? ""
-                                                                                    : "-rotate-90"
-                                                                                    }`}
-                                                                            />
-                                                                        </button>
-
-                                                                        {isLessonOpen ? (
-                                                                            <div className="mt-3 space-y-2">
-                                                                                {lessonItem
-                                                                                    .blocks
-                                                                                    .length ===
-                                                                                    0 ? (
-                                                                                    <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-                                                                                        Sin
-                                                                                        contenido.
-                                                                                    </p>
-                                                                                ) : (
-                                                                                    lessonItem.blocks.map(
-                                                                                        (
-                                                                                            block,
-                                                                                        ) => {
-                                                                                            const type =
-                                                                                                getLessonItemType(
-                                                                                                    block,
-                                                                                                );
-                                                                                            const isSelected =
-                                                                                                selectedBlock?.id ===
-                                                                                                block.id;
-                                                                                            const isCompleted =
-                                                                                                completedBlocks.includes(
-                                                                                                    block.id,
-                                                                                                );
-
-                                                                                            return (
-                                                                                                <button
-                                                                                                    key={
-                                                                                                        block.id
-                                                                                                    }
-                                                                                                    type="button"
-                                                                                                    onClick={() =>
-                                                                                                        handleSelectBlock(
-                                                                                                            block,
-                                                                                                        )
-                                                                                                    }
-                                                                                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition ${isSelected
-                                                                                                        ? "bg-blue-700 text-white"
-                                                                                                        : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                                                                                                        }`}
-                                                                                                >
-                                                                                                    {isCompleted ? (
-                                                                                                        <CheckCircle2 className="h-4 w-4 shrink-0" />
-                                                                                                    ) : (
-                                                                                                        renderItemIcon(
-                                                                                                            type,
-                                                                                                            "h-4 w-4 shrink-0",
-                                                                                                        )
-                                                                                                    )}
-
-                                                                                                    <span className="min-w-0">
-                                                                                                        <span className="block truncate text-sm font-bold">
-                                                                                                            {getBlockTitle(
-                                                                                                                block,
-                                                                                                            )}
-                                                                                                        </span>
-
-                                                                                                        <span
-                                                                                                            className={`block text-xs font-semibold ${isSelected
-                                                                                                                ? "text-blue-100"
-                                                                                                                : "text-slate-500"
-                                                                                                                }`}
-                                                                                                        >
-                                                                                                            {getItemLabel(
-                                                                                                                type,
-                                                                                                            )}
-                                                                                                        </span>
-                                                                                                    </span>
-                                                                                                </button>
-                                                                                            );
-                                                                                        },
-                                                                                    )
-                                                                                )}
-                                                                            </div>
-                                                                        ) : null}
-                                                                    </div>
-                                                                );
-                                                            },
-                                                        )}
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </aside>
-
-                        <main className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                            {selectedBlock ? (
-                                <div className="mb-6 border-b border-slate-200 pb-5">
-                                    <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-700">
-                                        {renderItemIcon(selectedType, "h-3.5 w-3.5")}
-                                        {getItemLabel(selectedType)}
-                                    </div>
-
-                                    <h2 className="mt-4 text-2xl font-black text-slate-950">
-                                        {selectedTitle}
-                                    </h2>
-
-                                    <p className="mt-2 text-sm text-slate-500">
-                                        {completedBlocks.includes(selectedBlock.id)
-                                            ? "Este bloque ya está completado."
-                                            : "Completa este bloque para avanzar en tu curso."}
-                                    </p>
-                                </div>
-                            ) : null}
-
-                            {renderSelectedBlockContent()}
-                        </main>
-                    </div>
+                    {renderActiveTabContent()}
                 </>
             )}
         </section>
     );
 }
+
 
 export default StudentMoocCourseView;

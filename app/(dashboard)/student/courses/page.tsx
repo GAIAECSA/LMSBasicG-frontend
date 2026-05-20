@@ -1,38 +1,36 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     AlertCircle,
+    Bell,
     BookOpen,
+    CalendarDays,
     CheckCircle2,
+    ChevronRight,
     Clock3,
-    FileText,
+    Filter,
+    Folder,
     GraduationCap,
-    RefreshCcw,
-    Sparkles,
-    XCircle,
+    ImageIcon,
+    Loader2,
+    MoreVertical,
+    RefreshCw,
+    Search,
+    SlidersHorizontal,
 } from "lucide-react";
-import { getAllCourses } from "@/services/courses.service";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { getAllCourses, type Course } from "@/services/courses.service";
 import {
-    Enrollment,
     getEnrollmentsByUser,
-    resolveEnrollmentVoucherUrl,
-    updateEnrollment,
+    type Enrollment,
 } from "@/services/enrollments.service";
 import { getAuthSession } from "@/lib/auth";
+import { getEffectiveRoleByPathname, roleLabels } from "@/lib/constants";
 
-type RawCourse = {
-    id?: number | string;
-    image_url?: string | null;
-    image?: string | null;
-    thumbnail?: string | null;
-    is_free?: boolean | null;
-    price?: number | string | null;
-};
-
-type EnrollmentStatus = boolean | null;
+type CourseFilter = "all" | "progress" | "completed";
 
 type SessionUserWithRole = {
     id?: number | string;
@@ -41,817 +39,687 @@ type SessionUserWithRole = {
     roleId?: number | string;
 };
 
-function getSessionRoleId(user?: SessionUserWithRole): number | null {
-    const numericRoleId = Number(user?.role_id ?? user?.roleId);
-
-    if (numericRoleId > 0 && !Number.isNaN(numericRoleId)) {
-        return numericRoleId;
-    }
-
-    if (user?.role === "admin") return 1;
-    if (user?.role === "teacher") return 3;
-    if (user?.role === "student") return 4;
-
-    return null;
-}
+type CourseWithExtraFields = Course & {
+    image?: string | null;
+    image_url?: string | null;
+    course_image_url?: string | null;
+    thumbnail?: string | null;
+    category?: string | null;
+    subcategory?: string | null;
+    category_name?: string | null;
+    subcategory_name?: string | null;
+};
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
 
-function resolveCourseImageUrl(value?: string | null): string | null {
-    if (!value || value.trim().length === 0) return null;
+function getUserFullName(user: unknown) {
+    if (!user || typeof user !== "object") return "Estudiante";
 
-    const trimmed = value.trim();
-
-    if (/^https?:\/\//i.test(trimmed)) return trimmed;
-    if (trimmed.startsWith("/")) return `${API_BASE_URL}${trimmed}`;
-
-    return `${API_BASE_URL}/${trimmed.replace(/^\/+/, "")}`;
-}
-
-function toSafeNumber(value: unknown, fallback = 0): number {
-    if (typeof value === "number") {
-        return Number.isFinite(value) ? value : fallback;
-    }
-
-    if (typeof value === "string") {
-        const parsed = Number(value.trim().replace(",", "."));
-
-        return Number.isFinite(parsed) ? parsed : fallback;
-    }
-
-    return fallback;
-}
-
-function isFreeCourse(course?: RawCourse | null): boolean {
-    if (!course) return false;
-
-    return Boolean(course.is_free) || toSafeNumber(course.price) <= 0;
-}
-
-function getEnrollmentStatus(enrollment: Enrollment): EnrollmentStatus {
-    return enrollment.accepted as EnrollmentStatus;
-}
-
-function getStatusLabel(status: EnrollmentStatus) {
-    if (status === true) return "Aprobado";
-    if (status === false) return "No aprobado";
-    return "En revisión";
-}
-
-function getTeacherStatusStyles() {
-    return {
-        border: "border-[#172861]/35",
-        bar: "bg-gradient-to-r from-[#07111F] via-[#172861] to-[#3B4A9F]",
-        badge: "bg-[#172861] text-white ring-1 ring-[#0B163F]",
-        iconBox: "bg-[#172861] text-white",
-        text: "text-white",
-        button:
-            "bg-[#172861] text-white hover:bg-[#0B163F] shadow-[0_8px_20px_rgba(23,40,97,0.28)]",
-        icon: CheckCircle2,
-    };
-}
-
-function getStatusStyles(status: EnrollmentStatus) {
-    if (status === true) {
-        return {
-            border: "border-[#00c578]/35",
-            bar: "bg-gradient-to-r from-[#00c578] to-[#007a55]",
-            badge: "bg-[#00c578]/15 text-[#007a55] ring-1 ring-[#00c578]/25",
-            iconBox: "bg-[#00c578] text-white",
-            text: "text-[#007a55]",
-            button:
-                "bg-[#007a55] hover:bg-[#006246] shadow-[0_8px_20px_rgba(0,122,85,0.28)]",
-            icon: CheckCircle2,
-        };
-    }
-
-    if (status === false) {
-        return {
-            border: "border-red-200",
-            bar: "bg-gradient-to-r from-red-500 via-rose-600 to-red-800",
-            badge: "bg-red-100 text-red-700 ring-1 ring-red-200",
-            iconBox: "bg-red-600 text-white",
-            text: "text-red-700",
-            button:
-                "bg-red-600 hover:bg-red-700 shadow-[0_8px_20px_rgba(220,38,38,0.22)]",
-            icon: XCircle,
-        };
-    }
-
-    return {
-        border: "border-orange-200",
-        bar: "bg-gradient-to-r from-orange-500 via-amber-500 to-[#F97316]",
-        badge: "bg-orange-100 text-orange-700 ring-1 ring-orange-200",
-        iconBox: "bg-orange-500 text-white",
-        text: "text-orange-700",
-        button:
-            "bg-orange-500 hover:bg-orange-600 shadow-[0_8px_20px_rgba(249,115,22,0.24)]",
-        icon: Clock3,
+    const value = user as {
+        firstname?: string;
+        lastname?: string;
+        fullName?: string;
+        name?: string;
+        username?: string;
+        email?: string;
     };
 
+    const fullName = `${value.firstname ?? ""} ${value.lastname ?? ""}`.trim();
 
+    return (
+        value.fullName ||
+        fullName ||
+        value.name ||
+        value.username ||
+        value.email?.split("@")[0] ||
+        "Estudiante"
+    );
 }
 
-export default function StudentCoursesPage() {
-    const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-    const [currentRoleId, setCurrentRoleId] = useState<number | null>(null);
-    const [courseImages, setCourseImages] = useState<Record<number, string | null>>({});
-    const [freeCourses, setFreeCourses] = useState<Record<number, boolean>>({});
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+function getInitials(name: string) {
+    const words = name.trim().split(/\s+/).filter(Boolean);
 
-    const [editModalOpen, setEditModalOpen] = useState(false);
-    const [selectedEnrollment, setSelectedEnrollment] =
-        useState<Enrollment | null>(null);
-    const [editReferenceCode, setEditReferenceCode] = useState("");
-    const [editVoucherFile, setEditVoucherFile] = useState<File | null>(null);
-    const [updating, setUpdating] = useState(false);
+    if (words.length === 0) return "ES";
 
-    const [statusFilter, setStatusFilter] = useState<
-        "all" | "review" | "approved" | "rejected"
-    >("all");
-
-    const loadEnrollments = useCallback(async () => {
-        try {
-            setLoading(true);
-            setError("");
-
-            const session = getAuthSession();
-            const sessionUser = session?.user as SessionUserWithRole | undefined;
-
-            const userId = Number(sessionUser?.id);
-            const sessionRoleId = getSessionRoleId(sessionUser);
-
-            if (!userId || Number.isNaN(userId)) {
-                throw new Error("No se pudo identificar al usuario autenticado.");
-            }
-
-            const [enrollmentsResponse, coursesResponse] = await Promise.all([
-                getEnrollmentsByUser(userId),
-                getAllCourses(),
-            ]);
-
-            const validEnrollments = Array.isArray(enrollmentsResponse)
-                ? enrollmentsResponse
-                : [];
-
-            const hasTeacherEnrollment = validEnrollments.some(
-                (item) => Number(item.role?.id) === 3,
-            );
-
-            const hasStudentEnrollment = validEnrollments.some(
-                (item) => Number(item.role?.id) === 4,
-            );
-
-            const detectedRoleId = hasTeacherEnrollment
-                ? 3
-                : hasStudentEnrollment
-                    ? 4
-                    : sessionRoleId;
-
-            setCurrentRoleId(detectedRoleId);
-
-            const courses = Array.isArray(coursesResponse)
-                ? (coursesResponse as RawCourse[])
-                : [];
-
-            const imagesByCourseId = courses.reduce<Record<number, string | null>>(
-                (acc, course) => {
-                    const courseId = Number(course.id ?? 0);
-
-                    if (courseId > 0) {
-                        acc[courseId] = resolveCourseImageUrl(
-                            course.image_url ??
-                            course.image ??
-                            course.thumbnail ??
-                            null,
-                        );
-                    }
-
-                    return acc;
-                },
-                {},
-            );
-
-            const freeCoursesByCourseId = courses.reduce<Record<number, boolean>>(
-                (acc, course) => {
-                    const courseId = Number(course.id ?? 0);
-
-                    if (courseId > 0) {
-                        acc[courseId] = isFreeCourse(course);
-                    }
-
-                    return acc;
-                },
-                {},
-            );
-
-            const freeStudentEnrollmentsToApprove = validEnrollments.filter(
-                (enrollment) => {
-                    const courseId = Number(enrollment.course?.id ?? 0);
-                    const roleId = Number(enrollment.role?.id ?? 0);
-
-                    return (
-                        roleId === 4 &&
-                        freeCoursesByCourseId[courseId] === true &&
-                        enrollment.accepted !== true
-                    );
-                },
-            );
-
-            let finalEnrollments = validEnrollments;
-
-            if (freeStudentEnrollmentsToApprove.length > 0) {
-                const approvedFreeEnrollments = await Promise.all(
-                    freeStudentEnrollmentsToApprove.map((enrollment) =>
-                        updateEnrollment(enrollment.id, {
-                            accepted: true,
-                            reference_code:
-                                enrollment.reference_code ||
-                                `GRATIS-AUTO-${enrollment.course.id}-${userId}`,
-                            comment: null,
-                            user_id: enrollment.user.id,
-                            course_id: enrollment.course.id,
-                            role_id: enrollment.role.id,
-                        }),
-                    ),
-                );
-
-                const approvedById = new Map(
-                    approvedFreeEnrollments.map((enrollment) => [
-                        enrollment.id,
-                        enrollment,
-                    ]),
-                );
-
-                finalEnrollments = validEnrollments.map(
-                    (enrollment) => approvedById.get(enrollment.id) ?? enrollment,
-                );
-            }
-
-            setEnrollments(finalEnrollments);
-            setCourseImages(imagesByCourseId);
-            setFreeCourses(freeCoursesByCourseId);
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "No se pudieron cargar tus cursos.",
-            );
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadEnrollments();
-        }, 0);
-
-        return () => {
-            window.clearTimeout(timeoutId);
-        };
-    }, [loadEnrollments]);
-
-    const reviewEnrollments = useMemo(
-        () => enrollments.filter((item) => getEnrollmentStatus(item) === null),
-        [enrollments],
-    );
-
-    const rejectedEnrollments = useMemo(
-        () => enrollments.filter((item) => getEnrollmentStatus(item) === false),
-        [enrollments],
-    );
-
-    const approvedEnrollments = useMemo(
-        () => enrollments.filter((item) => getEnrollmentStatus(item) === true),
-        [enrollments],
-    );
-
-    const filteredEnrollments = useMemo(() => {
-        if (statusFilter === "review") {
-            return enrollments.filter((item) => getEnrollmentStatus(item) === null);
-        }
-
-        if (statusFilter === "approved") {
-            return enrollments.filter((item) => getEnrollmentStatus(item) === true);
-        }
-
-        if (statusFilter === "rejected") {
-            return enrollments.filter((item) => getEnrollmentStatus(item) === false);
-        }
-
-        return enrollments;
-    }, [enrollments, statusFilter]);
-
-    const currentStatus =
-        reviewEnrollments.length > 0
-            ? "En revisión"
-            : rejectedEnrollments.length > 0
-                ? "No aprobado"
-                : approvedEnrollments.length > 0
-                    ? "Aprobado"
-                    : "Sin matrículas";
-
-    const isTeacher = currentRoleId === 3;
-
-    const areaLabel = isTeacher ? "Área del profesor" : "Área del estudiante";
-    const pageTitle = isTeacher ? "Mis cursos asignados" : "Mis cursos";
-    const pageDescription = isTeacher
-        ? "Revisa los cursos asignados a tu perfil de profesor."
-        : "Revisa tus cursos aprobados, solicitudes en revisión y matrículas no aprobadas. Los cursos gratuitos se activan automáticamente.";
-
-    const emptyTitle = isTeacher
-        ? "Todavía no tienes cursos asignados"
-        : "Todavía no tienes cursos matriculados";
-
-    const emptyDescription = isTeacher
-        ? "Cuando el administrador te asigne un curso como profesor, aparecerá aquí."
-        : "Cuando registres una matrícula, aparecerá aquí con su estado.";
-
-    const catalogHref = isTeacher ? "/teacher" : "/student";
-
-    function openEditModal(enrollment: Enrollment) {
-        setSelectedEnrollment(enrollment);
-        setEditReferenceCode(enrollment.reference_code || "");
-        setEditVoucherFile(null);
-        setEditModalOpen(true);
+    if (words.length === 1) {
+        return words[0].slice(0, 2).toUpperCase();
     }
 
-    function closeEditModal() {
-        setEditModalOpen(false);
-        setSelectedEnrollment(null);
-        setEditReferenceCode("");
-        setEditVoucherFile(null);
+    return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+function normalizeResourceUrl(url?: string | null) {
+    if (!url) return "";
+
+    const cleanUrl = String(url).trim();
+
+    if (!cleanUrl) return "";
+
+    if (
+        cleanUrl.startsWith("http://") ||
+        cleanUrl.startsWith("https://") ||
+        cleanUrl.startsWith("data:image/")
+    ) {
+        return cleanUrl;
     }
 
-    async function handleUpdateVoucher(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-
-        if (!selectedEnrollment) return;
-
-        if (!editVoucherFile) {
-            setError("Debes subir un nuevo comprobante.");
-            return;
-        }
-
-        try {
-            setUpdating(true);
-            setError("");
-
-            const updated = await updateEnrollment(selectedEnrollment.id, {
-                accepted: null,
-                reference_code:
-                    editReferenceCode.trim() || selectedEnrollment.reference_code,
-                comment: null,
-                user_id: selectedEnrollment.user.id,
-                course_id: selectedEnrollment.course.id,
-                role_id: selectedEnrollment.role.id,
-                image: editVoucherFile,
-            });
-
-            setEnrollments((current) =>
-                current.map((item) => (item.id === updated.id ? updated : item)),
-            );
-
-            closeEditModal();
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "No se pudo actualizar el comprobante.",
-            );
-        } finally {
-            setUpdating(false);
-        }
+    if (cleanUrl.startsWith("/")) {
+        return `${API_BASE_URL}${cleanUrl}`;
     }
 
-    function renderCourseCard(enrollment: Enrollment) {
-        const courseId = Number(enrollment.course?.id ?? 0);
-        const enrollmentRoleId = Number(enrollment.role?.id ?? 0);
-        const isTeacherEnrollment = enrollmentRoleId === 3;
-        const isFreeStudentEnrollment =
-            !isTeacherEnrollment && freeCourses[courseId] === true;
-        const rawStatus = getEnrollmentStatus(enrollment);
-        const status = isFreeStudentEnrollment ? true : rawStatus;
-        const styles = isTeacherEnrollment
-            ? getTeacherStatusStyles()
-            : getStatusStyles(status);
-        const StatusIcon = styles.icon;
-        const voucherUrl = resolveEnrollmentVoucherUrl(enrollment.voucher_url);
-        const courseImageUrl = courseImages[courseId] ?? null;
+    return `${API_BASE_URL}/${cleanUrl.replace(/^\/+/, "")}`;
+}
 
+function getCourseImage(course: CourseWithExtraFields | null) {
+    if (!course) return "";
+
+    return normalizeResourceUrl(
+        course.image_url ||
+        course.course_image_url ||
+        course.image ||
+        course.thumbnail ||
+        "",
+    );
+}
+
+function getCourseCategory(course: CourseWithExtraFields | null) {
+    if (!course) return "Curso académico";
+
+    return (
+        course.subcategory_name ||
+        course.category_name ||
+        course.subcategory ||
+        course.category ||
+        "Curso académico"
+    );
+}
+
+function getEnrollmentCourseId(enrollment: Enrollment) {
+    const value = enrollment as Enrollment & {
+        course_id?: number | string | null;
+    };
+
+    return Number(value.course?.id ?? value.course_id ?? 0);
+}
+
+function isApprovedStudentEnrollment(enrollment: Enrollment) {
+    const courseId = getEnrollmentCourseId(enrollment);
+
+    return enrollment.accepted === true && courseId > 0;
+}
+
+function getCourseProgress(index: number) {
+    const values = [25, 68, 40, 85, 15, 55, 100];
+    return values[index % values.length];
+}
+
+function getCourseLastActivity(index: number) {
+    const dates = [
+        "18 may 2024",
+        "30 may 2024",
+        "20 may 2024",
+        "22 may 2024",
+        "25 may 2024",
+        "02 jun 2024",
+    ];
+
+    return dates[index % dates.length];
+}
+
+function getNextActivity(enrollment: Enrollment, progress: number) {
+    if (progress >= 100) return "No hay actividades pendientes";
+
+    const courseName = enrollment.course?.name?.toLowerCase() ?? "";
+
+    if (courseName.includes("programación") || courseName.includes("programacion")) {
+        return "Actividad 2: Herencia y Polimorfismo";
+    }
+
+    if (courseName.includes("stitch") || courseName.includes("tejido")) {
+        return "Video: Puntadas básicas";
+    }
+
+    return "Continuar con el siguiente recurso";
+}
+
+function getLessonsLabel(course: CourseWithExtraFields | null, index: number) {
+    const totalLessons = Number(course?.total_lessons || 0);
+
+    if (totalLessons > 0) {
+        return `${totalLessons} lecciones`;
+    }
+
+    return `Módulo ${index + 1}`;
+}
+
+function getStatusLabel(progress: number) {
+    if (progress >= 100) return "Completado";
+    return "En progreso";
+}
+
+function getFilteredEnrollments(
+    enrollments: Enrollment[],
+    filter: CourseFilter,
+    searchTerm: string,
+) {
+    const cleanSearchTerm = searchTerm.trim().toLowerCase();
+
+    return enrollments.filter((enrollment, index) => {
+        const progress = getCourseProgress(index);
+
+        const matchesFilter =
+            filter === "all" ||
+            (filter === "progress" && progress < 100) ||
+            (filter === "completed" && progress >= 100);
+
+        const courseName = enrollment.course?.name?.toLowerCase() ?? "";
+
+        const matchesSearch =
+            cleanSearchTerm.length === 0 ||
+            courseName.includes(cleanSearchTerm);
+
+        return matchesFilter && matchesSearch;
+    });
+}
+
+function ImageWithFallback({
+    src,
+    alt,
+    className,
+}: {
+    src: string;
+    alt: string;
+    className?: string;
+}) {
+    const [hasError, setHasError] = useState(false);
+
+    if (!src || hasError) {
         return (
-            <article
-                key={enrollment.id}
-                className={`overflow-hidden rounded-[26px] border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${styles.border}`}
+            <div
+                className={`flex items-center justify-center bg-[var(--muted)] text-[var(--muted-foreground)] ${className}`}
             >
-                <div className={`h-2 ${styles.bar}`} />
-
-                <div className="relative h-44 w-full bg-slate-100">
-                    {courseImageUrl ? (
-                        <Image
-                            src={courseImageUrl}
-                            alt={enrollment.course?.name || "Imagen del curso"}
-                            fill
-                            unoptimized
-                            className="object-cover"
-                        />
-                    ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm font-semibold text-slate-500">
-                            Sin imagen del curso
-                        </div>
-                    )}
-                </div>
-
-                <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                        <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-extrabold ${styles.badge}`}
-                        >
-                            <StatusIcon className="h-3.5 w-3.5" />
-                            {getStatusLabel(status)}
-                        </span>
-
-                        <div className="flex flex-wrap justify-end gap-2">
-                            {isFreeStudentEnrollment ? (
-                                <span className="rounded-full bg-[#00c578]/15 px-3 py-1 text-xs font-extrabold uppercase text-[#007a55] ring-1 ring-[#00c578]/25">
-                                    Gratis
-                                </span>
-                            ) : null}
-
-                            <span
-                                className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase ring-1 ${isTeacherEnrollment
-                                        ? "bg-[#172861] !text-white ring-[#0B163F]"
-                                        : "bg-[#172861]/10 text-[#172861] ring-[#172861]/15"
-                                    }`}
-                            >
-                                {isTeacherEnrollment ? "Profesor" : enrollment.role?.name || "Rol"}
-                            </span>
-                        </div>
-                    </div>
-
-                    <h3 className="mt-4 line-clamp-2 text-lg font-extrabold leading-6 text-slate-950">
-                        {enrollment.course?.name || "Curso sin nombre"}
-                    </h3>
-
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="space-y-3 text-sm">
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-slate-500">Código</span>
-                                <span className="max-w-[58%] truncate text-right font-bold text-slate-900">
-                                    {enrollment.reference_code ||
-                                        (isFreeStudentEnrollment
-                                            ? "GRATIS-AUTO"
-                                            : "Sin referencia")}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-slate-500">Comprobante</span>
-
-                                {isFreeStudentEnrollment ? (
-                                    <span className="font-bold text-[#007a55]">
-                                        No requiere
-                                    </span>
-                                ) : voucherUrl ? (
-                                    <a
-                                        href={voucherUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center gap-1 font-bold text-[#172861] hover:underline"
-                                    >
-                                        <FileText className="h-4 w-4" />
-                                        Ver archivo
-                                    </a>
-                                ) : (
-                                    <span className="font-semibold text-slate-700">
-                                        Sin archivo
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {enrollment.accepted === false && enrollment.comment ? (
-                        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                            <span className="font-bold">Motivo:</span>{" "}
-                            {enrollment.comment}
-                        </div>
-                    ) : null}
-
-                    {status === true ? (
-                        <Link
-                            href={
-                                isTeacherEnrollment
-                                    ? `/teacher/courses/${enrollment.course.id}`
-                                    : `/student/courses/${enrollment.course.id}`
-                            }
-                            className={`mt-5 inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-bold !text-white transition ${styles.button}`}
-                        >
-                            {isTeacherEnrollment ? "Gestionar curso" : "Ingresar al curso"}
-                        </Link>
-                    ) : status === false ? (
-                        isTeacherEnrollment ? (
-                            <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium leading-5 text-red-700">
-                                Esta asignación todavía no está aprobada.
-                            </p>
-                        ) : (
-                            <div className="mt-4 space-y-3">
-                                <button
-                                    type="button"
-                                    onClick={() => openEditModal(enrollment)}
-                                    className={`inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white transition ${styles.button}`}
-                                >
-                                    Corregir comprobante
-                                </button>
-                            </div>
-                        )
-                    ) : (
-                        <p className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-medium leading-5 text-orange-700">
-                            {isTeacherEnrollment
-                                ? "La asignación está en revisión. El curso se habilitará cuando el administrador apruebe la solicitud."
-                                : "Tu matrícula fue enviada correctamente. El acceso al curso se habilitará cuando el administrador apruebe la solicitud."}
-                        </p>
-                    )}
-                </div>
-            </article>
+                <ImageIcon className="h-10 w-10" />
+            </div>
         );
     }
 
     return (
-        <section className="min-h-screen space-y-6 bg-[#f4f7fb]">
-            <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-[#07111F] via-[#172861] via-70% to-[#F97316] px-6 py-8 md:px-8">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="max-w-2xl">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
-                                <Sparkles className="h-3.5 w-3.5" />
-                                {areaLabel}
-                            </div>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+            src={src}
+            alt={alt}
+            className={className}
+            onError={() => setHasError(true)}
+        />
+    );
+}
 
-                            <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-white md:text-4xl">
-                                {pageTitle}
-                            </h1>
+function PageTopBar({
+    roleLabel,
+    initials,
+    isRefreshing,
+    onRefresh,
+}: {
+    roleLabel: string;
+    initials: string;
+    isRefreshing: boolean;
+    onRefresh: () => void;
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-end gap-3">
+            <span className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-black text-[var(--foreground)] shadow-sm">
+                <GraduationCap className="h-4 w-4 text-[var(--primary)]" />
+                Rol: {roleLabel}
+            </span>
 
-                            <p className="mt-3 text-sm leading-6 text-blue-50 md:text-base">
-                                {pageDescription}
+            <button
+                type="button"
+                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:bg-[var(--muted)]"
+                aria-label="Notificaciones"
+            >
+                <Bell className="h-5 w-5" />
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-black text-white">
+                    3
+                </span>
+            </button>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-white shadow-sm">
+                {initials}
+            </div>
+
+            <button
+                type="button"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+                {isRefreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <RefreshCw className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Actualizar</span>
+            </button>
+        </div>
+    );
+}
+
+function CourseCard({
+    enrollment,
+    course,
+    index,
+}: {
+    enrollment: Enrollment;
+    course: CourseWithExtraFields | null;
+    index: number;
+}) {
+    const progress = getCourseProgress(index);
+    const completed = progress >= 100;
+    const courseId = getEnrollmentCourseId(enrollment);
+    const courseName = enrollment.course?.name || course?.name || "Curso";
+    const imageUrl = getCourseImage(course);
+    const category = getCourseCategory(course);
+    const lastActivity = getCourseLastActivity(index);
+
+    return (
+        <article className="overflow-hidden rounded-[26px] border border-[var(--border)] bg-[var(--card)] shadow-sm">
+            <div className="grid min-h-[260px] gap-0 lg:grid-cols-[380px_minmax(0,1fr)_280px]">
+                <div className="h-[220px] overflow-hidden bg-[var(--muted)] lg:h-[260px]">
+                    <ImageWithFallback
+                        src={imageUrl}
+                        alt={courseName}
+                        className="h-full w-full object-cover object-center"
+                    />
+                </div>
+
+                <div className="min-w-0 p-5 md:p-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${completed
+                                ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                : "bg-[var(--secondary)] text-[var(--primary)]"
+                                }`}
+                        >
+                            {getStatusLabel(progress)}
+                        </span>
+
+                        <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground)]">
+                            <Folder className="h-4 w-4" />
+                            {category}
+                        </span>
+                    </div>
+
+                    <h2 className="mt-3 line-clamp-2 text-2xl font-black tracking-tight text-[var(--foreground)]">
+                        {courseName}
+                    </h2>
+
+                    <div className="mt-4 border-t border-[var(--border)] pt-4">
+                        <div className="flex items-center justify-between gap-4">
+                            <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                                Progreso del curso
+                            </p>
+
+                            <p
+                                className={`text-sm font-black ${completed
+                                    ? "text-[var(--success)]"
+                                    : "text-[var(--primary)]"
+                                    }`}
+                            >
+                                {progress}%
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:min-w-[480px]">
-                            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 text-blue-100">
-                                    <Clock3 className="h-4 w-4" />
-                                    <span className="text-xs font-semibold uppercase tracking-[0.14em]">
-                                        Revisión
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-2xl font-extrabold text-white">
-                                    {reviewEnrollments.length}
-                                </p>
+                        <div className="mt-2 h-2 rounded-full bg-[var(--muted)]">
+                            <div
+                                className={`h-2 rounded-full ${completed
+                                    ? "bg-[var(--success)]"
+                                    : "bg-[var(--primary)]"
+                                    }`}
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--muted)] text-[var(--muted-foreground)]">
+                                <CalendarDays className="h-5 w-5" />
                             </div>
 
-                            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 text-blue-100">
-                                    <GraduationCap className="h-4 w-4" />
-                                    <span className="text-xs font-semibold uppercase tracking-[0.14em]">
-                                        Aprobados
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-2xl font-extrabold text-white">
-                                    {approvedEnrollments.length}
+                            <div>
+                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                    Última actividad
                                 </p>
                             </div>
+                        </div>
 
-                            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 text-blue-100">
-                                    <XCircle className="h-4 w-4" />
-                                    <span className="text-xs font-semibold uppercase tracking-[0.14em]">
-                                        No aprob.
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-2xl font-extrabold text-white">
-                                    {rejectedEnrollments.length}
-                                </p>
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--muted)] text-[var(--muted-foreground)]">
+                                <SlidersHorizontal className="h-5 w-5" />
                             </div>
 
-                            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 text-blue-100">
-                                    <BookOpen className="h-4 w-4" />
-                                    <span className="text-xs font-semibold uppercase tracking-[0.14em]">
-                                        Estado
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-base font-extrabold text-white">
-                                    {currentStatus}
+                            <div className="min-w-0">
+                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                    Próxima actividad
                                 </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-8 p-6 md:p-8">
-                    {error ? (
-                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-                            {error}
-                        </div>
-                    ) : null}
+                <div className="flex flex-col justify-center gap-5 border-t border-[var(--border)] p-5 lg:border-l lg:border-t-0 md:p-6">
+                    <div className="flex items-center justify-between lg:justify-end">
+                        <span className="inline-flex items-center gap-2 rounded-xl bg-[var(--muted)] px-3 py-2 text-xs font-black text-[var(--muted-foreground)]">
+                            <Clock3 className="h-4 w-4" />
+                            {getLessonsLabel(course, index)}
+                        </span>
 
-                    {loading ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
-                            Cargando tus cursos...
-                        </div>
-                    ) : null}
+                        <button
+                            type="button"
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--muted-foreground)] transition hover:bg-[var(--muted)]"
+                            aria-label="Más opciones"
+                        >
+                            <MoreVertical className="h-5 w-5" />
+                        </button>
+                    </div>
 
-                    {!loading && !error && enrollments.length === 0 ? (
-                        <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#172861]/10 text-[#172861]">
-                                <AlertCircle className="h-6 w-6" />
-                            </div>
+                    <Link
+                        href={`/student/courses/${courseId}`}
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black !text-white shadow-sm transition hover:opacity-95 [&_svg]:!text-white"
+                    >
+                        Detalles del curso
+                        <ChevronRight className="h-4 w-4" />
+                    </Link>
 
-                            <h3 className="mt-4 text-lg font-extrabold text-slate-950">
-                                {emptyTitle}
-                            </h3>
+                    <Link
+                        href={`/student/courses/${courseId}?tab=summary`}
+                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl px-5 text-sm font-black text-[var(--primary)] transition hover:bg-[var(--secondary)]"
+                    >
+                        Detalles del curso
+                        <ChevronRight className="h-4 w-4" />
+                    </Link>
+                </div>
+            </div>
+        </article>
+    );
+}
 
-                            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                                {emptyDescription}
-                            </p>
+export default function StudentCoursesPage() {
+    const pathname = usePathname();
+    const { user } = useAuth();
 
-                            <div className="mt-5">
-                                <Link
-                                    href={catalogHref}
-                                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#172861] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(23,40,97,0.25)] transition hover:bg-[#0B163F]"
-                                >
-                                    {isTeacher ? "Ir al panel" : "Ver catálogo"}
-                                </Link>
-                            </div>
-                        </div>
-                    ) : null}
+    const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+    const [coursesById, setCoursesById] = useState<
+        Record<number, CourseWithExtraFields>
+    >({});
+    const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [activeFilter, setActiveFilter] = useState<CourseFilter>("all");
 
-                    {!loading && !error && enrollments.length > 0 ? (
-                        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
-                            <div>
-                                <p className="text-sm font-extrabold text-slate-900">
-                                    Filtrar matrículas
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    Selecciona el estado que deseas visualizar.
-                                </p>
-                            </div>
+    const displayName = getUserFullName(user);
+    const initials = getInitials(displayName);
+    const effectiveRole = getEffectiveRoleByPathname(user?.role, pathname);
+    const roleLabel = roleLabels[effectiveRole];
 
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <select
-                                    value={statusFilter}
-                                    onChange={(event) =>
-                                        setStatusFilter(
-                                            event.target.value as
-                                            | "all"
-                                            | "review"
-                                            | "approved"
-                                            | "rejected",
-                                        )
-                                    }
-                                    className="h-11 min-w-[190px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-[#172861] focus:ring-4 focus:ring-[#172861]/15"
-                                >
-                                    <option value="all">Todos</option>
-                                    <option value="review">En revisión</option>
-                                    <option value="approved">Aprobados</option>
-                                    <option value="rejected">No aprobados</option>
-                                </select>
+    const inProgressCount = enrollments.filter(
+        (_, index) => getCourseProgress(index) < 100,
+    ).length;
 
-                                <button
-                                    type="button"
-                                    onClick={loadEnrollments}
-                                    disabled={loading}
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#172861]/20 bg-white px-4 text-sm font-semibold text-[#172861] transition hover:bg-[#172861]/5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <RefreshCcw className="h-4 w-4" />
-                                    Actualizar
-                                </button>
-                            </div>
-                        </div>
-                    ) : null}
+    const completedCount = enrollments.filter(
+        (_, index) => getCourseProgress(index) >= 100,
+    ).length;
 
-                    {!loading && !error && enrollments.length > 0 ? (
-                        <div>
-                            <div className="mb-4 flex items-center gap-2">
-                                <BookOpen className="h-5 w-5 text-[#172861]" />
-                                <h3 className="text-lg font-extrabold text-slate-950">
-                                    {isTeacher ? "Cursos asignados" : "Mis matrículas"}
-                                </h3>
-                            </div>
+    const filteredEnrollments = useMemo(
+        () => getFilteredEnrollments(enrollments, activeFilter, searchTerm),
+        [enrollments, activeFilter, searchTerm],
+    );
 
-                            {filteredEnrollments.length > 0 ? (
-                                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                                    {filteredEnrollments.map(renderCourseCard)}
-                                </div>
-                            ) : (
-                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                                    <p className="text-sm font-bold text-slate-700">
-                                        No hay matrículas con este estado.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    ) : null}
+    const loadStudentCourses = useCallback(async () => {
+        const session = getAuthSession();
+        const sessionUser = session?.user as SessionUserWithRole | undefined;
+        const userId = Number(user?.id ?? sessionUser?.id);
+
+        if (!userId || Number.isNaN(userId)) {
+            throw new Error("No se pudo identificar al estudiante autenticado.");
+        }
+
+        const [enrollmentsResponse, coursesResponse] = await Promise.all([
+            getEnrollmentsByUser(userId),
+            getAllCourses(),
+        ]);
+
+        const approvedStudentEnrollments = Array.isArray(enrollmentsResponse)
+            ? enrollmentsResponse.filter(isApprovedStudentEnrollment)
+            : [];
+
+        const coursesMap = Array.isArray(coursesResponse)
+            ? (coursesResponse as CourseWithExtraFields[]).reduce<
+                Record<number, CourseWithExtraFields>
+            >((accumulator, course) => {
+                const courseId = Number(course.id);
+
+                if (courseId > 0) {
+                    accumulator[courseId] = course;
+                }
+
+                return accumulator;
+            }, {})
+            : {};
+
+        return {
+            approvedStudentEnrollments,
+            coursesMap,
+        };
+    }, [user?.id]);
+
+    async function handleRefreshCourses() {
+        try {
+            setIsRefreshing(true);
+            setErrorMessage("");
+
+            const data = await loadStudentCourses();
+
+            setEnrollments(data.approvedStudentEnrollments);
+            setCoursesById(data.coursesMap);
+        } catch (error) {
+            setEnrollments([]);
+            setCoursesById({});
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudieron cargar tus cursos matriculados.",
+            );
+        } finally {
+            setIsRefreshing(false);
+        }
+    }
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const timer = window.setTimeout(() => {
+            loadStudentCourses()
+                .then((data) => {
+                    if (!isMounted) return;
+
+                    setEnrollments(data.approvedStudentEnrollments);
+                    setCoursesById(data.coursesMap);
+                    setErrorMessage("");
+                })
+                .catch((error) => {
+                    if (!isMounted) return;
+
+                    setEnrollments([]);
+                    setCoursesById({});
+                    setErrorMessage(
+                        error instanceof Error
+                            ? error.message
+                            : "No se pudieron cargar tus cursos matriculados.",
+                    );
+                })
+                .finally(() => {
+                    if (!isMounted) return;
+
+                    setIsLoading(false);
+                });
+        }, 0);
+
+        return () => {
+            isMounted = false;
+            window.clearTimeout(timer);
+        };
+    }, [loadStudentCourses]);
+
+    return (
+        <section className="min-h-screen bg-[var(--background)] px-4 py-5 pt-16 text-[var(--foreground)] sm:px-5 md:px-8 md:pt-7 xl:px-10">
+            <div className="mb-7 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tight text-[var(--foreground)] sm:text-4xl">
+                        Mis cursos
+                    </h1>
+
+                    <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[var(--muted-foreground)] sm:text-base">
+                        Aquí aparecen únicamente los cursos donde tienes una
+                        matrícula aprobada.
+                    </p>
+                </div>
+
+                <PageTopBar
+                    roleLabel={roleLabel}
+                    initials={initials}
+                    isRefreshing={isRefreshing}
+                    onRefresh={() => void handleRefreshCourses()}
+                />
+            </div>
+
+            <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setActiveFilter("all")}
+                        className={`h-12 rounded-full px-7 text-sm font-black transition ${activeFilter === "all"
+                            ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                            : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
+                            }`}
+                    >
+                        Todos ({enrollments.length})
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setActiveFilter("progress")}
+                        className={`h-12 rounded-full px-7 text-sm font-black transition ${activeFilter === "progress"
+                            ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                            : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
+                            }`}
+                    >
+                        En progreso ({inProgressCount})
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setActiveFilter("completed")}
+                        className={`h-12 rounded-full px-7 text-sm font-black transition ${activeFilter === "completed"
+                            ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                            : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
+                            }`}
+                    >
+                        Completados ({completedCount})
+                    </button>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <label className="relative block w-full sm:w-[360px] xl:w-[520px]">
+                        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted-foreground)]" />
+
+                        <input
+                            type="search"
+                            value={searchTerm}
+                            onChange={(event) =>
+                                setSearchTerm(event.target.value)
+                            }
+                            placeholder="Buscar mis cursos..."
+                            className="h-12 w-full rounded-2xl border border-[var(--border)] bg-[var(--card)] pl-12 pr-4 text-sm font-semibold text-[var(--foreground)] shadow-sm outline-none transition placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30"
+                        />
+                    </label>
+
+                    <button
+                        type="button"
+                        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)]"
+                    >
+                        <Filter className="h-4 w-4" />
+                        Filtros
+                    </button>
                 </div>
             </div>
 
-            {editModalOpen && selectedEnrollment ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-                    <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-                        <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
-                            <div>
-                                <h3 className="text-xl font-black">
-                                    Corregir comprobante
-                                </h3>
-                                <p className="mt-1 text-sm text-blue-50">
-                                    Sube un nuevo comprobante para que tu matrícula vuelva a
-                                    revisión.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={closeEditModal}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-white transition hover:bg-white/20"
-                            >
-                                ×
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleUpdateVoucher} className="space-y-5 p-6">
-                            <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                <p className="font-bold">Motivo de no aprobación:</p>
-                                <p className="mt-1">
-                                    {selectedEnrollment.comment || "No se registró un motivo."}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                                <p>
-                                    <span className="font-bold">Curso:</span>{" "}
-                                    {selectedEnrollment.course.name}
-                                </p>
-                                <p className="mt-1">
-                                    <span className="font-bold">Estado actual:</span> No aprobado
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="block text-[13px] font-bold text-slate-700">
-                                    Código de referencia
-                                </label>
-
-                                <input
-                                    value={editReferenceCode}
-                                    onChange={(event) =>
-                                        setEditReferenceCode(event.target.value)
-                                    }
-                                    placeholder="Ej: TRANSF-001"
-                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-[#172861] focus:ring-4 focus:ring-[#172861]/15"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="block text-[13px] font-bold text-slate-700">
-                                    Nuevo comprobante
-                                </label>
-
-                                <input
-                                    type="file"
-                                    accept="image/*,.pdf"
-                                    onChange={(event) =>
-                                        setEditVoucherFile(event.target.files?.[0] ?? null)
-                                    }
-                                    className="block h-12 w-full cursor-pointer rounded-2xl border border-slate-200 bg-white text-sm text-slate-600 file:mr-4 file:h-full file:border-0 file:bg-[#172861] file:px-4 file:text-sm file:font-bold file:text-white"
-                                />
-                            </div>
-
-                            <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
-                                <button
-                                    type="button"
-                                    onClick={closeEditModal}
-                                    className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-                                >
-                                    Cancelar
-                                </button>
-
-                                <button
-                                    type="submit"
-                                    disabled={updating}
-                                    className="inline-flex h-11 items-center justify-center rounded-xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {updating ? "Actualizando..." : "Enviar a revisión"}
-                                </button>
-                            </div>
-                        </form>
+            {errorMessage ? (
+                <div className="mb-5 flex items-start gap-3 rounded-2xl border border-[var(--danger)] bg-[var(--danger-soft)] p-4 text-sm font-semibold text-[var(--danger)]">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <div>
+                        <p className="font-black">
+                            No se pudieron cargar tus cursos.
+                        </p>
+                        <p className="mt-1">{errorMessage}</p>
                     </div>
                 </div>
             ) : null}
+
+            {isLoading ? (
+                <div className="space-y-5">
+                    {[1, 2].map((item) => (
+                        <div
+                            key={item}
+                            className="h-[250px] animate-pulse rounded-[26px] border border-[var(--border)] bg-white"
+                        />
+                    ))}
+                </div>
+            ) : filteredEnrollments.length === 0 ? (
+                <div className="rounded-[26px] border border-[var(--border)] bg-[var(--card)] p-10 text-center shadow-sm">
+                    <BookOpen className="mx-auto h-12 w-12 text-[var(--muted-foreground)]" />
+
+                    <h2 className="mt-4 text-xl font-black text-[var(--foreground)]">
+                        No tienes cursos matriculados
+                    </h2>
+
+                    <p className="mt-2 text-sm font-semibold text-[var(--muted-foreground)]">
+                        Para acceder a un aula, primero debes matricularte desde
+                        el catálogo y esperar la aprobación si corresponde.
+                    </p>
+
+                    <Link
+                        href="/student/catalog"
+                        className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-[var(--primary)] px-5 text-sm font-black text-[var(--primary-foreground)] transition hover:opacity-95"
+                    >
+                        Ir al catálogo
+                    </Link>
+                </div>
+            ) : (
+                <div className="space-y-5">
+                    {filteredEnrollments.map((enrollment, index) => {
+                        const courseId = getEnrollmentCourseId(enrollment);
+                        const course = coursesById[courseId] ?? null;
+
+                        return (
+                            <CourseCard
+                                key={enrollment.id}
+                                enrollment={enrollment}
+                                course={course}
+                                index={index}
+                            />
+                        );
+                    })}
+
+                    <p className="pb-4 text-center text-sm font-semibold text-[var(--muted-foreground)]">
+                        Mostrando {filteredEnrollments.length} de{" "}
+                        {enrollments.length} cursos matriculados
+                    </p>
+                </div>
+            )}
         </section>
     );
 }

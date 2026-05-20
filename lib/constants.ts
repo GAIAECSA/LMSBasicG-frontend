@@ -33,11 +33,11 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     href: "/admin/courses",
                 },
                 {
-                    label: "Categoría",
+                    label: "Categorías",
                     href: "/admin/courses/categories",
                 },
                 {
-                    label: "Subcategoría",
+                    label: "Subcategorías",
                     href: "/admin/courses/subcategories",
                 },
             ],
@@ -62,8 +62,20 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
 
     teacher: [
         {
+            label: "Inicio",
+            href: "/teacher",
+        },
+        {
             label: "Mis cursos",
-            href: "/student/courses",
+            href: "/teacher/courses",
+        },
+        {
+            label: "Calificaciones",
+            href: "/teacher/grades",
+        },
+        {
+            label: "Certificados",
+            href: "/teacher/certificates",
         },
     ],
 
@@ -75,6 +87,14 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
         {
             label: "Mis cursos",
             href: "/student/courses",
+        },
+        {
+            label: "Catálogo",
+            href: "/student/catalog",
+        },
+        {
+            label: "Calendario",
+            href: "/student/calendar",
         },
         {
             label: "Certificados",
@@ -118,12 +138,12 @@ export function getSidebarItemsByRoute(
 ): SidebarItem[] {
     const effectiveRole = getEffectiveRoleByPathname(userRole, pathname);
 
-    if (effectiveRole === "student") {
-        return sidebarByRole.student;
-    }
-
     if (effectiveRole === "admin") {
         return sidebarByRole.admin;
+    }
+
+    if (effectiveRole === "student") {
+        return sidebarByRole.student;
     }
 
     if (effectiveRole !== "teacher") {
@@ -161,7 +181,15 @@ export function getSidebarItemsByRoute(
         },
         {
             label: "Mis cursos",
-            href: "/student/courses",
+            href: "/teacher/courses",
+        },
+        {
+            label: "Calificaciones",
+            href: "/teacher/grades",
+        },
+        {
+            label: "Certificados",
+            href: "/teacher/certificates",
         },
     ];
 }

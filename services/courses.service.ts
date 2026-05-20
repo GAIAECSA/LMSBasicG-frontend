@@ -25,6 +25,9 @@ export interface Course {
     total_lessons: number;
     subcategory_id: number;
     image_url: string | null;
+    course_image_url?: string | null;
+    image?: string | null;
+    thumbnail?: string | null;
     discount_price: number;
     currency: string;
     rating: number;
@@ -172,6 +175,14 @@ function normalizeCourseLevel(value: unknown): CourseLevel {
     return "PRINCIPIANTE";
 }
 
+function getStringValue(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+
+    const cleanValue = value.trim();
+
+    return cleanValue.length > 0 ? cleanValue : null;
+}
+
 function normalizeCourse(item: Record<string, unknown>): Course {
     return {
         id: toNumber(item.id),
@@ -190,9 +201,11 @@ function normalizeCourse(item: Record<string, unknown>): Course {
         total_lessons: toNumber(item.total_lessons),
         subcategory_id: toNumber(item.subcategory_id),
         image_url:
-            typeof item.image_url === "string" && item.image_url.trim().length > 0
-                ? item.image_url
-                : null,
+            getStringValue(item.image_url) ||
+            getStringValue(item.course_image_url) ||
+            getStringValue(item.image) ||
+            getStringValue(item.thumbnail) ||
+            null,
         discount_price: toNumber(item.discount_price),
         currency:
             typeof item.currency === "string" && item.currency.trim().length > 0
@@ -355,9 +368,7 @@ export async function getAllCourses(): Promise<Course[]> {
 export async function getCourseById(courseId: number): Promise<Course> {
     const response = await fetch(`${COURSES_ENDPOINT}/${courseId}`, {
         method: "GET",
-        headers: {
-            Accept: "application/json",
-        },
+        headers: buildAuthHeaders(),
         cache: "no-store",
     });
 
@@ -405,9 +416,7 @@ export async function updateCourse(
 export async function deleteCourse(courseId: number): Promise<string> {
     const response = await fetch(`${COURSES_ENDPOINT}/${courseId}`, {
         method: "DELETE",
-        headers: {
-            Accept: "application/json",
-        },
+        headers: buildAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -425,9 +434,7 @@ export async function getCoursesBySubcategory(
         `${COURSES_ENDPOINT}/subcategory/${subcategoryId}`,
         {
             method: "GET",
-            headers: {
-                Accept: "application/json",
-            },
+            headers: buildAuthHeaders(),
             cache: "no-store",
         },
     );
