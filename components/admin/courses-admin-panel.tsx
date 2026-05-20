@@ -2,7 +2,14 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type ChangeEvent,
+    type FormEvent,
+} from "react";
 import {
     COURSE_LEVEL_OPTIONS,
     createCourse,
@@ -20,12 +27,7 @@ import {
     getAllCategories,
     type Category,
 } from "@/services/categories.service";
-
-import {
-    getAllUsers,
-    type User,
-} from "@/services/users.service";
-
+import { getAllUsers, type User } from "@/services/users.service";
 import {
     createEnrollment,
     getEnrollmentsByCourseAndRole,
@@ -82,6 +84,9 @@ const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
 
+const ROWS_PER_PAGE = 7;
+const USERS_PER_PAGE = 5;
+
 const initialFormState: CourseFormState = {
     name: "",
     description: "",
@@ -103,9 +108,11 @@ const initialFormState: CourseFormState = {
 
 function parseNumberInput(value: string, fallback = 0): number {
     const normalized = value.replace(",", ".").trim();
+
     if (!normalized) return fallback;
 
     const parsed = Number(normalized);
+
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
@@ -159,6 +166,7 @@ function getCoursePrice(course: Course): number {
     const raw = asApiCourse(course).price;
 
     if (typeof raw === "number") return raw;
+
     if (typeof raw === "string") {
         const parsed = Number(raw);
         return Number.isFinite(parsed) ? parsed : 0;
@@ -185,6 +193,7 @@ function getCourseIsFree(course: Course): boolean {
 
 function getCourseSubcategoryId(course: Course): number | null {
     const raw = asApiCourse(course).subcategory_id;
+
     return typeof raw === "number" ? raw : null;
 }
 
@@ -204,6 +213,7 @@ function getCourseDiscountPrice(course: Course): number {
     const raw = asApiCourse(course).discount_price;
 
     if (typeof raw === "number") return raw;
+
     if (typeof raw === "string") {
         const parsed = Number(raw);
         return Number.isFinite(parsed) ? parsed : 0;
@@ -220,6 +230,7 @@ function getCourseRating(course: Course): number {
     const raw = asApiCourse(course).rating;
 
     if (typeof raw === "number") return raw;
+
     if (typeof raw === "string") {
         const parsed = Number(raw);
         return Number.isFinite(parsed) ? parsed : 5;
@@ -253,6 +264,14 @@ function buildFormFromCourse(course: Course): CourseFormState {
     };
 }
 
+function getPublishedBadgeClass(course: Course) {
+    if (getCourseIsPublished(course)) {
+        return "bg-emerald-100 text-emerald-700";
+    }
+
+    return "bg-orange-100 text-orange-700";
+}
+
 function SwitchCard({
     checked,
     label,
@@ -263,11 +282,11 @@ function SwitchCard({
     onChange: (value: boolean) => void;
 }) {
     return (
-        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 transition hover:border-slate-300">
+        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50/40">
             <input
                 type="checkbox"
                 checked={checked}
-                onChange={(e) => onChange(e.target.checked)}
+                onChange={(event) => onChange(event.target.checked)}
                 className="h-4 w-4 rounded border-slate-300"
             />
             <span>{label}</span>
@@ -285,14 +304,14 @@ export function CoursesAdminPanel() {
     const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
     const [previewImageUrl, setPreviewImageUrl] = useState("");
 
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
     const [subcategoriesLoading, setSubcategoriesLoading] = useState(true);
 
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 7;
     const [notice, setNotice] = useState<Notice>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -300,15 +319,130 @@ export function CoursesAdminPanel() {
     const [usersLoading, setUsersLoading] = useState(false);
     const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
     const [assigningCourse, setAssigningCourse] = useState<Course | null>(null);
-    const [assigningTeacherId, setAssigningTeacherId] = useState<number | null>(null);
-
-    const [assignedTeacherUserIds, setAssignedTeacherUserIds] = useState<Set<number>>(
-        new Set(),
+    const [assigningTeacherId, setAssigningTeacherId] = useState<number | null>(
+        null,
     );
+
+    const [assignedTeacherUserIds, setAssignedTeacherUserIds] = useState<
+        Set<number>
+    >(new Set());
 
     const [userSearch, setUserSearch] = useState("");
     const [userCurrentPage, setUserCurrentPage] = useState(1);
-    const usersPerPage = 5;
+
+    const showNotice = useCallback((type: "success" | "error", text: string) => {
+        setNotice({ type, text });
+
+        window.setTimeout(() => {
+            setNotice((current) => (current?.text === text ? null : current));
+        }, 2500);
+    }, []);
+
+    const loadCoursesData = useCallback(
+        async (showSuccess = false) => {
+            try {
+                if (showSuccess) {
+                    setIsRefreshing(true);
+                } else {
+                    setIsLoading(true);
+                }
+
+                setCategoriesLoading(true);
+                setSubcategoriesLoading(true);
+
+                const [coursesResult, categoriesResult, subcategoriesResult] =
+                    await Promise.allSettled([
+                        getAllCourses(),
+                        getAllCategories(),
+                        getAllSubcategories(),
+                    ]);
+
+                if (coursesResult.status === "fulfilled") {
+                    setCourses(
+                        Array.isArray(coursesResult.value)
+                            ? coursesResult.value
+                            : [],
+                    );
+                } else {
+                    setCourses([]);
+                    showNotice(
+                        "error",
+                        coursesResult.reason instanceof Error
+                            ? coursesResult.reason.message
+                            : "No se pudieron cargar los cursos.",
+                    );
+                }
+
+                if (categoriesResult.status === "fulfilled") {
+                    setCategories(
+                        Array.isArray(categoriesResult.value)
+                            ? categoriesResult.value
+                            : [],
+                    );
+                } else {
+                    setCategories([]);
+                    showNotice(
+                        "error",
+                        categoriesResult.reason instanceof Error
+                            ? categoriesResult.reason.message
+                            : "No se pudieron cargar las categorías.",
+                    );
+                }
+
+                if (subcategoriesResult.status === "fulfilled") {
+                    setSubcategories(
+                        Array.isArray(subcategoriesResult.value)
+                            ? subcategoriesResult.value
+                            : [],
+                    );
+                } else {
+                    setSubcategories([]);
+                    showNotice(
+                        "error",
+                        subcategoriesResult.reason instanceof Error
+                            ? subcategoriesResult.reason.message
+                            : "No se pudieron cargar las subcategorías.",
+                    );
+                }
+
+                if (showSuccess) {
+                    showNotice("success", "Lista de cursos actualizada correctamente.");
+                }
+            } finally {
+                setCategoriesLoading(false);
+                setSubcategoriesLoading(false);
+                setIsLoading(false);
+                setIsRefreshing(false);
+            }
+        },
+        [showNotice],
+    );
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            void loadCoursesData();
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [loadCoursesData]);
+
+    useEffect(() => {
+        if (!isModalOpen) return;
+
+        function handleEscape(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                closeModal();
+            }
+        }
+
+        document.addEventListener("keydown", handleEscape);
+
+        return () => {
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [isModalOpen]);
 
     const categoryMap = useMemo(() => {
         return new Map(categories.map((item) => [item.id, item]));
@@ -320,6 +454,7 @@ export function CoursesAdminPanel() {
 
     const availableSubcategories = useMemo(() => {
         const categoryId = Number(form.category_id || 0);
+
         if (!categoryId) return [];
 
         return subcategories.filter(
@@ -329,6 +464,7 @@ export function CoursesAdminPanel() {
 
     const filteredCourses = useMemo(() => {
         const term = search.trim().toLowerCase();
+
         if (!term) return courses;
 
         return courses.filter((course) => {
@@ -337,6 +473,7 @@ export function CoursesAdminPanel() {
                 courseSubcategoryId !== null
                     ? subcategoryMap.get(courseSubcategoryId)
                     : undefined;
+
             const category = subcategory
                 ? categoryMap.get(subcategory.category_id)
                 : null;
@@ -352,17 +489,18 @@ export function CoursesAdminPanel() {
         });
     }, [courses, search, subcategoryMap, categoryMap]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredCourses.length / itemsPerPage));
+    const totalPages = Math.max(
+        1,
+        Math.ceil(filteredCourses.length / ROWS_PER_PAGE),
+    );
 
-    const effectivePage = useMemo(() => {
-        if (search.trim()) return 1;
-        return Math.min(currentPage, totalPages);
-    }, [search, currentPage, totalPages]);
+    const activePage = Math.min(currentPage, totalPages);
 
     const paginatedCourses = useMemo(() => {
-        const start = (effectivePage - 1) * itemsPerPage;
-        return filteredCourses.slice(start, start + itemsPerPage);
-    }, [filteredCourses, effectivePage]);
+        const startIndex = (activePage - 1) * ROWS_PER_PAGE;
+
+        return filteredCourses.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    }, [filteredCourses, activePage]);
 
     const filteredUsers = useMemo(() => {
         const term = userSearch.trim().toLowerCase();
@@ -385,103 +523,39 @@ export function CoursesAdminPanel() {
 
     const userTotalPages = Math.max(
         1,
-        Math.ceil(filteredUsers.length / usersPerPage),
+        Math.ceil(filteredUsers.length / USERS_PER_PAGE),
     );
 
-    const effectiveUserPage = Math.min(userCurrentPage, userTotalPages);
+    const activeUserPage = Math.min(userCurrentPage, userTotalPages);
 
     const paginatedUsers = useMemo(() => {
-        const start = (effectiveUserPage - 1) * usersPerPage;
-        return filteredUsers.slice(start, start + usersPerPage);
-    }, [filteredUsers, effectiveUserPage]);
+        const startIndex = (activeUserPage - 1) * USERS_PER_PAGE;
 
-    function showNotice(type: "success" | "error", text: string) {
-        setNotice({ type, text });
+        return filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+    }, [filteredUsers, activeUserPage]);
 
-        window.setTimeout(() => {
-            setNotice((current) => (current?.text === text ? null : current));
-        }, 2500);
-    }
+    const stats = useMemo(() => {
+        const publishedCourses = courses.filter((course) =>
+            getCourseIsPublished(course),
+        ).length;
 
-    useEffect(() => {
-        let mounted = true;
+        const freeCourses = courses.filter((course) =>
+            getCourseIsFree(course),
+        ).length;
 
-        const timer = window.setTimeout(() => {
-            const bootstrap = async () => {
-                const [coursesResult, categoriesResult, subcategoriesResult] =
-                    await Promise.allSettled([
-                        getAllCourses(),
-                        getAllCategories(),
-                        getAllSubcategories(),
-                    ]);
+        const openEnrollmentCourses = courses.filter((course) =>
+            getCourseOpenEnrollment(course),
+        ).length;
 
-                if (!mounted) return;
-
-                if (coursesResult.status === "fulfilled") {
-                    setCourses(coursesResult.value);
-                } else {
-                    setCourses([]);
-                    showNotice(
-                        "error",
-                        coursesResult.reason instanceof Error
-                            ? coursesResult.reason.message
-                            : "No se pudieron cargar los cursos",
-                    );
-                }
-
-                if (categoriesResult.status === "fulfilled") {
-                    setCategories(categoriesResult.value);
-                } else {
-                    setCategories([]);
-                    showNotice(
-                        "error",
-                        categoriesResult.reason instanceof Error
-                            ? categoriesResult.reason.message
-                            : "No se pudieron cargar las categorías",
-                    );
-                }
-
-                if (subcategoriesResult.status === "fulfilled") {
-                    setSubcategories(subcategoriesResult.value);
-                } else {
-                    setSubcategories([]);
-                    showNotice(
-                        "error",
-                        subcategoriesResult.reason instanceof Error
-                            ? subcategoriesResult.reason.message
-                            : "No se pudieron cargar las subcategorías",
-                    );
-                }
-
-                setCategoriesLoading(false);
-                setSubcategoriesLoading(false);
-                setLoading(false);
-            };
-
-            void bootstrap();
-        }, 0);
-
-        return () => {
-            mounted = false;
-            window.clearTimeout(timer);
+        return {
+            total: courses.length,
+            published: publishedCourses,
+            free: freeCourses,
+            openEnrollment: openEnrollmentCourses,
         };
-    }, []);
+    }, [courses]);
 
-    useEffect(() => {
-        if (!isModalOpen) return;
-
-        function handleEscape(event: KeyboardEvent) {
-            if (event.key === "Escape") {
-                closeModal();
-            }
-        }
-
-        document.addEventListener("keydown", handleEscape);
-
-        return () => {
-            document.removeEventListener("keydown", handleEscape);
-        };
-    }, [isModalOpen]);
+    const previewSrc = previewImageUrl || resolveImageUrl(form.image_url);
 
     function updateForm<K extends keyof CourseFormState>(
         key: K,
@@ -501,7 +575,7 @@ export function CoursesAdminPanel() {
         }));
     }
 
-    function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
 
         if (previewImageUrl.startsWith("blob:")) {
@@ -515,6 +589,7 @@ export function CoursesAdminPanel() {
         }
 
         const objectUrl = URL.createObjectURL(file);
+
         setSelectedImageFile(file);
         setPreviewImageUrl(objectUrl);
     }
@@ -564,15 +639,19 @@ export function CoursesAdminPanel() {
                 getEnrollmentsByCourseAndRole(course.id, 3),
             ]);
 
-            setUsers(usersData);
+            setUsers(Array.isArray(usersData) ? usersData : []);
             setAssignedTeacherUserIds(
-                new Set(teacherEnrollments.map((enrollment) => enrollment.user.id)),
+                new Set(
+                    teacherEnrollments.map(
+                        (enrollment) => enrollment.user.id,
+                    ),
+                ),
             );
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "No se pudieron cargar los usuarios";
+                    : "No se pudieron cargar los usuarios.";
 
             showNotice("error", message);
             setUsers([]);
@@ -584,7 +663,7 @@ export function CoursesAdminPanel() {
 
     async function handleToggleTeacher(user: User, isTeacher: boolean) {
         if (!assigningCourse) {
-            showNotice("error", "No se encontró el curso seleccionado");
+            showNotice("error", "No se encontró el curso seleccionado.");
             return;
         }
 
@@ -637,16 +716,16 @@ export function CoursesAdminPanel() {
             showNotice(
                 "success",
                 nextRoleId === 3
-                    ? "Docente asignado al curso correctamente"
-                    : "El usuario volvió al rol de estudiante correctamente",
+                    ? "Docente asignado al curso correctamente."
+                    : "El usuario volvió al rol de estudiante correctamente.",
             );
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
                     : isTeacher
-                        ? "No se pudo quitar el docente"
-                        : "No se pudo asignar el docente";
+                        ? "No se pudo quitar el docente."
+                        : "No se pudo asignar el docente.";
 
             showNotice("error", message);
         } finally {
@@ -656,6 +735,7 @@ export function CoursesAdminPanel() {
 
     function handleEdit(course: Course) {
         const courseSubcategoryId = getCourseSubcategoryId(course);
+
         const foundSubcategory =
             courseSubcategoryId !== null
                 ? subcategoryMap.get(courseSubcategoryId)
@@ -663,7 +743,9 @@ export function CoursesAdminPanel() {
 
         const nextForm = {
             ...buildFormFromCourse(course),
-            category_id: foundSubcategory ? String(foundSubcategory.category_id) : "",
+            category_id: foundSubcategory
+                ? String(foundSubcategory.category_id)
+                : "",
             subcategory_id: String(courseSubcategoryId ?? ""),
         };
 
@@ -679,52 +761,55 @@ export function CoursesAdminPanel() {
     }
 
     async function handleDelete(courseId: number) {
-        const confirmed = window.confirm(
-            "¿Seguro que deseas eliminar este curso?",
-        );
+        const confirmed = window.confirm("¿Seguro que deseas eliminar este curso?");
 
         if (!confirmed) return;
 
         try {
             await deleteCourse(courseId);
-            setCourses((current) => current.filter((item) => item.id !== courseId));
-            showNotice("success", "Curso eliminado correctamente");
+
+            setCourses((current) =>
+                current.filter((item) => item.id !== courseId),
+            );
+
+            showNotice("success", "Curso eliminado correctamente.");
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "No se pudo eliminar el curso";
+                    : "No se pudo eliminar el curso.";
+
             showNotice("error", message);
         }
     }
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const subcategoryId = parseNumberInput(form.subcategory_id, 0);
 
         if (!form.name.trim()) {
-            showNotice("error", "El nombre del curso es obligatorio");
+            showNotice("error", "El nombre del curso es obligatorio.");
             return;
         }
 
         if (!form.description.trim()) {
-            showNotice("error", "La descripción del curso es obligatoria");
+            showNotice("error", "La descripción del curso es obligatoria.");
             return;
         }
 
         if (!form.category_id) {
-            showNotice("error", "La categoría es obligatoria");
+            showNotice("error", "La categoría es obligatoria.");
             return;
         }
 
         if (!subcategoryId || subcategoryId <= 0) {
-            showNotice("error", "La subcategoría es obligatoria");
+            showNotice("error", "La subcategoría es obligatoria.");
             return;
         }
 
         try {
-            setSaving(true);
+            setIsSaving(true);
 
             const payload = {
                 name: form.name.trim(),
@@ -745,16 +830,19 @@ export function CoursesAdminPanel() {
 
             if (editingCourseId) {
                 const updatedCourse = await updateCourse(editingCourseId, payload);
+
                 setCourses((current) =>
                     current.map((item) =>
                         item.id === editingCourseId ? updatedCourse : item,
                     ),
                 );
-                showNotice("success", "Curso actualizado correctamente");
+
+                showNotice("success", "Curso actualizado correctamente.");
             } else {
                 const createdCourse = await createCourse(payload);
+
                 setCourses((current) => [createdCourse, ...current]);
-                showNotice("success", "Curso creado correctamente");
+                showNotice("success", "Curso creado correctamente.");
             }
 
             closeModal();
@@ -762,248 +850,339 @@ export function CoursesAdminPanel() {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "No se pudo guardar el curso";
+                    : "No se pudo guardar el curso.";
+
             showNotice("error", message);
         } finally {
-            setSaving(false);
+            setIsSaving(false);
         }
     }
 
-    const totalCourses = courses.length;
-    const publishedCourses = courses.filter((course) => getCourseIsPublished(course)).length;
-    const freeCourses = courses.filter((course) => getCourseIsFree(course)).length;
-
-    const previewSrc = previewImageUrl || resolveImageUrl(form.image_url);
-
     return (
         <>
-            <section className="space-y-6 p-4 md:p-6">
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-gradient-to-r from-blue-700 via-blue-500 to-orange-500 px-5 py-6 md:px-6">
-                        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                            <div className="max-w-2xl">
-                                <div className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur">
-                                    Gestión de cursos
-                                </div>
+            <section className="space-y-6">
+                <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                        <div>
+                            <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                                Gestión de cursos
+                            </p>
 
-                                <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-                                    Cursos
-                                </h1>
-                                <p className="mt-2 text-sm text-slate-200 md:text-base">
-                                    Administra, crea y edita tus cursos desde una vista
-                                    más limpia y moderna.
+                            <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                                Cursos
+                            </h2>
+
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">
+                                Administra, crea, edita y publica cursos.
+                                También puedes asignar docentes y organizar cada
+                                curso por categoría y subcategoría.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
+                            <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                                <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                    Total
+                                </p>
+                                <p className="mt-2 text-3xl font-bold">
+                                    {isLoading ? "..." : stats.total}
                                 </p>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-200">
-                                        Total
-                                    </p>
-                                    <p className="mt-1 text-2xl font-bold text-white">
-                                        {totalCourses}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-200">
-                                        Publicados
-                                    </p>
-                                    <p className="mt-1 text-2xl font-bold text-emerald-300">
-                                        {publishedCourses}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-200">
-                                        Gratis
-                                    </p>
-                                    <p className="mt-1 text-2xl font-bold text-blue-300">
-                                        {freeCourses}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-4 md:px-6">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <input
-                                    value={search}
-                                    onChange={(e) => {
-                                        setSearch(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    placeholder="Buscar por nombre, nivel, categoría o subcategoría"
-                                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 sm:w-80"
-                                />
+                            <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                                <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                    Publicados
+                                </p>
+                                <p className="mt-2 text-3xl font-bold">
+                                    {isLoading ? "..." : stats.published}
+                                </p>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={openCreateModal}
-                                className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                            >
-                                + Nuevo curso
-                            </button>
+                            <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                                <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                    Gratis
+                                </p>
+                                <p className="mt-2 text-3xl font-bold">
+                                    {isLoading ? "..." : stats.free}
+                                </p>
+                            </div>
+
+                            <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                                <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                    Matrícula abierta
+                                </p>
+                                <p className="mt-2 text-3xl font-bold">
+                                    {isLoading ? "..." : stats.openEnrollment}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {notice ? (
                     <div
-                        className={`rounded-2xl border px-4 py-3 text-sm font-medium ${notice.type === "success"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-red-200 bg-red-50 text-red-700"
+                        className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${notice.type === "success"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-red-200 bg-red-50 text-red-700"
                             }`}
                     >
                         {notice.text}
                     </div>
                 ) : null}
 
-                {loading ? (
-                    <div className="rounded-[28px] border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
-                        Cargando cursos, categorías y subcategorías...
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-950">
+                                Lista de cursos
+                            </h3>
+
+                            <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                                Busca por nombre, descripción, nivel, categoría
+                                o subcategoría.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={openCreateModal}
+                                className="h-12 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F]"
+                            >
+                                Nuevo curso
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => void loadCoursesData(true)}
+                                disabled={isRefreshing}
+                                className="h-12 rounded-2xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {isRefreshing ? "Actualizando..." : "Actualizar"}
+                            </button>
+                        </div>
                     </div>
-                ) : filteredCourses.length === 0 ? (
-                    <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-                        <p className="text-base font-semibold text-slate-700">
-                            No hay cursos para mostrar
-                        </p>
-                        <p className="mt-2 text-sm text-slate-500">
-                            Crea un curso nuevo desde el botón superior.
-                        </p>
+
+                    <div className="mt-5">
+                        <input
+                            value={search}
+                            onChange={(event) => {
+                                setSearch(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Buscar por nombre, nivel, categoría o subcategoría"
+                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 lg:max-w-[460px]"
+                        />
                     </div>
-                ) : (
-                    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-slate-100 text-slate-700">
+                </div>
+
+                <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-200">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Curso
+                                    </th>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Categoría
+                                    </th>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Subcategoría
+                                    </th>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Nivel
+                                    </th>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Precio
+                                    </th>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Duración
+                                    </th>
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Estado
+                                    </th>
+                                    <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-slate-600">
+                                        Acciones
+                                    </th>
+                                </tr>
+                            </thead>
+
+                            <tbody className="divide-y divide-slate-100">
+                                {isLoading ? (
                                     <tr>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Curso
-                                        </th>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Categoría
-                                        </th>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Subcategoría
-                                        </th>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Nivel
-                                        </th>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Precio
-                                        </th>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Duración
-                                        </th>
-                                        <th className="px-4 py-4 text-left font-semibold">
-                                            Estado
-                                        </th>
-                                        <th className="px-4 py-4 text-center font-semibold">
-                                            Acciones
-                                        </th>
+                                        <td
+                                            colSpan={8}
+                                            className="px-5 py-12 text-center text-sm font-semibold text-slate-500"
+                                        >
+                                            Cargando cursos, categorías y
+                                            subcategorías...
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {paginatedCourses.map((course) => {
-                                        const courseSubcategoryId = getCourseSubcategoryId(course);
+                                ) : filteredCourses.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="px-5 py-12 text-center"
+                                        >
+                                            <p className="text-sm font-bold text-slate-800">
+                                                No hay cursos para mostrar.
+                                            </p>
+                                            <p className="mt-1 text-sm text-slate-500">
+                                                Crea un curso nuevo desde el
+                                                botón superior.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    paginatedCourses.map((course) => {
+                                        const courseSubcategoryId =
+                                            getCourseSubcategoryId(course);
+
                                         const subcategory =
                                             courseSubcategoryId !== null
-                                                ? subcategoryMap.get(courseSubcategoryId)
+                                                ? subcategoryMap.get(
+                                                    courseSubcategoryId,
+                                                )
                                                 : undefined;
+
                                         const category = subcategory
-                                            ? categoryMap.get(subcategory.category_id)
+                                            ? categoryMap.get(
+                                                subcategory.category_id,
+                                            )
                                             : null;
 
                                         return (
                                             <tr
                                                 key={course.id}
-                                                className="border-t border-slate-200 align-top transition hover:bg-slate-50/80"
+                                                className="align-top transition hover:bg-blue-50/40"
                                             >
-                                                <td className="px-4 py-4">
-                                                    <div className="min-w-[240px]">
-                                                        <p className="font-semibold text-slate-900">
-                                                            {getCourseName(course)}
-                                                        </p>
+                                                <td className="px-5 py-4">
+                                                    <div className="flex min-w-[260px] items-center gap-3">
+                                                        <div className="h-12 w-16 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                                                            <img
+                                                                src={resolveImageUrl(
+                                                                    getCourseImageUrl(
+                                                                        course,
+                                                                    ),
+                                                                )}
+                                                                alt={getCourseName(
+                                                                    course,
+                                                                )}
+                                                                className="h-full w-full object-cover"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-950">
+                                                                {getCourseName(
+                                                                    course,
+                                                                )}
+                                                            </p>
+                                                            <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                                Curso #{course.id}
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </td>
 
-                                                <td className="px-4 py-4 text-slate-700">
-                                                    {category?.name || "Sin categoría"}
+                                                <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                                                    {category?.name ||
+                                                        "Sin categoría"}
                                                 </td>
 
-                                                <td className="px-4 py-4 text-slate-700">
+                                                <td className="px-5 py-4 text-sm font-semibold text-slate-700">
                                                     {subcategory?.name ||
-                                                        (courseSubcategoryId !== null
+                                                        (courseSubcategoryId !==
+                                                            null
                                                             ? `#${courseSubcategoryId}`
                                                             : "Sin subcategoría")}
                                                 </td>
 
-                                                <td className="px-4 py-4">
-                                                    <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                                                <td className="px-5 py-4">
+                                                    <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
                                                         {getCourseLevel(course)}
                                                     </span>
                                                 </td>
 
-                                                <td className="px-4 py-4 font-medium text-slate-900">
+                                                <td className="px-5 py-4 text-sm font-bold text-slate-900">
                                                     {getCourseIsFree(course)
                                                         ? "Gratis"
                                                         : formatMoney(
-                                                            getCoursePrice(course),
-                                                            getCourseCurrency(course),
+                                                            getCoursePrice(
+                                                                course,
+                                                            ),
+                                                            getCourseCurrency(
+                                                                course,
+                                                            ),
                                                         )}
                                                 </td>
 
-                                                <td className="px-4 py-4 text-slate-700">
-                                                    {getCourseDurationHours(course)} h
+                                                <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                                                    {getCourseDurationHours(
+                                                        course,
+                                                    )}{" "}
+                                                    h
                                                 </td>
 
-                                                <td className="px-4 py-4">
+                                                <td className="px-5 py-4">
                                                     <div className="flex flex-col gap-2">
                                                         <span
-                                                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getCourseIsPublished(course)
-                                                                ? "bg-emerald-100 text-emerald-700"
-                                                                : "bg-amber-100 text-amber-700"
-                                                                }`}
+                                                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${getPublishedBadgeClass(
+                                                                course,
+                                                            )}`}
                                                         >
-                                                            {getCourseIsPublished(course)
+                                                            {getCourseIsPublished(
+                                                                course,
+                                                            )
                                                                 ? "Publicado"
                                                                 : "Borrador"}
                                                         </span>
 
-                                                        {getCourseIsFree(course) ? (
-                                                            <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                        {getCourseIsFree(
+                                                            course,
+                                                        ) ? (
+                                                            <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                                                                 Gratis
                                                             </span>
                                                         ) : null}
                                                     </div>
                                                 </td>
 
-                                                <td className="px-4 py-4">
-                                                    <div className="flex min-w-[260px] flex-col gap-2 xl:flex-row">
+                                                <td className="px-5 py-4">
+                                                    <div className="flex min-w-[280px] justify-end gap-2">
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleEdit(course)}
-                                                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                                                            onClick={() =>
+                                                                handleEdit(
+                                                                    course,
+                                                                )
+                                                            }
+                                                            className="rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
                                                         >
                                                             Editar
                                                         </button>
 
                                                         <button
                                                             type="button"
-                                                            onClick={() => void openAssignTeacherModal(course)}
-                                                            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                                            onClick={() =>
+                                                                void openAssignTeacherModal(
+                                                                    course,
+                                                                )
+                                                            }
+                                                            className="rounded-xl border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 transition hover:bg-orange-50"
                                                         >
-                                                            Asignar docente
+                                                            Docente
                                                         </button>
 
                                                         <button
                                                             type="button"
-                                                            onClick={() => void handleDelete(course.id)}
-                                                            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                                                            onClick={() =>
+                                                                void handleDelete(
+                                                                    course.id,
+                                                                )
+                                                            }
+                                                            className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50"
                                                         >
                                                             Eliminar
                                                         </button>
@@ -1011,82 +1190,79 @@ export function CoursesAdminPanel() {
                                                 </td>
                                             </tr>
                                         );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
 
-                        <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 md:flex-row md:items-center md:justify-between">
-                            <p className="text-sm text-slate-500">
-                                Mostrando{" "}
-                                <span className="font-semibold text-slate-700">
-                                    {paginatedCourses.length}
-                                </span>{" "}
-                                de{" "}
-                                <span className="font-semibold text-slate-700">
-                                    {filteredCourses.length}
-                                </span>{" "}
-                                cursos
-                            </p>
+                    <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm font-semibold text-slate-500">
+                            Mostrando {paginatedCourses.length} de{" "}
+                            {filteredCourses.length} cursos
+                        </p>
 
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setCurrentPage((page) => Math.max(1, page - 1))
-                                    }
-                                    disabled={effectivePage === 1}
-                                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    Anterior
-                                </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setCurrentPage((page) =>
+                                        Math.max(1, page - 1),
+                                    )
+                                }
+                                disabled={activePage === 1}
+                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Anterior
+                            </button>
 
-                                <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                                    Página {effectivePage} de {totalPages}
-                                </span>
+                            <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                                Página {activePage} de {totalPages}
+                            </span>
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setCurrentPage((page) =>
-                                            Math.min(totalPages, page + 1),
-                                        )
-                                    }
-                                    disabled={effectivePage === totalPages}
-                                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    Siguiente
-                                </button>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setCurrentPage((page) =>
+                                        Math.min(totalPages, page + 1),
+                                    )
+                                }
+                                disabled={activePage === totalPages}
+                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Siguiente
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
 
                 {isTeacherModalOpen ? (
                     <div
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
                         onClick={closeTeacherModal}
                     >
                         <div
-                            className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
+                            className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+                            onClick={(event) => event.stopPropagation()}
                         >
-                            <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-orange-500 px-6 py-5 text-white">
+                            <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <div className="mb-2 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/90">
+                                        <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
                                             Asignación de docente
-                                        </div>
+                                        </p>
 
-                                        <h2 className="text-2xl font-bold">
+                                        <h2 className="mt-2 text-2xl font-bold">
                                             Asignar docente
                                         </h2>
 
-                                        <p className="mt-1 text-sm text-white/85">
+                                        <p className="mt-1 text-sm text-blue-50">
                                             Curso:{" "}
                                             <span className="font-semibold">
                                                 {assigningCourse
-                                                    ? getCourseName(assigningCourse)
+                                                    ? getCourseName(
+                                                        assigningCourse,
+                                                    )
                                                     : "Sin curso seleccionado"}
                                             </span>
                                         </p>
@@ -1095,7 +1271,7 @@ export function CoursesAdminPanel() {
                                     <button
                                         type="button"
                                         onClick={closeTeacherModal}
-                                        className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                                        className="rounded-2xl bg-white/15 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
                                     >
                                         Cerrar
                                     </button>
@@ -1104,16 +1280,17 @@ export function CoursesAdminPanel() {
 
                             <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5">
                                 {usersLoading ? (
-                                    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-medium text-slate-500">
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
                                         Cargando usuarios...
                                     </div>
                                 ) : users.length === 0 ? (
                                     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                                        <p className="font-semibold text-slate-700">
-                                            No hay usuarios para mostrar
+                                        <p className="font-bold text-slate-700">
+                                            No hay usuarios para mostrar.
                                         </p>
                                         <p className="mt-1 text-sm text-slate-500">
-                                            Verifica que el servicio de usuarios esté respondiendo correctamente.
+                                            Verifica que el servicio de usuarios
+                                            esté respondiendo correctamente.
                                         </p>
                                     </div>
                                 ) : (
@@ -1121,130 +1298,177 @@ export function CoursesAdminPanel() {
                                         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                                 <div>
-                                                    <p className="text-sm font-semibold text-slate-800">
+                                                    <p className="text-sm font-bold text-slate-950">
                                                         Usuarios disponibles
                                                     </p>
                                                     <p className="mt-1 text-xs text-slate-500">
-                                                        Busca por nombre, usuario, correo, teléfono, departamento o rol.
+                                                        Busca por nombre,
+                                                        usuario, correo,
+                                                        teléfono, departamento o
+                                                        rol.
                                                     </p>
                                                 </div>
 
                                                 <input
                                                     value={userSearch}
-                                                    onChange={(e) => {
-                                                        setUserSearch(e.target.value);
+                                                    onChange={(event) => {
+                                                        setUserSearch(
+                                                            event.target.value,
+                                                        );
                                                         setUserCurrentPage(1);
                                                     }}
                                                     placeholder="Buscar usuario..."
-                                                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 md:w-80"
+                                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 md:w-80"
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                                             <div className="overflow-x-auto">
-                                                <table className="min-w-full text-sm">
-                                                    <thead className="bg-slate-100 text-slate-700">
+                                                <table className="min-w-full divide-y divide-slate-200 text-sm">
+                                                    <thead className="bg-slate-50">
                                                         <tr>
-                                                            <th className="px-4 py-4 text-left font-semibold">
+                                                            <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                                                 Usuario
                                                             </th>
-                                                            <th className="px-4 py-4 text-left font-semibold">
+                                                            <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                                                 Correo
                                                             </th>
-                                                            <th className="px-4 py-4 text-left font-semibold">
+                                                            <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                                                 Teléfono
                                                             </th>
-                                                            <th className="px-4 py-4 text-left font-semibold">
+                                                            <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                                                 Departamento
                                                             </th>
-                                                            <th className="px-4 py-4 text-center font-semibold">
-                                                                Rol actual
+                                                            <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
+                                                                Estado
                                                             </th>
-                                                            <th className="px-4 py-4 text-center font-semibold">
+                                                            <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                                                 Acción
                                                             </th>
                                                         </tr>
                                                     </thead>
 
-                                                    <tbody>
-                                                        {paginatedUsers.map((user) => {
-                                                            const fullName =
-                                                                `${user.firstname} ${user.lastname}`.trim() ||
-                                                                user.username;
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {paginatedUsers.map(
+                                                            (user) => {
+                                                                const fullName =
+                                                                    `${user.firstname} ${user.lastname}`.trim() ||
+                                                                    user.username;
 
-                                                            const isTeacher = assignedTeacherUserIds.has(user.id);
-                                                            const isAssigning = assigningTeacherId === user.id;
+                                                                const isTeacher =
+                                                                    assignedTeacherUserIds.has(
+                                                                        user.id,
+                                                                    );
 
-                                                            return (
-                                                                <tr
-                                                                    key={user.id}
-                                                                    className="border-t border-slate-200 align-top transition hover:bg-slate-50"
-                                                                >
-                                                                    <td className="px-4 py-4">
-                                                                        <div>
-                                                                            <p className="font-semibold text-slate-900">
-                                                                                {fullName}
-                                                                            </p>
-                                                                            <p className="mt-1 text-xs text-slate-500">
-                                                                                @{user.username}
-                                                                            </p>
-                                                                        </div>
-                                                                    </td>
+                                                                const isAssigning =
+                                                                    assigningTeacherId ===
+                                                                    user.id;
 
-                                                                    <td className="px-4 py-4 text-slate-700">
-                                                                        {user.email}
-                                                                    </td>
+                                                                return (
+                                                                    <tr
+                                                                        key={
+                                                                            user.id
+                                                                        }
+                                                                        className="align-top transition hover:bg-blue-50/40"
+                                                                    >
+                                                                        <td className="px-5 py-4">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#172861] text-sm font-bold text-white">
+                                                                                    {fullName
+                                                                                        .charAt(
+                                                                                            0,
+                                                                                        )
+                                                                                        .toUpperCase()}
+                                                                                </div>
 
-                                                                    <td className="px-4 py-4 text-slate-700">
-                                                                        {user.phone_number || "Sin teléfono"}
-                                                                    </td>
+                                                                                <div>
+                                                                                    <p className="text-sm font-bold text-slate-950">
+                                                                                        {
+                                                                                            fullName
+                                                                                        }
+                                                                                    </p>
+                                                                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                                                        @
+                                                                                        {
+                                                                                            user.username
+                                                                                        }
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
 
-                                                                    <td className="px-4 py-4 text-slate-700">
-                                                                        {user.departament || "Sin departamento"}
-                                                                    </td>
+                                                                        <td className="px-5 py-4 font-semibold text-slate-700">
+                                                                            {
+                                                                                user.email
+                                                                            }
+                                                                        </td>
 
-                                                                    <td className="px-4 py-4 text-center">
-                                                                        <span
-                                                                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${isTeacher
-                                                                                ? "bg-blue-100 text-blue-700"
-                                                                                : "bg-slate-100 text-slate-700"
-                                                                                }`}
-                                                                        >
-                                                                            {isTeacher ? "Docente del curso" : "Disponible"}
-                                                                        </span>
-                                                                    </td>
+                                                                        <td className="px-5 py-4 font-semibold text-slate-500">
+                                                                            {user.phone_number ||
+                                                                                "Sin teléfono"}
+                                                                        </td>
 
-                                                                    <td className="px-4 py-4 text-center">
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={isAssigning}
-                                                                            onClick={() => void handleToggleTeacher(user, isTeacher)}
-                                                                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${isTeacher
-                                                                                ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                                                                                : "bg-blue-600 text-white hover:bg-blue-700"
-                                                                                }`}
-                                                                        >
-                                                                            {isAssigning
-                                                                                ? isTeacher
-                                                                                    ? "Quitando..."
-                                                                                    : "Asignando..."
-                                                                                : isTeacher
-                                                                                    ? "Volver a estudiante"
-                                                                                    : "Seleccionar"}
-                                                                        </button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
+                                                                        <td className="px-5 py-4 font-semibold text-slate-500">
+                                                                            {user.departament ||
+                                                                                "Sin departamento"}
+                                                                        </td>
 
-                                                        {paginatedUsers.length === 0 ? (
+                                                                        <td className="px-5 py-4 text-center">
+                                                                            <span
+                                                                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${isTeacher
+                                                                                        ? "bg-blue-100 text-blue-700"
+                                                                                        : "bg-slate-100 text-slate-700"
+                                                                                    }`}
+                                                                            >
+                                                                                {isTeacher
+                                                                                    ? "Docente del curso"
+                                                                                    : "Disponible"}
+                                                                            </span>
+                                                                        </td>
+
+                                                                        <td className="px-5 py-4 text-center">
+                                                                            <button
+                                                                                type="button"
+                                                                                disabled={
+                                                                                    isAssigning
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    void handleToggleTeacher(
+                                                                                        user,
+                                                                                        isTeacher,
+                                                                                    )
+                                                                                }
+                                                                                className={`rounded-xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-70 ${isTeacher
+                                                                                        ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                                                                                        : "bg-[#172861] text-white hover:bg-[#0B163F]"
+                                                                                    }`}
+                                                                            >
+                                                                                {isAssigning
+                                                                                    ? isTeacher
+                                                                                        ? "Quitando..."
+                                                                                        : "Asignando..."
+                                                                                    : isTeacher
+                                                                                        ? "Volver a estudiante"
+                                                                                        : "Seleccionar"}
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            },
+                                                        )}
+
+                                                        {paginatedUsers.length ===
+                                                            0 ? (
                                                             <tr>
                                                                 <td
                                                                     colSpan={6}
-                                                                    className="px-4 py-8 text-center text-sm font-medium text-slate-500"
+                                                                    className="px-5 py-8 text-center text-sm font-semibold text-slate-500"
                                                                 >
-                                                                    No se encontraron usuarios con esa búsqueda.
+                                                                    No se
+                                                                    encontraron
+                                                                    usuarios con
+                                                                    esa búsqueda.
                                                                 </td>
                                                             </tr>
                                                         ) : null}
@@ -1252,16 +1476,11 @@ export function CoursesAdminPanel() {
                                                 </table>
                                             </div>
 
-                                            <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 md:flex-row md:items-center md:justify-between">
-                                                <p className="text-sm text-slate-500">
+                                            <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                                <p className="text-sm font-semibold text-slate-500">
                                                     Mostrando{" "}
-                                                    <span className="font-semibold text-slate-700">
-                                                        {paginatedUsers.length}
-                                                    </span>{" "}
-                                                    de{" "}
-                                                    <span className="font-semibold text-slate-700">
-                                                        {filteredUsers.length}
-                                                    </span>{" "}
+                                                    {paginatedUsers.length} de{" "}
+                                                    {filteredUsers.length}{" "}
                                                     usuarios
                                                 </p>
 
@@ -1269,29 +1488,45 @@ export function CoursesAdminPanel() {
                                                     <button
                                                         type="button"
                                                         onClick={() =>
-                                                            setUserCurrentPage((page) =>
-                                                                Math.max(1, page - 1),
+                                                            setUserCurrentPage(
+                                                                (page) =>
+                                                                    Math.max(
+                                                                        1,
+                                                                        page -
+                                                                        1,
+                                                                    ),
                                                             )
                                                         }
-                                                        disabled={effectiveUserPage === 1}
-                                                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        disabled={
+                                                            activeUserPage === 1
+                                                        }
+                                                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
                                                         Anterior
                                                     </button>
 
-                                                    <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                                                        Página {effectiveUserPage} de {userTotalPages}
+                                                    <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                                                        Página {activeUserPage}{" "}
+                                                        de {userTotalPages}
                                                     </span>
 
                                                     <button
                                                         type="button"
                                                         onClick={() =>
-                                                            setUserCurrentPage((page) =>
-                                                                Math.min(userTotalPages, page + 1),
+                                                            setUserCurrentPage(
+                                                                (page) =>
+                                                                    Math.min(
+                                                                        userTotalPages,
+                                                                        page +
+                                                                        1,
+                                                                    ),
                                                             )
                                                         }
-                                                        disabled={effectiveUserPage === userTotalPages}
-                                                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        disabled={
+                                                            activeUserPage ===
+                                                            userTotalPages
+                                                        }
+                                                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                                     >
                                                         Siguiente
                                                     </button>
@@ -1308,34 +1543,38 @@ export function CoursesAdminPanel() {
 
             {isModalOpen ? (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
                     onClick={closeModal}
                 >
                     <div
-                        className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl"
-                        onClick={(e) => e.stopPropagation()}
+                        className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-5 text-white">
+                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <div className="mb-2 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/90">
-                                        {editingCourseId ? "Editar curso" : "Nuevo curso"}
-                                    </div>
-                                    <h2 className="text-2xl font-bold">
+                                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
+                                        {editingCourseId
+                                            ? "Editar curso"
+                                            : "Nuevo curso"}
+                                    </p>
+
+                                    <h2 className="mt-2 text-2xl font-bold">
                                         {editingCourseId
                                             ? "Actualizar curso"
                                             : "Crear nuevo curso"}
                                     </h2>
-                                    <p className="mt-1 text-sm text-slate-200">
-                                        Completa la información del curso y selecciona
-                                        primero una categoría.
+
+                                    <p className="mt-1 text-sm text-blue-50">
+                                        Completa la información del curso y
+                                        selecciona primero una categoría.
                                     </p>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                                    className="rounded-2xl bg-white/15 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
                                 >
                                     Cerrar
                                 </button>
@@ -1346,43 +1585,46 @@ export function CoursesAdminPanel() {
                             onSubmit={handleSubmit}
                             className="flex min-h-0 flex-1 flex-col"
                         >
-                            <div className="grid min-h-0 flex-1 gap-0 xl:grid-cols-[1.5fr_0.95fr]">
+                            <div className="grid min-h-0 flex-1 xl:grid-cols-[1.5fr_0.95fr]">
                                 <div className="min-h-0 overflow-y-auto border-r border-slate-200 bg-white px-6 py-6">
                                     <div className="space-y-5">
                                         <div>
-                                            <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                            <label className="mb-2 block text-sm font-bold text-slate-700">
                                                 Nombre del curso
                                             </label>
                                             <input
                                                 value={form.name}
-                                                onChange={(e) =>
-                                                    updateForm("name", e.target.value)
+                                                onChange={(event) =>
+                                                    updateForm(
+                                                        "name",
+                                                        event.target.value,
+                                                    )
                                                 }
                                                 placeholder="Ej. Curso de React"
-                                                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                                                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                            <label className="mb-2 block text-sm font-bold text-slate-700">
                                                 Descripción
                                             </label>
                                             <textarea
                                                 value={form.description}
-                                                onChange={(e) =>
+                                                onChange={(event) =>
                                                     updateForm(
                                                         "description",
-                                                        e.target.value,
+                                                        event.target.value,
                                                     )
                                                 }
                                                 placeholder="Describe brevemente el curso"
                                                 rows={4}
-                                                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                                                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                            <label className="mb-2 block text-sm font-bold text-slate-700">
                                                 Imagen del curso
                                             </label>
 
@@ -1390,33 +1632,36 @@ export function CoursesAdminPanel() {
                                                 type="file"
                                                 accept="image/*"
                                                 onChange={handleImageChange}
-                                                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
+                                                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition file:mr-3 file:rounded-xl file:border-0 file:bg-[#172861] file:px-4 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-[#0B163F]"
                                             />
 
                                             {selectedImageFile ? (
-                                                <p className="mt-2 text-xs font-medium text-slate-600">
-                                                    Archivo seleccionado: {selectedImageFile.name}
+                                                <p className="mt-2 text-xs font-semibold text-slate-600">
+                                                    Archivo seleccionado:{" "}
+                                                    {selectedImageFile.name}
                                                 </p>
                                             ) : form.image_url ? (
-                                                <p className="mt-2 text-xs text-slate-500">
-                                                    Se mantiene la imagen actual mientras no
-                                                    selecciones otra.
+                                                <p className="mt-2 text-xs font-semibold text-slate-500">
+                                                    Se mantiene la imagen actual
+                                                    mientras no selecciones otra.
                                                 </p>
                                             ) : null}
                                         </div>
 
                                         <div className="grid gap-4 md:grid-cols-3">
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
                                                     Categoría
                                                 </label>
                                                 <select
                                                     value={form.category_id}
-                                                    onChange={(e) =>
-                                                        handleCategoryChange(e.target.value)
+                                                    onChange={(event) =>
+                                                        handleCategoryChange(
+                                                            event.target.value,
+                                                        )
                                                     }
                                                     disabled={categoriesLoading}
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 disabled:bg-slate-100"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
                                                 >
                                                     <option value="">
                                                         {categoriesLoading
@@ -1424,34 +1669,40 @@ export function CoursesAdminPanel() {
                                                             : "Selecciona una categoría"}
                                                     </option>
 
-                                                    {categories.map((category) => (
-                                                        <option
-                                                            key={category.id}
-                                                            value={category.id}
-                                                        >
-                                                            {category.name}
-                                                        </option>
-                                                    ))}
+                                                    {categories.map(
+                                                        (category) => (
+                                                            <option
+                                                                key={
+                                                                    category.id
+                                                                }
+                                                                value={
+                                                                    category.id
+                                                                }
+                                                            >
+                                                                {category.name}
+                                                            </option>
+                                                        ),
+                                                    )}
                                                 </select>
                                             </div>
 
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
                                                     Subcategoría
                                                 </label>
                                                 <select
                                                     value={form.subcategory_id}
-                                                    onChange={(e) =>
+                                                    onChange={(event) =>
                                                         updateForm(
                                                             "subcategory_id",
-                                                            e.target.value,
+                                                            event.target.value,
                                                         )
                                                     }
                                                     disabled={
                                                         !form.category_id ||
                                                         subcategoriesLoading
                                                     }
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 disabled:bg-slate-100"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
                                                 >
                                                     <option value="">
                                                         {!form.category_id
@@ -1464,10 +1715,16 @@ export function CoursesAdminPanel() {
                                                     {availableSubcategories.map(
                                                         (subcategory) => (
                                                             <option
-                                                                key={subcategory.id}
-                                                                value={subcategory.id}
+                                                                key={
+                                                                    subcategory.id
+                                                                }
+                                                                value={
+                                                                    subcategory.id
+                                                                }
                                                             >
-                                                                {subcategory.name}
+                                                                {
+                                                                    subcategory.name
+                                                                }
                                                             </option>
                                                         ),
                                                     )}
@@ -1475,51 +1732,58 @@ export function CoursesAdminPanel() {
                                             </div>
 
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
                                                     Nivel
                                                 </label>
                                                 <select
                                                     value={form.level}
-                                                    onChange={(e) =>
+                                                    onChange={(event) =>
                                                         updateForm(
                                                             "level",
-                                                            e.target.value as CourseLevel,
+                                                            event.target
+                                                                .value as CourseLevel,
                                                         )
                                                     }
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                                 >
-                                                    {COURSE_LEVEL_OPTIONS.map((option) => (
-                                                        <option
-                                                            key={option.value}
-                                                            value={option.value}
-                                                        >
-                                                            {option.label}
-                                                        </option>
-                                                    ))}
+                                                    {COURSE_LEVEL_OPTIONS.map(
+                                                        (option) => (
+                                                            <option
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </option>
+                                                        ),
+                                                    )}
                                                 </select>
                                             </div>
                                         </div>
 
                                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
                                                     Moneda
                                                 </label>
                                                 <input
                                                     value={form.currency}
-                                                    onChange={(e) =>
+                                                    onChange={(event) =>
                                                         updateForm(
                                                             "currency",
-                                                            e.target.value.toUpperCase(),
+                                                            event.target.value.toUpperCase(),
                                                         )
                                                     }
                                                     placeholder="USD"
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm uppercase outline-none transition focus:border-blue-500"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm uppercase outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                                 />
                                             </div>
 
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
                                                     Precio
                                                 </label>
                                                 <input
@@ -1528,53 +1792,54 @@ export function CoursesAdminPanel() {
                                                     min="0"
                                                     disabled={form.is_free}
                                                     value={form.price}
-                                                    onChange={(e) =>
+                                                    onChange={(event) =>
                                                         updateForm(
                                                             "price",
-                                                            e.target.value,
+                                                            event.target.value,
                                                         )
                                                     }
                                                     placeholder="0.00"
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 disabled:bg-slate-100"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
                                                 />
                                             </div>
 
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
                                                     Precio descuento
                                                 </label>
                                                 <input
                                                     type="number"
                                                     step="0.01"
                                                     min="0"
+                                                    disabled={form.is_free}
                                                     value={form.discount_price}
-                                                    onChange={(e) =>
+                                                    onChange={(event) =>
                                                         updateForm(
                                                             "discount_price",
-                                                            e.target.value,
+                                                            event.target.value,
                                                         )
                                                     }
                                                     placeholder="0.00"
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100"
                                                 />
                                             </div>
 
                                             <div>
-                                                <label className="mb-2 block text-sm font-semibold text-slate-800">
-                                                    Duración (horas)
+                                                <label className="mb-2 block text-sm font-bold text-slate-700">
+                                                    Duración horas
                                                 </label>
                                                 <input
                                                     type="number"
                                                     min="0"
                                                     value={form.duration_hours}
-                                                    onChange={(e) =>
+                                                    onChange={(event) =>
                                                         updateForm(
                                                             "duration_hours",
-                                                            e.target.value,
+                                                            event.target.value,
                                                         )
                                                     }
                                                     placeholder="0"
-                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                                                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                                 />
                                             </div>
                                         </div>
@@ -1584,16 +1849,24 @@ export function CoursesAdminPanel() {
                                                 checked={form.is_free}
                                                 label="Curso gratuito"
                                                 onChange={(value) =>
-                                                    updateForm("is_free", value)
+                                                    updateForm(
+                                                        "is_free",
+                                                        value,
+                                                    )
                                                 }
                                             />
+
                                             <SwitchCard
                                                 checked={form.is_published}
                                                 label="Publicado"
                                                 onChange={(value) =>
-                                                    updateForm("is_published", value)
+                                                    updateForm(
+                                                        "is_published",
+                                                        value,
+                                                    )
                                                 }
                                             />
+
                                             <SwitchCard
                                                 checked={form.open_enrollment}
                                                 label="Matrícula abierta"
@@ -1608,129 +1881,145 @@ export function CoursesAdminPanel() {
                                     </div>
                                 </div>
 
-                                <aside className="min-h-0 overflow-hidden border-l border-slate-200 bg-gradient-to-b from-slate-50 via-white to-slate-100/70 px-5 py-5">
-                                    <div className="h-full">
-                                        <div className="rounded-[28px] border border-slate-200/80 bg-white/95 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
-                                            <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-                                                <div className="relative bg-gradient-to-br from-slate-100 via-white to-slate-200 p-4">
-                                                    <div className="relative h-[290px] w-full overflow-hidden rounded-[20px] border border-slate-200 bg-slate-100">
-                                                        <img
-                                                            src={previewSrc}
-                                                            alt="Vista previa del curso"
-                                                            className="h-full w-full object-cover transition-transform duration-300"
-                                                        />
+                                <aside className="min-h-0 overflow-y-auto bg-gradient-to-b from-slate-50 via-white to-slate-100/70 px-5 py-5">
+                                    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                                        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                                            <div className="relative h-[310px] overflow-hidden bg-slate-100">
+                                                <img
+                                                    src={previewSrc}
+                                                    alt="Vista previa del curso"
+                                                    className="h-full w-full object-cover"
+                                                />
 
-                                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/20 to-transparent" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/20 to-transparent" />
 
-                                                        <div className="absolute inset-x-0 top-4 flex items-start justify-between px-4">
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <span className="rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur-md">
-                                                                    {form.level}
-                                                                </span>
+                                                <div className="absolute inset-x-0 top-4 flex items-start justify-between gap-3 px-4">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white backdrop-blur-md">
+                                                            {form.level}
+                                                        </span>
 
-                                                                {form.is_published ? (
-                                                                    <span className="rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
-                                                                        Publicado
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="rounded-full bg-amber-300 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-900 shadow-sm">
-                                                                        Borrador
-                                                                    </span>
-                                                                )}
-                                                            </div>
+                                                        {form.is_published ? (
+                                                            <span className="rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
+                                                                Publicado
+                                                            </span>
+                                                        ) : (
+                                                            <span className="rounded-full bg-orange-300 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
+                                                                Borrador
+                                                            </span>
+                                                        )}
+                                                    </div>
 
-                                                            <div className="rounded-2xl bg-white/95 px-3 py-2 text-sm font-bold text-slate-900 shadow-lg">
-                                                                {form.is_free
-                                                                    ? "Gratis"
-                                                                    : formatMoney(
-                                                                        parseNumberInput(form.price, 0),
-                                                                        form.currency,
-                                                                    )}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="absolute inset-x-0 bottom-0 p-5">
-                                                            <div className="mb-3">
-                                                                {form.open_enrollment ? (
-                                                                    <span className="rounded-full bg-sky-400 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
-                                                                        Matrícula abierta
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="rounded-full bg-slate-300 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-800 shadow-sm">
-                                                                        Matrícula cerrada
-                                                                    </span>
-                                                                )}
-                                                            </div>
-
-                                                            <h4 className="line-clamp-2 max-w-[85%] text-3xl font-extrabold leading-tight text-white drop-shadow-sm">
-                                                                {form.name || "Nombre del curso"}
-                                                            </h4>
-                                                        </div>
+                                                    <div className="rounded-2xl bg-white/95 px-3 py-2 text-sm font-bold text-slate-900 shadow-lg">
+                                                        {form.is_free
+                                                            ? "Gratis"
+                                                            : formatMoney(
+                                                                parseNumberInput(
+                                                                    form.price,
+                                                                    0,
+                                                                ),
+                                                                form.currency,
+                                                            )}
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-4 bg-white p-5">
-                                                    <div>
-                                                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                                                            Descripción
+                                                <div className="absolute inset-x-0 bottom-0 p-5">
+                                                    <div className="mb-3">
+                                                        {form.open_enrollment ? (
+                                                            <span className="rounded-full bg-blue-400 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
+                                                                Matrícula abierta
+                                                            </span>
+                                                        ) : (
+                                                            <span className="rounded-full bg-slate-300 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-800 shadow-sm">
+                                                                Matrícula cerrada
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <h4 className="line-clamp-2 max-w-[85%] text-3xl font-extrabold leading-tight text-white drop-shadow-sm">
+                                                        {form.name ||
+                                                            "Nombre del curso"}
+                                                    </h4>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4 bg-white p-5">
+                                                <div>
+                                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                                                        Descripción
+                                                    </p>
+
+                                                    <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-600">
+                                                        {form.description ||
+                                                            "Aquí se mostrará una vista previa breve de la descripción del curso."}
+                                                    </p>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">
+                                                            Precio
                                                         </p>
-                                                        <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-600">
-                                                            {form.description ||
-                                                                "Aquí se mostrará una vista previa breve de la descripción del curso."}
+                                                        <p className="mt-2 text-2xl font-extrabold text-slate-900">
+                                                            {form.is_free
+                                                                ? "Gratis"
+                                                                : formatMoney(
+                                                                    parseNumberInput(
+                                                                        form.price,
+                                                                        0,
+                                                                    ),
+                                                                    form.currency,
+                                                                )}
                                                         </p>
                                                     </div>
 
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-white p-4 shadow-sm">
-                                                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-400">
-                                                                Precio
-                                                            </p>
-                                                            <p className="mt-2 text-2xl font-extrabold text-slate-900">
-                                                                {form.is_free
-                                                                    ? "Gratis"
-                                                                    : formatMoney(
-                                                                        parseNumberInput(form.price, 0),
-                                                                        form.currency,
-                                                                    )}
-                                                            </p>
-                                                        </div>
+                                                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-500">
+                                                            Duración
+                                                        </p>
+                                                        <p className="mt-2 text-2xl font-extrabold text-slate-900">
+                                                            {parseNumberInput(
+                                                                form.duration_hours,
+                                                                0,
+                                                            )}{" "}
+                                                            h
+                                                        </p>
+                                                    </div>
 
-                                                        <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-4 shadow-sm">
-                                                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">
-                                                                Duración
-                                                            </p>
-                                                            <p className="mt-2 text-2xl font-extrabold text-slate-900">
-                                                                {parseNumberInput(form.duration_hours, 0)} h
-                                                            </p>
-                                                        </div>
+                                                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-500">
+                                                            Categoría
+                                                        </p>
+                                                        <p className="mt-2 line-clamp-1 text-sm font-bold text-slate-900">
+                                                            {form.category_id
+                                                                ? categories.find(
+                                                                    (item) =>
+                                                                        String(
+                                                                            item.id,
+                                                                        ) ===
+                                                                        form.category_id,
+                                                                )?.name ??
+                                                                "Sin categoría"
+                                                                : "Sin categoría"}
+                                                        </p>
+                                                    </div>
 
-                                                        <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm">
-                                                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-500">
-                                                                Categoría
-                                                            </p>
-                                                            <p className="mt-2 line-clamp-1 text-[14px] font-bold text-slate-900">
-                                                                {form.category_id
-                                                                    ? categories.find(
-                                                                        (item) =>
-                                                                            String(item.id) === form.category_id,
-                                                                    )?.name ?? "Sin categoría"
-                                                                    : "Sin categoría"}
-                                                            </p>
-                                                        </div>
-
-                                                        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
-                                                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-500">
-                                                                Subcategoría
-                                                            </p>
-                                                            <p className="mt-2 line-clamp-1 text-[14px] font-bold text-slate-900">
-                                                                {form.subcategory_id
-                                                                    ? subcategories.find(
-                                                                        (item) =>
-                                                                            String(item.id) === form.subcategory_id,
-                                                                    )?.name ?? "Sin subcategoría"
-                                                                    : "Sin subcategoría"}
-                                                            </p>
-                                                        </div>
+                                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                                            Subcategoría
+                                                        </p>
+                                                        <p className="mt-2 line-clamp-1 text-sm font-bold text-slate-900">
+                                                            {form.subcategory_id
+                                                                ? subcategories.find(
+                                                                    (item) =>
+                                                                        String(
+                                                                            item.id,
+                                                                        ) ===
+                                                                        form.subcategory_id,
+                                                                )?.name ??
+                                                                "Sin subcategoría"
+                                                                : "Sin subcategoría"}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1743,17 +2032,17 @@ export function CoursesAdminPanel() {
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                                    className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                                 >
                                     Cancelar
                                 </button>
 
                                 <button
                                     type="submit"
-                                    disabled={saving}
-                                    className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                                    disabled={isSaving}
+                                    className="rounded-2xl bg-[#172861] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                    {saving
+                                    {isSaving
                                         ? "Guardando..."
                                         : editingCourseId
                                             ? "Actualizar curso"

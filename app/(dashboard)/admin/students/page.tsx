@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     getEnrollmentsByRole,
     resolveEnrollmentVoucherUrl,
@@ -18,8 +18,12 @@ type Notice =
     | { type: "error"; text: string }
     | null;
 
+type StatusFilter = "all" | "accepted" | "pending";
+
 function getStudentName(item: Enrollment) {
-    const fullName = `${item.user.firstname ?? ""} ${item.user.lastname ?? ""}`.trim();
+    const fullName = `${item.user.firstname ?? ""} ${item.user.lastname ?? ""
+        }`.trim();
+
     return fullName || `Usuario #${item.user.id}`;
 }
 
@@ -31,115 +35,107 @@ function getStudentInitials(item: Enrollment) {
     return initials || "ES";
 }
 
+function getStatusBadgeClass(accepted: boolean | null) {
+    if (accepted === true) {
+        return "bg-emerald-100 text-emerald-700";
+    }
+
+    return "bg-orange-100 text-orange-700";
+}
+
 export default function StudentsPage() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [items, setItems] = useState<Enrollment[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [notice, setNotice] = useState<Notice>(null);
 
     const [search, setSearch] = useState("");
     const [courseFilterId, setCourseFilterId] = useState(0);
-    const [statusFilter, setStatusFilter] = useState<"all" | "accepted" | "pending">(
-        "all",
-    );
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
     const [currentPage, setCurrentPage] = useState(1);
     const [voucherModalUrl, setVoucherModalUrl] = useState<string | null>(null);
     const [voucherModalTitle, setVoucherModalTitle] = useState("Comprobante");
 
-    function showNotice(type: "success" | "error", text: string) {
+    const showNotice = useCallback((type: "success" | "error", text: string) => {
         setNotice({ type, text });
 
         window.setTimeout(() => {
             setNotice((current) => (current?.text === text ? null : current));
         }, 2800);
-    }
+    }, []);
 
-    async function loadStudents(showSuccess = false) {
-        try {
-            setRefreshing(true);
+    const loadStudents = useCallback(
+        async (showSuccess = false) => {
+            try {
+                if (showSuccess) {
+                    setIsRefreshing(true);
+                } else {
+                    setIsLoading(true);
+                }
 
-            const [coursesData, enrollmentsData] = await Promise.all([
-                getAllCourses(),
-                getEnrollmentsByRole(STUDENT_ROLE_ID),
-            ]);
+                const [coursesData, enrollmentsData] = await Promise.all([
+                    getAllCourses(),
+                    getEnrollmentsByRole(STUDENT_ROLE_ID),
+                ]);
 
-            setCourses(coursesData);
-            setItems(enrollmentsData);
-            setCurrentPage(1);
+                setCourses(Array.isArray(coursesData) ? coursesData : []);
+                setItems(
+                    Array.isArray(enrollmentsData) ? enrollmentsData : [],
+                );
+                setCurrentPage(1);
 
-            if (showSuccess) {
-                showNotice("success", "Lista de estudiantes actualizada correctamente");
+                if (showSuccess) {
+                    showNotice(
+                        "success",
+                        "Lista de estudiantes actualizada correctamente.",
+                    );
+                }
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "No se pudieron cargar los estudiantes.";
+
+                setCourses([]);
+                setItems([]);
+                showNotice("error", message);
+            } finally {
+                setIsLoading(false);
+                setIsRefreshing(false);
             }
-        } catch (error) {
-            const message =
-                error instanceof Error
-                    ? error.message
-                    : "No se pudieron cargar los estudiantes";
-
-            setCourses([]);
-            setItems([]);
-            showNotice("error", message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }
+        },
+        [showNotice],
+    );
 
     useEffect(() => {
-        let isMounted = true;
-
-        const timer = window.setTimeout(() => {
-            async function bootstrap() {
-                try {
-                    const [coursesData, enrollmentsData] = await Promise.all([
-                        getAllCourses(),
-                        getEnrollmentsByRole(STUDENT_ROLE_ID),
-                    ]);
-
-                    if (!isMounted) return;
-
-                    setCourses(coursesData);
-                    setItems(enrollmentsData);
-                } catch (error) {
-                    if (!isMounted) return;
-
-                    const message =
-                        error instanceof Error
-                            ? error.message
-                            : "No se pudieron cargar los estudiantes";
-
-                    setCourses([]);
-                    setItems([]);
-                    showNotice("error", message);
-                } finally {
-                    if (!isMounted) return;
-                    setLoading(false);
-                }
-            }
-
-            void bootstrap();
+        const timeoutId = window.setTimeout(() => {
+            void loadStudents();
         }, 0);
 
         return () => {
-            isMounted = false;
-            window.clearTimeout(timer);
+            window.clearTimeout(timeoutId);
         };
-    }, []);
+    }, [loadStudents]);
 
-    const totalStudents = items.length;
+    const stats = useMemo(() => {
+        const uniqueStudents = new Set(items.map((item) => item.user.id)).size;
 
-    const uniqueStudentsCount = useMemo(() => {
-        return new Set(items.map((item) => item.user.id)).size;
-    }, [items]);
+        const acceptedStudents = items.filter(
+            (item) => item.accepted === true,
+        ).length;
 
-    const acceptedStudents = useMemo(() => {
-        return items.filter((item) => item.accepted === true).length;
-    }, [items]);
+        const pendingStudents = items.filter(
+            (item) => item.accepted !== true,
+        ).length;
 
-    const pendingStudents = useMemo(() => {
-        return items.filter((item) => item.accepted !== true).length;
+        return {
+            total: items.length,
+            uniqueStudents,
+            acceptedStudents,
+            pendingStudents,
+        };
     }, [items]);
 
     const filteredItems = useMemo(() => {
@@ -180,250 +176,295 @@ export default function StudentsPage() {
         Math.ceil(filteredItems.length / ROWS_PER_PAGE),
     );
 
-    const effectivePage = Math.min(currentPage, totalPages);
+    const activePage = Math.min(currentPage, totalPages);
 
     const paginatedItems = useMemo(() => {
-        const start = (effectivePage - 1) * ROWS_PER_PAGE;
-        return filteredItems.slice(start, start + ROWS_PER_PAGE);
-    }, [filteredItems, effectivePage]);
+        const startIndex = (activePage - 1) * ROWS_PER_PAGE;
+
+        return filteredItems.slice(startIndex, startIndex + ROWS_PER_PAGE);
+    }, [filteredItems, activePage]);
 
     const startItem =
-        filteredItems.length === 0 ? 0 : (effectivePage - 1) * ROWS_PER_PAGE + 1;
+        filteredItems.length === 0 ? 0 : (activePage - 1) * ROWS_PER_PAGE + 1;
 
-    const endItem = Math.min(effectivePage * ROWS_PER_PAGE, filteredItems.length);
+    const endItem = Math.min(activePage * ROWS_PER_PAGE, filteredItems.length);
 
     return (
-        <section className="space-y-6 p-4 md:p-6">
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-blue-700 via-blue-500 to-orange-500 px-5 py-6 md:px-6">
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="max-w-2xl">
-                            <div className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur">
-                                Gestión de estudiantes
-                            </div>
+        <section className="space-y-6">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                            Gestión de estudiantes
+                        </p>
 
-                            <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-                                Estudiantes matriculados
-                            </h1>
+                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                            Estudiantes matriculados
+                        </h2>
 
-                            <p className="mt-2 text-sm text-slate-100 md:text-base">
-                                Lista general de estudiantes registrados en matrículas con rol estudiante.
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">
+                            Consulta las matrículas con rol de estudiante,
+                            revisa el curso asociado, verifica el estado de la
+                            solicitud y visualiza los comprobantes registrados.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Registros
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.total}
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-100">
-                                    Registros
-                                </p>
-                                <p className="mt-1 text-2xl font-bold text-white">
-                                    {totalStudents}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-100">
-                                    Estudiantes
-                                </p>
-                                <p className="mt-1 text-2xl font-bold text-blue-100">
-                                    {uniqueStudentsCount}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-100">
-                                    Aprobados
-                                </p>
-                                <p className="mt-1 text-2xl font-bold text-emerald-200">
-                                    {acceptedStudents}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-100">
-                                    Pendientes
-                                </p>
-                                <p className="mt-1 text-2xl font-bold text-amber-200">
-                                    {pendingStudents}
-                                </p>
-                            </div>
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Estudiantes
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.uniqueStudents}
+                            </p>
                         </div>
-                    </div>
-                </div>
 
-                <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-4 md:px-6">
-                    <div className="grid gap-3 xl:grid-cols-[1.2fr_1fr_220px_auto] xl:items-center">
-                        <input
-                            value={search}
-                            onChange={(event) => {
-                                setSearch(event.target.value);
-                                setCurrentPage(1);
-                            }}
-                            placeholder="Buscar por estudiante, curso, código, comentario o ID"
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
-                        />
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Aprobados
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.acceptedStudents}
+                            </p>
+                        </div>
 
-                        <select
-                            value={courseFilterId}
-                            onChange={(event) => {
-                                setCourseFilterId(Number(event.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500"
-                        >
-                            <option value={0}>Todos los cursos</option>
-
-                            {courses.map((course) => (
-                                <option key={course.id} value={course.id}>
-                                    {course.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        <select
-                            value={statusFilter}
-                            onChange={(event) => {
-                                setStatusFilter(
-                                    event.target.value as "all" | "accepted" | "pending",
-                                );
-                                setCurrentPage(1);
-                            }}
-                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500"
-                        >
-                            <option value="all">Todos los estados</option>
-                            <option value="accepted">Aprobados</option>
-                            <option value="pending">Pendientes</option>
-                        </select>
-
-                        <button
-                            type="button"
-                            onClick={() => void loadStudents(true)}
-                            disabled={refreshing}
-                            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                            {refreshing ? "Actualizando..." : "Actualizar"}
-                        </button>
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Pendientes
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.pendingStudents}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {notice ? (
                 <div
-                    className={`rounded-2xl border px-4 py-3 text-sm font-medium ${notice.type === "success"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-red-200 bg-red-50 text-red-700"
+                    className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${notice.type === "success"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-red-200 bg-red-50 text-red-700"
                         }`}
                 >
                     {notice.text}
                 </div>
             ) : null}
 
-            {loading ? (
-                <div className="rounded-[28px] border border-slate-200 bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
-                    Cargando estudiantes...
-                </div>
-            ) : filteredItems.length === 0 ? (
-                <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-                    <p className="text-base font-semibold text-slate-700">
-                        No hay estudiantes para mostrar
-                    </p>
-                    <p className="mt-2 text-sm text-slate-500">
-                        No se encontraron matrículas con rol estudiante para los filtros seleccionados.
-                    </p>
-                </div>
-            ) : (
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+            <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-950">
+                            Lista de estudiantes
+                        </h3>
 
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-slate-100 text-slate-700">
+                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            Busca por estudiante, curso, código, comentario, rol
+                            o identificadores.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => void loadStudents(true)}
+                        disabled={isRefreshing}
+                        className="h-12 rounded-2xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        {isRefreshing ? "Actualizando..." : "Actualizar"}
+                    </button>
+                </div>
+
+                <div className="mt-5 grid gap-3 xl:grid-cols-[1.2fr_1fr_220px]">
+                    <input
+                        value={search}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder="Buscar por estudiante, curso, código, comentario o ID"
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    />
+
+                    <select
+                        value={courseFilterId}
+                        onChange={(event) => {
+                            setCourseFilterId(Number(event.target.value));
+                            setCurrentPage(1);
+                        }}
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    >
+                        <option value={0}>Todos los cursos</option>
+
+                        {courses.map((course) => (
+                            <option key={course.id} value={course.id}>
+                                {course.name}
+                            </option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={statusFilter}
+                        onChange={(event) => {
+                            setStatusFilter(event.target.value as StatusFilter);
+                            setCurrentPage(1);
+                        }}
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    >
+                        <option value="all">Todos los estados</option>
+                        <option value="accepted">Aprobados</option>
+                        <option value="pending">Pendientes</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
+                            <tr>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Estudiante
+                                </th>
+
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Curso
+                                </th>
+
+                                <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Rol matrícula
+                                </th>
+
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Código
+                                </th>
+
+                                <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Estado
+                                </th>
+
+                                <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Comprobante
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-slate-100">
+                            {isLoading ? (
                                 <tr>
-                                    <th className="px-4 py-4 text-left font-semibold">
-                                        Estudiante
-                                    </th>
-                                    <th className="px-4 py-4 text-left font-semibold">
-                                        Curso
-                                    </th>
-                                    <th className="px-4 py-4 text-center font-semibold">
-                                        Rol matrícula
-                                    </th>
-                                    <th className="px-4 py-4 text-left font-semibold">
-                                        Código
-                                    </th>
-                                    <th className="px-4 py-4 text-center font-semibold">
-                                        Estado
-                                    </th>
-                                    <th className="px-4 py-4 text-center font-semibold">
-                                        Comprobante
-                                    </th>
+                                    <td
+                                        colSpan={6}
+                                        className="px-5 py-12 text-center text-sm font-semibold text-slate-500"
+                                    >
+                                        Cargando estudiantes...
+                                    </td>
                                 </tr>
-                            </thead>
-
-                            <tbody>
-                                {paginatedItems.map((item) => {
-                                    const voucherUrl = resolveEnrollmentVoucherUrl(
-                                        item.voucher_url,
-                                    );
+                            ) : filteredItems.length === 0 ? (
+                                <tr>
+                                    <td
+                                        colSpan={6}
+                                        className="px-5 py-12 text-center"
+                                    >
+                                        <p className="text-sm font-bold text-slate-800">
+                                            No hay estudiantes para mostrar.
+                                        </p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            No se encontraron matrículas con rol
+                                            estudiante para los filtros
+                                            seleccionados.
+                                        </p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedItems.map((item) => {
+                                    const voucherUrl =
+                                        resolveEnrollmentVoucherUrl(
+                                            item.voucher_url,
+                                        );
 
                                     return (
                                         <tr
                                             key={item.id}
-                                            className="border-t border-slate-200 align-top transition hover:bg-slate-50/80"
+                                            className="align-top transition hover:bg-blue-50/40"
                                         >
-                                            <td className="px-4 py-4">
+                                            <td className="px-5 py-4">
                                                 <div className="flex min-w-[230px] items-center gap-3">
-                                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-black uppercase text-blue-700 ring-1 ring-blue-100">
-                                                        {getStudentInitials(item)}
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-sm font-bold uppercase text-white">
+                                                        {getStudentInitials(
+                                                            item,
+                                                        )}
                                                     </div>
 
                                                     <div>
-                                                        <p className="font-semibold text-slate-900">
-                                                            {getStudentName(item)}
+                                                        <p className="text-sm font-bold text-slate-950">
+                                                            {getStudentName(
+                                                                item,
+                                                            )}
+                                                        </p>
+                                                        <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                            Usuario #
+                                                            {item.user.id}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            <td className="px-4 py-4">
+                                            <td className="px-5 py-4">
                                                 <div className="min-w-[260px]">
-                                                    <p className="font-medium text-slate-800">
+                                                    <p className="text-sm font-semibold text-slate-800">
                                                         {item.course.name}
+                                                    </p>
+                                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                        Curso #{item.course.id}
                                                     </p>
                                                 </div>
                                             </td>
 
-                                            <td className="px-4 py-4 text-center">
-                                                <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                            <td className="px-5 py-4 text-center">
+                                                <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
                                                     {item.role.name}
                                                 </span>
                                             </td>
 
-
-                                            <td className="px-4 py-4">
-                                                <span className="font-medium text-slate-700">
-                                                    {item.reference_code || "Sin código"}
+                                            <td className="px-5 py-4">
+                                                <span className="text-sm font-semibold text-slate-700">
+                                                    {item.reference_code ||
+                                                        "Sin código"}
                                                 </span>
                                             </td>
 
-                                            <td className="px-4 py-4 text-center">
+                                            <td className="px-5 py-4 text-center">
                                                 <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${item.accepted === true
-                                                        ? "bg-emerald-100 text-emerald-700"
-                                                        : "bg-amber-100 text-amber-700"
-                                                        }`}
+                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusBadgeClass(
+                                                        item.accepted,
+                                                    )}`}
                                                 >
-                                                    {item.accepted === true ? "Aprobado" : "Pendiente"}
+                                                    {item.accepted === true
+                                                        ? "Aprobado"
+                                                        : "Pendiente"}
                                                 </span>
                                             </td>
 
-                                            <td className="px-4 py-4 text-center">
+                                            <td className="px-5 py-4 text-center">
                                                 {voucherUrl ? (
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setVoucherModalUrl(voucherUrl);
+                                                            setVoucherModalUrl(
+                                                                voucherUrl,
+                                                            );
                                                             setVoucherModalTitle(
-                                                                `Comprobante - ${getStudentName(item)}`,
+                                                                `Comprobante - ${getStudentName(
+                                                                    item,
+                                                                )}`,
                                                             );
                                                         }}
                                                         className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
@@ -431,67 +472,58 @@ export default function StudentsPage() {
                                                         Ver comprobante
                                                     </button>
                                                 ) : (
-                                                    <span className="text-sm text-slate-400">
+                                                    <span className="text-sm font-semibold text-slate-400">
                                                         Sin comprobante
                                                     </span>
                                                 )}
                                             </td>
                                         </tr>
                                     );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
 
-                    <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 md:flex-row md:items-center md:justify-between">
-                        <p className="text-sm text-slate-500">
-                            Mostrando{" "}
-                            <span className="font-semibold text-slate-700">
-                                {startItem}
-                            </span>{" "}
-                            a{" "}
-                            <span className="font-semibold text-slate-700">
-                                {endItem}
-                            </span>{" "}
-                            de{" "}
-                            <span className="font-semibold text-slate-700">
-                                {filteredItems.length}
-                            </span>{" "}
-                            registros
-                        </p>
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-semibold text-slate-500">
+                        Mostrando {startItem} a {endItem} de{" "}
+                        {filteredItems.length} registros
+                    </p>
 
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setCurrentPage((page) => Math.max(1, page - 1))
-                                }
-                                disabled={effectivePage === 1}
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Anterior
-                            </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setCurrentPage((page) =>
+                                    Math.max(1, page - 1),
+                                )
+                            }
+                            disabled={activePage === 1}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Anterior
+                        </button>
 
-                            <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                                Página {effectivePage} de {totalPages}
-                            </span>
+                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                            Página {activePage} de {totalPages}
+                        </span>
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setCurrentPage((page) =>
-                                        Math.min(totalPages, page + 1),
-                                    )
-                                }
-                                disabled={effectivePage === totalPages}
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Siguiente
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setCurrentPage((page) =>
+                                    Math.min(totalPages, page + 1),
+                                )
+                            }
+                            disabled={activePage === totalPages}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Siguiente
+                        </button>
                     </div>
                 </div>
-            )}
+            </div>
 
             {voucherModalUrl ? (
                 <div
@@ -499,26 +531,34 @@ export default function StudentsPage() {
                     onClick={() => setVoucherModalUrl(null)}
                 >
                     <div
-                        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-2xl"
+                        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-5 py-4 text-white">
-                            <div>
-                                <h3 className="text-lg font-bold">
-                                    {voucherModalTitle}
-                                </h3>
-                                <p className="mt-1 text-sm text-slate-200">
-                                    Vista previa del comprobante registrado.
-                                </p>
-                            </div>
+                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-5 py-4 text-white">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
+                                        Vista previa
+                                    </p>
 
-                            <button
-                                type="button"
-                                onClick={() => setVoucherModalUrl(null)}
-                                className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
-                            >
-                                Cerrar
-                            </button>
+                                    <h3 className="mt-2 text-lg font-bold">
+                                        {voucherModalTitle}
+                                    </h3>
+
+                                    <p className="mt-1 text-sm text-blue-50">
+                                        Comprobante registrado en la matrícula
+                                        del estudiante.
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setVoucherModalUrl(null)}
+                                    className="rounded-2xl bg-white/15 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
                         </div>
 
                         <div className="h-[72vh] bg-slate-100 p-4">
@@ -552,7 +592,7 @@ export default function StudentsPage() {
                             <button
                                 type="button"
                                 onClick={() => setVoucherModalUrl(null)}
-                                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800"
+                                className="rounded-xl bg-[#172861] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#0B163F]"
                             >
                                 Cerrar
                             </button>

@@ -21,7 +21,10 @@ import {
     XCircle,
 } from "lucide-react";
 import { getAllCourses, type Course } from "@/services/courses.service";
-import { getModulesByCourse, type CourseModule } from "@/services/modules.service";
+import {
+    getModulesByCourse,
+    type CourseModule,
+} from "@/services/modules.service";
 import {
     getLessonBlocksByLesson,
     getLessonsByModule,
@@ -555,11 +558,13 @@ export function TeacherQuizGradesView({
         Math.ceil(groupedGrades.length / ROWS_PER_PAGE),
     );
 
+    const activePage = Math.min(currentPage, totalPages);
+
     const paginatedGroups = useMemo(() => {
-        const start = (currentPage - 1) * ROWS_PER_PAGE;
+        const start = (activePage - 1) * ROWS_PER_PAGE;
 
         return groupedGrades.slice(start, start + ROWS_PER_PAGE);
-    }, [groupedGrades, currentPage]);
+    }, [groupedGrades, activePage]);
 
     const passedCount = useMemo(
         () => grades.filter((row) => getCalculatedPassed(row)).length,
@@ -587,9 +592,9 @@ export function TeacherQuizGradesView({
     const startItem =
         groupedGrades.length === 0
             ? 0
-            : (currentPage - 1) * ROWS_PER_PAGE + 1;
+            : (activePage - 1) * ROWS_PER_PAGE + 1;
 
-    const endItem = Math.min(currentPage * ROWS_PER_PAGE, groupedGrades.length);
+    const endItem = Math.min(activePage * ROWS_PER_PAGE, groupedGrades.length);
 
     const loadGrades = useCallback(
         async (showRefresh = false) => {
@@ -760,7 +765,8 @@ export function TeacherQuizGradesView({
                     item.id !== certificate.id &&
                     !(
                         Number(item.user_id) === Number(certificate.user_id) &&
-                        Number(item.course_id) === Number(certificate.course_id)
+                        Number(item.course_id) ===
+                        Number(certificate.course_id)
                     ),
             );
 
@@ -805,8 +811,6 @@ export function TeacherQuizGradesView({
                 is_passed: editPassed[responseId] ?? false,
             });
 
-            let updatedModalRows: GradeRow[] = [];
-
             setGrades((current) =>
                 current.map((item) =>
                     item.response.id === updatedResponse.id
@@ -825,7 +829,7 @@ export function TeacherQuizGradesView({
             setGroupModal((current) => {
                 if (!current) return current;
 
-                updatedModalRows = current.group.rows.map((item) =>
+                const updatedModalRows = current.group.rows.map((item) =>
                     item.response.id === updatedResponse.id
                         ? {
                             ...item,
@@ -848,13 +852,15 @@ export function TeacherQuizGradesView({
                         rows: updatedModalRows,
                         averageScore: getGroupAverage(updatedModalRows),
                         passedCount: passedGroupCount,
-                        failedCount: updatedModalRows.length - passedGroupCount,
+                        failedCount:
+                            updatedModalRows.length - passedGroupCount,
                     },
                 };
             });
 
             if (currentCourseId > 0) {
-                const freshCertificates = await getCertificatesByCourse(currentCourseId);
+                const freshCertificates =
+                    await getCertificatesByCourse(currentCourseId);
 
                 setCertificates(freshCertificates);
 
@@ -864,14 +870,18 @@ export function TeacherQuizGradesView({
                     const freshCertificate =
                         freshCertificates.find(
                             (item) =>
-                                Number(item.user_id) === Number(current.group.userId) &&
-                                Number(item.course_id) === Number(currentCourseId) &&
+                                Number(item.user_id) ===
+                                Number(current.group.userId) &&
+                                Number(item.course_id) ===
+                                Number(currentCourseId) &&
                                 item.is_valid !== false,
                         ) ??
                         freshCertificates.find(
                             (item) =>
-                                Number(item.user_id) === Number(current.group.userId) &&
-                                Number(item.course_id) === Number(currentCourseId),
+                                Number(item.user_id) ===
+                                Number(current.group.userId) &&
+                                Number(item.course_id) ===
+                                Number(currentCourseId),
                         ) ??
                         current.group.certificate ??
                         null;
@@ -885,7 +895,9 @@ export function TeacherQuizGradesView({
                 });
             }
 
-            setNotice("Calificación actualizada correctamente. El promedio del certificado fue actualizado.");
+            setNotice(
+                "Calificación actualizada correctamente. El promedio del certificado fue actualizado.",
+            );
         } catch (error) {
             setModalError(getErrorMessage(error));
         } finally {
@@ -925,7 +937,8 @@ export function TeacherQuizGradesView({
                 );
             }
 
-            const freshCertificates = await getCertificatesByCourse(currentCourseId);
+            const freshCertificates =
+                await getCertificatesByCourse(currentCourseId);
 
             const existingCertificate =
                 freshCertificates.find(
@@ -942,10 +955,9 @@ export function TeacherQuizGradesView({
                 group.certificate ??
                 null;
 
-            const certificateFinalGrade =
-                existingCertificate?.final_grade?.trim()
-                    ? existingCertificate.final_grade
-                    : group.averageScore;
+            const certificateFinalGrade = existingCertificate?.final_grade?.trim()
+                ? existingCertificate.final_grade
+                : group.averageScore;
 
             const values = {
                 studentName: group.studentName,
@@ -996,8 +1008,8 @@ export function TeacherQuizGradesView({
 
     if (isLoading) {
         return (
-            <section className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
+            <section className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-[var(--border)] bg-white p-8 text-center shadow-sm">
+                <Loader2 className="h-8 w-8 animate-spin text-[#172861]" />
                 <p className="mt-4 text-sm font-bold text-slate-600">
                     {currentCourseId > 0
                         ? "Cargando calificaciones del curso..."
@@ -1010,68 +1022,60 @@ export function TeacherQuizGradesView({
     if (currentCourseId <= 0) {
         return (
             <section className="space-y-6">
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-6 md:px-7">
-                        <div>
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-100">
-                                <Award className="h-3.5 w-3.5" />
-                                Panel del administrador
-                            </div>
+                <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                    <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                            Panel del administrador
+                        </p>
 
-                            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
-                                Gestión de calificaciones
-                            </h1>
+                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                            Gestión de calificaciones
+                        </h2>
 
-                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                                Selecciona primero un curso para cargar sus
-                                cuestionarios, matrículas, notas y certificados.
-                            </p>
-                        </div>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-50">
+                            Selecciona primero un curso para cargar sus
+                            cuestionarios, matrículas, notas y certificados.
+                        </p>
                     </div>
+                </div>
 
-                    <div className="p-5">
-                        {errorMessage ? (
-                            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                                <span>{errorMessage}</span>
-                            </div>
-                        ) : null}
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                                Curso
-                            </label>
-
-                            <select
-                                value=""
-                                onChange={(event) =>
-                                    handleSelectCourse(event.target.value)
-                                }
-                                className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                            >
-                                <option value="">Selecciona un curso</option>
-                                {courseOptions.map((courseItem) => (
-                                    <option
-                                        key={courseItem.id}
-                                        value={courseItem.id}
-                                    >
-                                        {courseItem.name}
-                                    </option>
-                                ))}
-                            </select>
-
-                            {courseOptions.length === 0 ? (
-                                <p className="mt-3 text-sm font-semibold text-slate-500">
-                                    No hay cursos registrados para mostrar.
-                                </p>
-                            ) : (
-                                <p className="mt-3 text-sm font-semibold text-slate-500">
-                                    Al seleccionar un curso se cargarán las
-                                    calificaciones agrupadas por matrícula.
-                                </p>
-                            )}
-                        </div>
+                {errorMessage ? (
+                    <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <span>{errorMessage}</span>
                     </div>
+                ) : null}
+
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-950">
+                        Seleccionar curso
+                    </h3>
+
+                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                        Al seleccionar un curso se cargarán las calificaciones
+                        agrupadas por matrícula.
+                    </p>
+
+                    <select
+                        value=""
+                        onChange={(event) =>
+                            handleSelectCourse(event.target.value)
+                        }
+                        className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    >
+                        <option value="">Selecciona un curso</option>
+                        {courseOptions.map((courseItem) => (
+                            <option key={courseItem.id} value={courseItem.id}>
+                                {courseItem.name}
+                            </option>
+                        ))}
+                    </select>
+
+                    {courseOptions.length === 0 ? (
+                        <p className="mt-3 text-sm font-semibold text-slate-500">
+                            No hay cursos registrados para mostrar.
+                        </p>
+                    ) : null}
                 </div>
             </section>
         );
@@ -1079,152 +1083,173 @@ export function TeacherQuizGradesView({
 
     return (
         <section className="space-y-6">
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-6 md:px-7">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-100">
-                                <Award className="h-3.5 w-3.5" />
-                                {isAdminRoute
-                                    ? "Panel del administrador"
-                                    : "Panel del profesor"}
-                            </div>
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                            {isAdminRoute
+                                ? "Panel del administrador"
+                                : "Panel del profesor"}
+                        </p>
 
-                            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
-                                Calificaciones del curso
-                            </h1>
+                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                            Calificaciones del curso
+                        </h2>
 
-                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                                Resumen agrupado por matrícula dentro de{" "}
-                                <span className="font-bold text-white">
-                                    {course?.name || `curso #${currentCourseId}`}
-                                </span>
-                                .
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-50">
+                            Resumen agrupado por matrícula dentro de{" "}
+                            <span className="font-bold text-white">
+                                {course?.name || `curso #${currentCourseId}`}
+                            </span>
+                            .
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Promedio
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {averageScore}
                             </p>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-4">
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100">
-                                    Promedio
-                                </p>
-                                <p className="mt-1 text-2xl font-black">
-                                    {averageScore}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100">
-                                    Aprobadas
-                                </p>
-                                <p className="mt-1 text-2xl font-black">
-                                    {passedCount}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100">
-                                    No aprobadas
-                                </p>
-                                <p className="mt-1 text-2xl font-black">
-                                    {failedCount}
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100">
-                                    Certificados
-                                </p>
-                                <p className="mt-1 text-2xl font-black">
-                                    {generatedCertificatesCount}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="border-t border-slate-100 bg-white p-5">
-                    <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 xl:grid-cols-[minmax(0,1fr)_320px_auto] xl:items-end">
-                        <div className="space-y-2">
-                            <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                                Buscar dentro del curso
-                            </label>
-
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                <input
-                                    value={searchTerm}
-                                    onChange={(event) => {
-                                        setSearchTerm(event.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                    placeholder="Buscar estudiante, prueba, módulo, matrícula o puntaje..."
-                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                />
-                            </div>
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Aprobadas
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {passedCount}
+                            </p>
                         </div>
 
-                        {isAdminRoute && routeCourseId <= 0 ? (
-                            <div className="space-y-2">
-                                <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                                    Curso seleccionado
-                                </label>
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                No aprobadas
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {failedCount}
+                            </p>
+                        </div>
 
-                                <select
-                                    value={currentCourseId || ""}
-                                    onChange={(event) =>
-                                        handleSelectCourse(event.target.value)
-                                    }
-                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                >
-                                    <option value="">Selecciona un curso</option>
-                                    {courseOptions.map((courseItem) => (
-                                        <option
-                                            key={courseItem.id}
-                                            value={courseItem.id}
-                                        >
-                                            {courseItem.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        ) : null}
-
-                        <button
-                            type="button"
-                            onClick={() => void loadGrades(true)}
-                            disabled={isRefreshing || currentCourseId <= 0}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            {isRefreshing ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <RefreshCw className="h-4 w-4" />
-                            )}
-                            Actualizar
-                        </button>
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Certificados
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {generatedCertificatesCount}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {notice ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
                     <span>{notice}</span>
                 </div>
             ) : null}
 
             {errorMessage ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <span>{errorMessage}</span>
                 </div>
             ) : null}
 
+            <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-950">
+                            Filtros de calificaciones
+                        </h3>
+
+                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            Busca por estudiante, prueba, módulo, matrícula o
+                            puntaje.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => void loadGrades(true)}
+                        disabled={isRefreshing || currentCourseId <= 0}
+                        className="h-12 rounded-2xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <span className="inline-flex items-center gap-2">
+                            {isRefreshing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="h-4 w-4" />
+                            )}
+                            {isRefreshing ? "Actualizando..." : "Actualizar"}
+                        </span>
+                    </button>
+                </div>
+
+                <div
+                    className={`mt-5 grid gap-3 ${isAdminRoute && routeCourseId <= 0
+                            ? "xl:grid-cols-[1fr_320px_320px]"
+                            : "xl:grid-cols-[1fr_320px]"
+                        }`}
+                >
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <input
+                            value={searchTerm}
+                            onChange={(event) => {
+                                setSearchTerm(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Buscar estudiante, prueba, módulo, matrícula o puntaje..."
+                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        />
+                    </div>
+
+                    <select
+                        value={selectedBlockId}
+                        onChange={(event) => {
+                            setSelectedBlockId(Number(event.target.value));
+                            setCurrentPage(1);
+                        }}
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    >
+                        <option value={0}>Todos los cuestionarios</option>
+                        {quizBlocks.map((item) => (
+                            <option key={item.block.id} value={item.block.id}>
+                                {getQuizTitleFromBlock(item.block)}
+                            </option>
+                        ))}
+                    </select>
+
+                    {isAdminRoute && routeCourseId <= 0 ? (
+                        <select
+                            value={currentCourseId || ""}
+                            onChange={(event) =>
+                                handleSelectCourse(event.target.value)
+                            }
+                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        >
+                            <option value="">Selecciona un curso</option>
+                            {courseOptions.map((courseItem) => (
+                                <option
+                                    key={courseItem.id}
+                                    value={courseItem.id}
+                                >
+                                    {courseItem.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : null}
+                </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#172861]">
                             <BookOpen className="h-5 w-5" />
                         </div>
 
@@ -1232,14 +1257,14 @@ export function TeacherQuizGradesView({
                             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                                 Curso actual
                             </p>
-                            <p className="mt-1 text-sm font-black text-slate-950">
+                            <p className="mt-1 text-sm font-bold text-slate-950">
                                 {course?.name || `Curso #${currentCourseId}`}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                             <Layers3 className="h-5 w-5" />
@@ -1249,16 +1274,16 @@ export function TeacherQuizGradesView({
                             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                                 Matrículas con respuestas
                             </p>
-                            <p className="mt-1 text-xl font-black text-slate-950">
+                            <p className="mt-1 text-xl font-bold text-slate-950">
                                 {groupedGrades.length}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-orange-700">
                             <ClipboardList className="h-5 w-5" />
                         </div>
 
@@ -1266,16 +1291,16 @@ export function TeacherQuizGradesView({
                             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                                 Respuestas recibidas
                             </p>
-                            <p className="mt-1 text-xl font-black text-slate-950">
+                            <p className="mt-1 text-xl font-bold text-slate-950">
                                 {grades.length}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                             <FileCheck2 className="h-5 w-5" />
                         </div>
 
@@ -1283,7 +1308,7 @@ export function TeacherQuizGradesView({
                             <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                                 Certificados generados
                             </p>
-                            <p className="mt-1 text-xl font-black text-slate-950">
+                            <p className="mt-1 text-xl font-bold text-slate-950">
                                 {generatedCertificatesCount}
                             </p>
                         </div>
@@ -1292,12 +1317,12 @@ export function TeacherQuizGradesView({
             </div>
 
             {groupedGrades.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#172861]">
                         <ClipboardList className="h-6 w-6" />
                     </div>
 
-                    <h2 className="mt-4 text-lg font-black text-slate-950">
+                    <h2 className="mt-4 text-lg font-bold text-slate-950">
                         No hay respuestas de pruebas para este curso
                     </h2>
 
@@ -1307,33 +1332,33 @@ export function TeacherQuizGradesView({
                     </p>
                 </div>
             ) : (
-                <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+                <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-200 text-sm">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    <th className="px-5 py-3 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Estudiante
                                     </th>
-                                    <th className="px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Cuestionarios
                                     </th>
-                                    <th className="px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Promedio
                                     </th>
-                                    <th className="px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Aprobadas
                                     </th>
-                                    <th className="px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                         No aprobadas
                                     </th>
-                                    <th className="px-5 py-3 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Última respuesta
                                     </th>
-                                    <th className="px-5 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Certificado
                                     </th>
-                                    <th className="px-5 py-3 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-slate-600">
                                         Acción
                                     </th>
                                 </tr>
@@ -1343,50 +1368,56 @@ export function TeacherQuizGradesView({
                                 {paginatedGroups.map((group) => (
                                     <tr
                                         key={group.enrollmentId}
-                                        className="transition hover:bg-slate-50"
+                                        className="transition hover:bg-blue-50/40"
                                     >
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-white">
                                                     <UserRound className="h-5 w-5" />
                                                 </div>
 
                                                 <div>
-                                                    <p className="font-black text-slate-950">
+                                                    <p className="font-bold text-slate-950">
                                                         {group.studentName}
+                                                    </p>
+                                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                        Matrícula #
+                                                        {group.enrollmentId}
                                                     </p>
                                                 </div>
                                             </div>
                                         </td>
 
                                         <td className="px-5 py-4 text-center">
-                                            <span className="font-black text-slate-950">
+                                            <span className="font-bold text-slate-950">
                                                 {group.rows.length}
                                             </span>
                                         </td>
 
-
-
                                         <td className="px-5 py-4 text-center">
-                                            {getCertificateFinalGrade(group.certificate) ? (
-                                                <span className="inline-flex rounded-xl bg-indigo-50 px-3 py-1 text-sm font-black text-indigo-700">
-                                                    {getCertificateFinalGrade(group.certificate)}
+                                            {getCertificateFinalGrade(
+                                                group.certificate,
+                                            ) ? (
+                                                <span className="inline-flex rounded-xl bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                                                    {getCertificateFinalGrade(
+                                                        group.certificate,
+                                                    )}
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">
+                                                <span className="inline-flex rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
                                                     Pendiente
                                                 </span>
                                             )}
                                         </td>
 
                                         <td className="px-5 py-4 text-center">
-                                            <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-sm font-black text-emerald-700">
+                                            <span className="inline-flex rounded-xl bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">
                                                 {group.passedCount}
                                             </span>
                                         </td>
 
                                         <td className="px-5 py-4 text-center">
-                                            <span className="inline-flex rounded-xl bg-red-50 px-3 py-1 text-sm font-black text-red-700">
+                                            <span className="inline-flex rounded-xl bg-red-50 px-3 py-1 text-sm font-bold text-red-700">
                                                 {group.failedCount}
                                             </span>
                                         </td>
@@ -1397,12 +1428,12 @@ export function TeacherQuizGradesView({
 
                                         <td className="px-5 py-4 text-center">
                                             {group.certificate ? (
-                                                <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                                                <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                                                     <FileCheck2 className="h-4 w-4" />
                                                     Generado
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                                                <span className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                                                     <XCircle className="h-4 w-4" />
                                                     No generado
                                                 </span>
@@ -1416,7 +1447,7 @@ export function TeacherQuizGradesView({
                                                     onClick={() =>
                                                         openGroupModal(group)
                                                     }
-                                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-black text-white transition hover:bg-blue-800"
+                                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-bold text-white transition hover:bg-[#0B163F]"
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                     Ver resumen
@@ -1431,7 +1462,7 @@ export function TeacherQuizGradesView({
                                                                 group.certificate,
                                                             )
                                                         }
-                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                         Ver certificado
@@ -1457,9 +1488,9 @@ export function TeacherQuizGradesView({
                                                             ? "El estudiante tiene cuestionarios no aprobados."
                                                             : undefined
                                                     }
-                                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${group.certificate
-                                                        ? "bg-amber-600 hover:bg-amber-700"
-                                                        : "bg-emerald-600 hover:bg-emerald-700"
+                                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-xl px-4 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${group.certificate
+                                                            ? "bg-orange-500 hover:bg-orange-600"
+                                                            : "bg-emerald-600 hover:bg-emerald-700"
                                                         }`}
                                                 >
                                                     {generatingCertificateUserId ===
@@ -1486,7 +1517,7 @@ export function TeacherQuizGradesView({
                         </table>
                     </div>
 
-                    <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm font-semibold text-slate-500">
                             Mostrando {startItem} - {endItem} de{" "}
                             {groupedGrades.length} matrículas
@@ -1500,14 +1531,14 @@ export function TeacherQuizGradesView({
                                         Math.max(1, page - 1),
                                     )
                                 }
-                                disabled={currentPage === 1}
-                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={activePage === 1}
+                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 Anterior
                             </button>
 
-                            <span className="rounded-xl bg-white px-3 py-2 text-sm font-black text-slate-700 ring-1 ring-slate-200">
-                                {currentPage} / {totalPages}
+                            <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                                Página {activePage} de {totalPages}
                             </span>
 
                             <button
@@ -1517,8 +1548,8 @@ export function TeacherQuizGradesView({
                                         Math.min(totalPages, page + 1),
                                     )
                                 }
-                                disabled={currentPage === totalPages}
-                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={activePage === totalPages}
+                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 Siguiente
                             </button>
@@ -1528,110 +1559,125 @@ export function TeacherQuizGradesView({
             )}
 
             {groupModal ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-                    <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[24px] bg-white shadow-2xl">
-                        <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
-                            <div>
-                                <h2 className="text-xl font-black text-slate-950">
-                                    Resumen de cuestionarios
-                                </h2>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+                    <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
+                                        Resumen
+                                    </p>
 
-                                <p className="mt-1 text-sm font-semibold text-slate-500">
-                                    {groupModal.group.studentName} · Matrícula #
-                                    {groupModal.group.enrollmentId}
-                                </p>
+                                    <h2 className="mt-2 text-xl font-bold">
+                                        Resumen de cuestionarios
+                                    </h2>
+
+                                    <p className="mt-1 text-sm font-semibold text-blue-50">
+                                        {groupModal.group.studentName} ·
+                                        Matrícula #
+                                        {groupModal.group.enrollmentId}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={closeGroupModal}
+                                    disabled={Boolean(
+                                        savingResponseId ||
+                                        generatingCertificateUserId,
+                                    )}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20 transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={closeGroupModal}
-                                disabled={Boolean(
-                                    savingResponseId ||
-                                    generatingCertificateUserId,
-                                )}
-                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
                         </div>
 
-                        <div className="max-h-[calc(90vh-73px)] overflow-y-auto p-5">
+                        <div className="max-h-[calc(90vh-96px)] overflow-y-auto p-5">
                             {modalError ? (
-                                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                                     {modalError}
                                 </div>
                             ) : null}
 
                             <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
                                         Cuestionarios
                                     </p>
-                                    <p className="mt-1 text-xl font-black text-slate-950">
+                                    <p className="mt-1 text-xl font-bold text-slate-950">
                                         {groupModal.group.rows.length}
                                     </p>
                                 </div>
 
                                 <div
-                                    className={`rounded-xl border px-4 py-3 ${getCertificateFinalGrade(groupModal.group.certificate)
-                                        ? "border-indigo-100 bg-indigo-50"
-                                        : "border-slate-200 bg-slate-50"
+                                    className={`rounded-2xl border px-4 py-3 ${getCertificateFinalGrade(
+                                        groupModal.group.certificate,
+                                    )
+                                            ? "border-blue-100 bg-blue-50"
+                                            : "border-slate-200 bg-slate-50"
                                         }`}
                                 >
                                     <p
-                                        className={`text-[11px] font-black uppercase tracking-[0.12em] ${getCertificateFinalGrade(groupModal.group.certificate)
-                                            ? "text-indigo-700"
-                                            : "text-slate-500"
+                                        className={`text-[11px] font-bold uppercase tracking-[0.12em] ${getCertificateFinalGrade(
+                                            groupModal.group.certificate,
+                                        )
+                                                ? "text-blue-700"
+                                                : "text-slate-500"
                                             }`}
                                     >
                                         Promedio certificado
                                     </p>
                                     <p
-                                        className={`mt-1 text-xl font-black ${getCertificateFinalGrade(groupModal.group.certificate)
-                                            ? "text-indigo-700"
-                                            : "text-slate-500"
+                                        className={`mt-1 text-xl font-bold ${getCertificateFinalGrade(
+                                            groupModal.group.certificate,
+                                        )
+                                                ? "text-blue-700"
+                                                : "text-slate-500"
                                             }`}
                                     >
-                                        {getCertificateFinalGradeLabel(groupModal.group.certificate)}
+                                        {getCertificateFinalGradeLabel(
+                                            groupModal.group.certificate,
+                                        )}
                                     </p>
                                 </div>
 
-                                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
                                         Aprobadas
                                     </p>
-                                    <p className="mt-1 text-xl font-black text-emerald-700">
+                                    <p className="mt-1 text-xl font-bold text-emerald-700">
                                         {groupModal.group.passedCount}
                                     </p>
                                 </div>
 
-                                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.12em] text-red-700">
+                                <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-red-700">
                                         No aprobadas
                                     </p>
-                                    <p className="mt-1 text-xl font-black text-red-700">
+                                    <p className="mt-1 text-xl font-bold text-red-700">
                                         {groupModal.group.failedCount}
                                     </p>
                                 </div>
 
                                 <div
-                                    className={`rounded-xl border px-4 py-3 ${groupModal.group.certificate
-                                        ? "border-emerald-100 bg-emerald-50"
-                                        : "border-slate-200 bg-slate-50"
+                                    className={`rounded-2xl border px-4 py-3 ${groupModal.group.certificate
+                                            ? "border-emerald-100 bg-emerald-50"
+                                            : "border-slate-200 bg-slate-50"
                                         }`}
                                 >
                                     <p
-                                        className={`text-[11px] font-black uppercase tracking-[0.12em] ${groupModal.group.certificate
-                                            ? "text-emerald-700"
-                                            : "text-slate-500"
+                                        className={`text-[11px] font-bold uppercase tracking-[0.12em] ${groupModal.group.certificate
+                                                ? "text-emerald-700"
+                                                : "text-slate-500"
                                             }`}
                                     >
                                         Certificado
                                     </p>
                                     <p
-                                        className={`mt-1 text-sm font-black ${groupModal.group.certificate
-                                            ? "text-emerald-700"
-                                            : "text-slate-700"
+                                        className={`mt-1 text-sm font-bold ${groupModal.group.certificate
+                                                ? "text-emerald-700"
+                                                : "text-slate-700"
                                             }`}
                                     >
                                         {groupModal.group.certificate
@@ -1643,13 +1689,13 @@ export function TeacherQuizGradesView({
 
                             <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <p className="text-sm font-black text-slate-950">
+                                    <p className="text-sm font-bold text-slate-950">
                                         Certificado del estudiante
                                     </p>
                                     <p className="mt-1 text-xs font-semibold text-slate-500">
                                         Se genera usando la plantilla guardada
-                                        del curso y el promedio final devuelto por el
-                                        certificado.
+                                        del curso y el promedio final devuelto
+                                        por el certificado.
                                     </p>
                                 </div>
 
@@ -1663,7 +1709,7 @@ export function TeacherQuizGradesView({
                                                     groupModal.group.certificate,
                                                 )
                                             }
-                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
                                         >
                                             <Eye className="h-4 w-4" />
                                             Ver certificado
@@ -1684,9 +1730,9 @@ export function TeacherQuizGradesView({
                                                 groupModal.group,
                                             )
                                         }
-                                        className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${groupModal.group.certificate
-                                            ? "bg-amber-600 hover:bg-amber-700"
-                                            : "bg-emerald-600 hover:bg-emerald-700"
+                                        className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${groupModal.group.certificate
+                                                ? "bg-orange-500 hover:bg-orange-600"
+                                                : "bg-emerald-600 hover:bg-emerald-700"
                                             }`}
                                     >
                                         {generatingCertificateUserId ===
@@ -1713,322 +1759,317 @@ export function TeacherQuizGradesView({
                                     <table className="min-w-full divide-y divide-slate-200 text-sm">
                                         <thead className="bg-slate-50">
                                             <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                                     Cuestionario
                                                 </th>
-                                                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                                     Nota
                                                 </th>
-                                                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                                     Mínimo
                                                 </th>
-                                                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                                     Estado
                                                 </th>
-                                                <th className="px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                                <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
                                                     Editar nota
                                                 </th>
-                                                <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                                <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600">
                                                     Acción
                                                 </th>
                                             </tr>
                                         </thead>
 
                                         <tbody className="divide-y divide-slate-100 bg-white">
-                                            {groupModal.group.rows.map(
-                                                (row) => {
-                                                    const questions =
-                                                        getQuizQuestions(row);
-                                                    const maxScore =
-                                                        getMaxScore(questions);
-                                                    const minimumScore =
-                                                        getMinimumScore(row);
-                                                    const responseId =
-                                                        row.response.id;
+                                            {groupModal.group.rows.map((row) => {
+                                                const questions =
+                                                    getQuizQuestions(row);
+                                                const maxScore =
+                                                    getMaxScore(questions);
+                                                const minimumScore =
+                                                    getMinimumScore(row);
+                                                const responseId =
+                                                    row.response.id;
 
-                                                    return (
-                                                        <tr
-                                                            key={responseId}
-                                                            className="align-top transition hover:bg-slate-50"
-                                                        >
-                                                            <td className="px-4 py-4">
-                                                                <p className="font-black text-slate-950">
-                                                                    {getQuizTitle(
-                                                                        row,
-                                                                    )}
-                                                                </p>
+                                                return (
+                                                    <tr
+                                                        key={responseId}
+                                                        className="align-top transition hover:bg-blue-50/40"
+                                                    >
+                                                        <td className="px-4 py-4">
+                                                            <p className="font-bold text-slate-950">
+                                                                {getQuizTitle(
+                                                                    row,
+                                                                )}
+                                                            </p>
 
-                                                                <p className="mt-1 text-xs font-semibold text-slate-500">
-                                                                    {
-                                                                        row
-                                                                            .blockInfo
-                                                                            .lesson
-                                                                            .name
-                                                                    }
-                                                                </p>
+                                                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                                                {
+                                                                    row
+                                                                        .blockInfo
+                                                                        .lesson
+                                                                        .name
+                                                                }
+                                                            </p>
 
-                                                                <details className="mt-3">
-                                                                    <summary className="cursor-pointer text-xs font-black text-blue-700">
-                                                                        Ver
-                                                                        respuestas
-                                                                    </summary>
+                                                            <details className="mt-3">
+                                                                <summary className="cursor-pointer text-xs font-bold text-[#172861]">
+                                                                    Ver
+                                                                    respuestas
+                                                                </summary>
 
-                                                                    <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                                                        {questions.length ===
-                                                                            0 ? (
-                                                                            <p className="text-xs font-semibold text-slate-500">
-                                                                                No
-                                                                                hay
-                                                                                preguntas
-                                                                                guardadas.
-                                                                            </p>
-                                                                        ) : (
-                                                                            questions.map(
-                                                                                (
-                                                                                    question,
-                                                                                    index,
-                                                                                ) => {
-                                                                                    const answers =
-                                                                                        getParsedAnswers(
-                                                                                            row.response,
-                                                                                        );
+                                                                <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                                    {questions.length ===
+                                                                        0 ? (
+                                                                        <p className="text-xs font-semibold text-slate-500">
+                                                                            No
+                                                                            hay
+                                                                            preguntas
+                                                                            guardadas.
+                                                                        </p>
+                                                                    ) : (
+                                                                        questions.map(
+                                                                            (
+                                                                                question,
+                                                                                index,
+                                                                            ) => {
+                                                                                const answers =
+                                                                                    getParsedAnswers(
+                                                                                        row.response,
+                                                                                    );
 
-                                                                                    const selectedAnswer =
-                                                                                        getAnswerValue(
-                                                                                            answers,
-                                                                                            question.id,
-                                                                                        );
+                                                                                const selectedAnswer =
+                                                                                    getAnswerValue(
+                                                                                        answers,
+                                                                                        question.id,
+                                                                                    );
 
-                                                                                    const selectedOption =
-                                                                                        selectedAnswer ===
-                                                                                            null
-                                                                                            ? "Sin respuesta"
-                                                                                            : question
-                                                                                                .options[
-                                                                                            selectedAnswer
-                                                                                            ] ??
-                                                                                            "Sin respuesta";
-
-                                                                                    const correctOption =
-                                                                                        question
+                                                                                const selectedOption =
+                                                                                    selectedAnswer ===
+                                                                                        null
+                                                                                        ? "Sin respuesta"
+                                                                                        : question
                                                                                             .options[
-                                                                                        question
-                                                                                            .correct_answer
+                                                                                        selectedAnswer
                                                                                         ] ??
-                                                                                        "Sin respuesta correcta";
+                                                                                        "Sin respuesta";
 
-                                                                                    const isCorrect =
-                                                                                        selectedAnswer !==
-                                                                                        null &&
-                                                                                        selectedAnswer ===
-                                                                                        question.correct_answer;
+                                                                                const correctOption =
+                                                                                    question
+                                                                                        .options[
+                                                                                    question
+                                                                                        .correct_answer
+                                                                                    ] ??
+                                                                                    "Sin respuesta correcta";
 
-                                                                                    return (
-                                                                                        <div
-                                                                                            key={
-                                                                                                question.id
-                                                                                            }
-                                                                                            className="rounded-lg bg-white p-3 ring-1 ring-slate-200"
-                                                                                        >
-                                                                                            <div className="flex items-start justify-between gap-3">
-                                                                                                <p className="text-xs font-black text-slate-800">
-                                                                                                    {index +
-                                                                                                        1}
-                                                                                                    .{" "}
-                                                                                                    {
-                                                                                                        question.question
-                                                                                                    }
-                                                                                                </p>
+                                                                                const isCorrect =
+                                                                                    selectedAnswer !==
+                                                                                    null &&
+                                                                                    selectedAnswer ===
+                                                                                    question.correct_answer;
 
-                                                                                                <span
-                                                                                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${isCorrect
+                                                                                return (
+                                                                                    <div
+                                                                                        key={
+                                                                                            question.id
+                                                                                        }
+                                                                                        className="rounded-lg bg-white p-3 ring-1 ring-slate-200"
+                                                                                    >
+                                                                                        <div className="flex items-start justify-between gap-3">
+                                                                                            <p className="text-xs font-bold text-slate-800">
+                                                                                                {index +
+                                                                                                    1}
+                                                                                                .{" "}
+                                                                                                {
+                                                                                                    question.question
+                                                                                                }
+                                                                                            </p>
+
+                                                                                            <span
+                                                                                                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${isCorrect
                                                                                                         ? "bg-emerald-50 text-emerald-700"
                                                                                                         : "bg-red-50 text-red-700"
-                                                                                                        }`}
-                                                                                                >
-                                                                                                    {isCorrect
-                                                                                                        ? "Correcta"
-                                                                                                        : "Incorrecta"}
-                                                                                                </span>
-                                                                                            </div>
-
-                                                                                            <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                                                                                <p className="text-xs text-slate-600">
-                                                                                                    <span className="font-black">
-                                                                                                        Respondió:
-                                                                                                    </span>{" "}
-                                                                                                    {
-                                                                                                        selectedOption
-                                                                                                    }
-                                                                                                </p>
-
-                                                                                                <p className="text-xs text-slate-600">
-                                                                                                    <span className="font-black">
-                                                                                                        Correcta:
-                                                                                                    </span>{" "}
-                                                                                                    {
-                                                                                                        correctOption
-                                                                                                    }
-                                                                                                </p>
-                                                                                            </div>
+                                                                                                    }`}
+                                                                                            >
+                                                                                                {isCorrect
+                                                                                                    ? "Correcta"
+                                                                                                    : "Incorrecta"}
+                                                                                            </span>
                                                                                         </div>
-                                                                                    );
-                                                                                },
-                                                                            )
-                                                                        )}
-                                                                    </div>
-                                                                </details>
-                                                            </td>
 
-                                                            <td className="px-4 py-4 text-center">
-                                                                <span className="inline-flex rounded-xl bg-blue-50 px-3 py-1 text-sm font-black text-blue-700">
-                                                                    {
-                                                                        row
-                                                                            .response
-                                                                            .score
-                                                                    }
-                                                                    {maxScore > 0
-                                                                        ? ` / ${maxScore}`
-                                                                        : ""}
-                                                                </span>
-                                                            </td>
+                                                                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                                                                            <p className="text-xs text-slate-600">
+                                                                                                <span className="font-bold">
+                                                                                                    Respondió:
+                                                                                                </span>{" "}
+                                                                                                {
+                                                                                                    selectedOption
+                                                                                                }
+                                                                                            </p>
 
-                                                            <td className="px-4 py-4 text-center">
-                                                                <span className="font-black text-slate-800">
-                                                                    {
-                                                                        minimumScore
-                                                                    }
-                                                                    {maxScore > 0
-                                                                        ? ` / ${maxScore}`
-                                                                        : ""}
-                                                                </span>
-                                                            </td>
+                                                                                            <p className="text-xs text-slate-600">
+                                                                                                <span className="font-bold">
+                                                                                                    Correcta:
+                                                                                                </span>{" "}
+                                                                                                {
+                                                                                                    correctOption
+                                                                                                }
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            },
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                            </details>
+                                                        </td>
 
-                                                            <td className="px-4 py-4 text-center">
-                                                                <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={
-                                                                            editPassed[
-                                                                            responseId
-                                                                            ] ??
-                                                                            false
-                                                                        }
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) =>
-                                                                            setEditPassed(
-                                                                                (
-                                                                                    current,
-                                                                                ) => ({
-                                                                                    ...current,
-                                                                                    [responseId]:
-                                                                                        event
-                                                                                            .target
-                                                                                            .checked,
-                                                                                }),
-                                                                            )
-                                                                        }
-                                                                        className="h-4 w-4 accent-blue-700"
-                                                                        disabled={
-                                                                            savingResponseId ===
-                                                                            responseId
-                                                                        }
-                                                                    />
+                                                        <td className="px-4 py-4 text-center">
+                                                            <span className="inline-flex rounded-xl bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">
+                                                                {
+                                                                    row.response
+                                                                        .score
+                                                                }
+                                                                {maxScore > 0
+                                                                    ? ` / ${maxScore}`
+                                                                    : ""}
+                                                            </span>
+                                                        </td>
 
-                                                                    {editPassed[
-                                                                        responseId
-                                                                    ]
-                                                                        ? "Aprobado"
-                                                                        : "No aprobado"}
-                                                                </label>
-                                                            </td>
+                                                        <td className="px-4 py-4 text-center">
+                                                            <span className="font-bold text-slate-800">
+                                                                {minimumScore}
+                                                                {maxScore > 0
+                                                                    ? ` / ${maxScore}`
+                                                                    : ""}
+                                                            </span>
+                                                        </td>
 
-                                                            <td className="px-4 py-4">
+                                                        <td className="px-4 py-4 text-center">
+                                                            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
                                                                 <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    value={
-                                                                        editScores[
+                                                                    type="checkbox"
+                                                                    checked={
+                                                                        editPassed[
                                                                         responseId
-                                                                        ] ?? ""
+                                                                        ] ??
+                                                                        false
                                                                     }
                                                                     onChange={(
                                                                         event,
-                                                                    ) => {
-                                                                        const value =
-                                                                            event
-                                                                                .target
-                                                                                .value;
-
-                                                                        setEditScores(
-                                                                            (
-                                                                                current,
-                                                                            ) => ({
-                                                                                ...current,
-                                                                                [responseId]:
-                                                                                    value,
-                                                                            }),
-                                                                        );
-
-                                                                        const numericValue =
-                                                                            Number(
-                                                                                value,
-                                                                            );
-
+                                                                    ) =>
                                                                         setEditPassed(
                                                                             (
                                                                                 current,
                                                                             ) => ({
                                                                                 ...current,
                                                                                 [responseId]:
-                                                                                    Number.isFinite(
-                                                                                        numericValue,
-                                                                                    ) &&
-                                                                                    numericValue >=
-                                                                                    minimumScore,
+                                                                                    event
+                                                                                        .target
+                                                                                        .checked,
                                                                             }),
-                                                                        );
-
-                                                                        setModalError(
-                                                                            "",
-                                                                        );
-                                                                    }}
-                                                                    className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                                                        )
+                                                                    }
+                                                                    className="h-4 w-4 accent-[#172861]"
                                                                     disabled={
                                                                         savingResponseId ===
                                                                         responseId
                                                                     }
                                                                 />
-                                                            </td>
 
-                                                            <td className="px-4 py-4 text-right">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        void handleSaveGrade(
-                                                                            row,
-                                                                        )
-                                                                    }
-                                                                    disabled={
-                                                                        savingResponseId ===
-                                                                        responseId
-                                                                    }
-                                                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-black text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                >
-                                                                    {savingResponseId ===
-                                                                        responseId ? (
-                                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                                    ) : (
-                                                                        <Save className="h-4 w-4" />
-                                                                    )}
-                                                                    Guardar
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                },
-                                            )}
+                                                                {editPassed[
+                                                                    responseId
+                                                                ]
+                                                                    ? "Aprobado"
+                                                                    : "No aprobado"}
+                                                            </label>
+                                                        </td>
+
+                                                        <td className="px-4 py-4">
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={
+                                                                    editScores[
+                                                                    responseId
+                                                                    ] ?? ""
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) => {
+                                                                    const value =
+                                                                        event
+                                                                            .target
+                                                                            .value;
+
+                                                                    setEditScores(
+                                                                        (
+                                                                            current,
+                                                                        ) => ({
+                                                                            ...current,
+                                                                            [responseId]:
+                                                                                value,
+                                                                        }),
+                                                                    );
+
+                                                                    const numericValue =
+                                                                        Number(
+                                                                            value,
+                                                                        );
+
+                                                                    setEditPassed(
+                                                                        (
+                                                                            current,
+                                                                        ) => ({
+                                                                            ...current,
+                                                                            [responseId]:
+                                                                                Number.isFinite(
+                                                                                    numericValue,
+                                                                                ) &&
+                                                                                numericValue >=
+                                                                                minimumScore,
+                                                                        }),
+                                                                    );
+
+                                                                    setModalError(
+                                                                        "",
+                                                                    );
+                                                                }}
+                                                                className="h-10 w-24 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                                                disabled={
+                                                                    savingResponseId ===
+                                                                    responseId
+                                                                }
+                                                            />
+                                                        </td>
+
+                                                        <td className="px-4 py-4 text-right">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    void handleSaveGrade(
+                                                                        row,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    savingResponseId ===
+                                                                    responseId
+                                                                }
+                                                                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-bold text-white transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
+                                                            >
+                                                                {savingResponseId ===
+                                                                    responseId ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                ) : (
+                                                                    <Save className="h-4 w-4" />
+                                                                )}
+                                                                Guardar
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

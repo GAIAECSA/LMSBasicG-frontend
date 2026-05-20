@@ -228,7 +228,7 @@ export default function AdminPage() {
 
     return (
         <section className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-gradient-to-r from-blue-950 via-blue-900 to-orange-500 p-6 text-white shadow-sm">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0B163F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                         <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">

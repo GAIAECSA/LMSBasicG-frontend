@@ -17,22 +17,30 @@
   --muted-foreground: #64748b;
 
   --danger: #dc2626;
+  --danger-soft: #fef2f2;
+
   --success: #16a34a;
+  --success-soft: #ecfdf5;
+
   --warning: #d97706;
+  --warning-soft: #fff7ed;
 
   --ring: #93c5fd;
+
+  --gradient-primary: linear-gradient(135deg, #003d8f 0%, #2563eb 55%, #1e40af 100%);
+  --gradient-soft: linear-gradient(135deg, #e9efff 0%, #f5f7fb 55%, #ffffff 100%);
+  --gradient-card: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
 }
 
 * {
   box-sizing: border-box;
 }
 
-
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 25%),
-    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 30%),
+    radial-gradient(circle at top left, rgba(0, 61, 143, 0.13), transparent 25%),
+    radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.12), transparent 30%),
     var(--background);
   color: var(--foreground);
 }
@@ -50,6 +58,5 @@ select {
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.18);
+  background: rgba(0, 61, 143, 0.18);
 }
-

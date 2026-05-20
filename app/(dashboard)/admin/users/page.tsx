@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    useCallback,
     useEffect,
     useMemo,
     useState,
@@ -26,9 +27,7 @@ const roleLabels = [
     { id: 4, label: "ESTUDIANTE" },
 ];
 
-const modalRoleOptions = [
-    { id: 2, label: "VISITANTE" },
-];
+const modalRoleOptions = [{ id: 2, label: "VISITANTE" }];
 
 interface UserFormState {
     username: string;
@@ -58,7 +57,7 @@ function getRoleLabel(roleId: number) {
 
 function getRoleBadgeClass(roleId: number) {
     if (roleId === 1) {
-        return "bg-slate-900 text-white";
+        return "bg-slate-950 text-white";
     }
 
     if (roleId === 3) {
@@ -69,7 +68,7 @@ function getRoleBadgeClass(roleId: number) {
         return "bg-emerald-100 text-emerald-700";
     }
 
-    return "bg-slate-100 text-slate-700";
+    return "bg-orange-100 text-orange-700";
 }
 
 export default function UsersPage() {
@@ -89,41 +88,12 @@ export default function UsersPage() {
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [form, setForm] = useState<UserFormState>(emptyForm);
 
-    useEffect(() => {
-        let isActive = true;
-
-        getAllUsers()
-            .then((data) => {
-                if (!isActive) return;
-
-                setUsers(Array.isArray(data) ? data : []);
-                setErrorMessage("");
-            })
-            .catch((error) => {
-                if (!isActive) return;
-
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : "No se pudo cargar la lista de usuarios.";
-
-                setErrorMessage(message);
-            })
-            .finally(() => {
-                if (!isActive) return;
-
-                setIsLoading(false);
-            });
-
-        return () => {
-            isActive = false;
-        };
-    }, []);
-
-    const loadUsers = async (showRefresh = false) => {
+    const loadUsers = useCallback(async (showRefresh = false) => {
         try {
             if (showRefresh) {
                 setIsRefreshing(true);
+            } else {
+                setIsLoading(true);
             }
 
             setErrorMessage("");
@@ -141,7 +111,17 @@ export default function UsersPage() {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            void loadUsers();
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [loadUsers]);
 
     const filteredUsers = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
@@ -149,13 +129,15 @@ export default function UsersPage() {
         if (!query) return users;
 
         return users.filter((user) => {
-            const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
+            const fullName = `${user.firstname || ""} ${user.lastname || ""
+                }`.toLowerCase();
+
             const roleName = getRoleLabel(user.role_id).toLowerCase();
 
             return (
                 fullName.includes(query) ||
-                user.username.toLowerCase().includes(query) ||
-                user.email.toLowerCase().includes(query) ||
+                (user.username || "").toLowerCase().includes(query) ||
+                (user.email || "").toLowerCase().includes(query) ||
                 roleName.includes(query) ||
                 (user.phone_number || "").toLowerCase().includes(query) ||
                 (user.departament || "").toLowerCase().includes(query) ||
@@ -182,6 +164,7 @@ export default function UsersPage() {
             admins: users.filter((user) => user.role_id === 1).length,
             teachers: users.filter((user) => user.role_id === 3).length,
             students: users.filter((user) => user.role_id === 4).length,
+            visitors: users.filter((user) => user.role_id === 2).length,
         };
     }, [users]);
 
@@ -285,7 +268,6 @@ export default function UsersPage() {
 
                 await updateUser(editingUser.id, payload);
                 setSuccessMessage("Usuario actualizado correctamente.");
-
             } else {
                 const payload: RegisterUserPayload = {
                     username: form.username.trim(),
@@ -348,282 +330,335 @@ export default function UsersPage() {
     };
 
     return (
-        <section className="min-h-screen bg-[#f4f7fb] px-5 py-8">
-            <div className="mx-auto max-w-[1530px] space-y-6">
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-gradient-to-r from-blue-600 via-blue-500 to-orange-500 px-6 py-8 text-white md:px-8">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <span className="inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-bold text-white ring-1 ring-white/20">
-                                    Gestión de usuarios
-                                </span>
-
-                                <h1 className="mt-5 text-3xl font-black tracking-tight">
-                                    Usuarios registrados
-                                </h1>
-
-                                <p className="mt-3 max-w-2xl text-sm font-medium text-blue-50">
-                                    Lista de usuarios creados en la plataforma con sus
-                                    datos principales, rol asignado y acciones de
-                                    administración.
-                                </p>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                                <div className="rounded-2xl bg-white/15 px-5 py-4 ring-1 ring-white/20">
-                                    <p className="text-xs font-bold uppercase text-white/80">
-                                        Registros
-                                    </p>
-                                    <p className="mt-2 text-3xl font-black">
-                                        {stats.total}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-2xl bg-white/15 px-5 py-4 ring-1 ring-white/20">
-                                    <p className="text-xs font-bold uppercase text-white/80">
-                                        Docentes
-                                    </p>
-                                    <p className="mt-2 text-3xl font-black">
-                                        {stats.teachers}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-2xl bg-white/15 px-5 py-4 ring-1 ring-white/20">
-                                    <p className="text-xs font-bold uppercase text-white/80">
-                                        Estudiantes
-                                    </p>
-                                    <p className="mt-2 text-3xl font-black">
-                                        {stats.students}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-center md:justify-between md:px-8">
-                        <input
-                            type="search"
-                            value={searchTerm}
-                            onChange={(event) => {
-                                setSearchTerm(event.target.value);
-                                setCurrentPage(1);
-                            }}
-                            placeholder="Buscar por usuario, nombre, correo, rol o ID"
-                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 md:max-w-[380px]"
-                        />
-
-                        <div className="flex flex-col gap-3 sm:flex-row">
-                            <button
-                                type="button"
-                                onClick={openCreateModal}
-                                className="h-12 rounded-2xl bg-blue-600 px-5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
-                            >
-                                Nuevo usuario
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => void loadUsers(true)}
-                                disabled={isRefreshing}
-                                className="h-12 rounded-2xl bg-slate-950 px-5 text-sm font-black text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isRefreshing ? "Actualizando..." : "Actualizar lista"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {(errorMessage || successMessage) && !isModalOpen && (
-                    <div
-                        className={`rounded-2xl border px-5 py-4 text-sm font-bold ${errorMessage
-                            ? "border-red-200 bg-red-50 text-red-700"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            }`}
-                    >
-                        {errorMessage || successMessage}
-                    </div>
-                )}
-
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-slate-100/80">
-                                <tr>
-                                    <th className="px-5 py-4 text-left text-xs font-black text-slate-700">
-                                        Usuario
-                                    </th>
-                                    <th className="px-5 py-4 text-left text-xs font-black text-slate-700">
-                                        Correo
-                                    </th>
-                                    <th className="px-5 py-4 text-left text-xs font-black text-slate-700">
-                                        Teléfono
-                                    </th>
-                                    <th className="px-5 py-4 text-left text-xs font-black text-slate-700">
-                                        Departamento
-                                    </th>
-                                    <th className="px-5 py-4 text-left text-xs font-black text-slate-700">
-                                        Rol
-                                    </th>
-                                    <th className="px-5 py-4 text-right text-xs font-black text-slate-700">
-                                        Acciones
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-slate-100">
-                                {isLoading ? (
-                                    <tr>
-                                        <td
-                                            colSpan={6}
-                                            className="px-5 py-12 text-center text-sm font-semibold text-slate-500"
-                                        >
-                                            Cargando usuarios...
-                                        </td>
-                                    </tr>
-                                ) : paginatedUsers.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={6}
-                                            className="px-5 py-12 text-center"
-                                        >
-                                            <p className="text-sm font-black text-slate-800">
-                                                No hay usuarios para mostrar.
-                                            </p>
-                                            <p className="mt-1 text-sm font-medium text-slate-500">
-                                                Crea un usuario nuevo o cambia el texto de
-                                                búsqueda.
-                                            </p>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    paginatedUsers.map((user) => (
-                                        <tr
-                                            key={user.id}
-                                            className="transition hover:bg-slate-50"
-                                        >
-                                            <td className="px-5 py-4">
-                                                <p className="text-sm font-black text-slate-900">
-                                                    {user.firstname} {user.lastname}
-                                                </p>
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                                                {user.email}
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm font-semibold text-slate-500">
-                                                {user.phone_number || "Sin teléfono"}
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm font-semibold text-slate-500">
-                                                {user.departament || "Sin departamento"}
-                                            </td>
-
-                                            <td className="px-5 py-4">
-                                                <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${getRoleBadgeClass(
-                                                        user.role_id,
-                                                    )}`}
-                                                >
-                                                    {getRoleLabel(user.role_id)}
-                                                </span>
-                                            </td>
-
-                                            <td className="px-5 py-4">
-                                                <div className="flex justify-end gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => openEditModal(user)}
-                                                        className="rounded-xl border border-blue-200 px-3 py-2 text-xs font-black text-blue-700 transition hover:bg-blue-50"
-                                                    >
-                                                        Editar
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => void handleDelete(user)}
-                                                        disabled={deletingId === user.id}
-                                                        className="rounded-xl border border-red-200 px-3 py-2 text-xs font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                                    >
-                                                        {deletingId === user.id
-                                                            ? "Eliminando..."
-                                                            : "Eliminar"}
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm font-semibold text-slate-500">
-                            Mostrando {paginatedUsers.length} de{" "}
-                            {filteredUsers.length} registros
+        <section className="space-y-6">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                            Gestión de usuarios
                         </p>
 
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setCurrentPage((page) => Math.max(1, page - 1))
-                                }
-                                disabled={activePage === 1}
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Anterior
-                            </button>
+                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                            Usuarios registrados
+                        </h2>
 
-                            <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-black text-slate-700">
-                                Página {activePage} de {totalPages}
-                            </span>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">
+                            Administra los usuarios creados en la plataforma,
+                            revisa sus datos principales, consulta su rol y
+                            realiza acciones de edición o eliminación.
+                        </p>
+                    </div>
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setCurrentPage((page) =>
-                                        Math.min(totalPages, page + 1),
-                                    )
-                                }
-                                disabled={activePage === totalPages}
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Siguiente
-                            </button>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Total
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.total}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Admin
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.admins}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Docentes
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.teachers}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Estudiantes
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {isLoading ? "..." : stats.students}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {isModalOpen && (
+            {(errorMessage || successMessage) && !isModalOpen ? (
+                <div
+                    className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${errorMessage
+                        ? "border-red-200 bg-red-50 text-red-700"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        }`}
+                >
+                    {errorMessage || successMessage}
+                </div>
+            ) : null}
+
+            <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-950">
+                            Lista de usuarios
+                        </h3>
+
+                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            Busca por nombre, usuario, correo, teléfono,
+                            departamento, rol o ID.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="h-12 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F]"
+                        >
+                            Nuevo usuario
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => void loadUsers(true)}
+                            disabled={isRefreshing}
+                            className="h-12 rounded-2xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isRefreshing ? "Actualizando..." : "Actualizar"}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-5">
+                    <input
+                        type="search"
+                        value={searchTerm}
+                        onChange={(event) => {
+                            setSearchTerm(event.target.value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder="Buscar usuario, nombre, correo, rol o ID"
+                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 lg:max-w-[440px]"
+                    />
+                </div>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
+                            <tr>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Usuario
+                                </th>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Correo
+                                </th>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Teléfono
+                                </th>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Departamento
+                                </th>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Rol
+                                </th>
+                                <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Acciones
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-slate-100">
+                            {isLoading ? (
+                                <tr>
+                                    <td
+                                        colSpan={6}
+                                        className="px-5 py-12 text-center text-sm font-semibold text-slate-500"
+                                    >
+                                        Cargando usuarios...
+                                    </td>
+                                </tr>
+                            ) : paginatedUsers.length === 0 ? (
+                                <tr>
+                                    <td
+                                        colSpan={6}
+                                        className="px-5 py-12 text-center"
+                                    >
+                                        <p className="text-sm font-bold text-slate-800">
+                                            No hay usuarios para mostrar.
+                                        </p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Crea un usuario nuevo o cambia el
+                                            texto de búsqueda.
+                                        </p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedUsers.map((user) => (
+                                    <tr
+                                        key={user.id}
+                                        className="transition hover:bg-blue-50/40"
+                                    >
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#172861] text-sm font-bold text-white">
+                                                    {(user.firstname || "U")
+                                                        .charAt(0)
+                                                        .toUpperCase()}
+                                                </div>
+
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-950">
+                                                        {user.firstname}{" "}
+                                                        {user.lastname}
+                                                    </p>
+                                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                        @{user.username}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                                            {user.email}
+                                        </td>
+
+                                        <td className="px-5 py-4 text-sm font-semibold text-slate-500">
+                                            {user.phone_number ||
+                                                "Sin teléfono"}
+                                        </td>
+
+                                        <td className="px-5 py-4 text-sm font-semibold text-slate-500">
+                                            {user.departament ||
+                                                "Sin departamento"}
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <span
+                                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getRoleBadgeClass(
+                                                    user.role_id,
+                                                )}`}
+                                            >
+                                                {getRoleLabel(user.role_id)}
+                                            </span>
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        openEditModal(user)
+                                                    }
+                                                    className="rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                                                >
+                                                    Editar
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        void handleDelete(user)
+                                                    }
+                                                    disabled={
+                                                        deletingId === user.id
+                                                    }
+                                                    className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {deletingId === user.id
+                                                        ? "Eliminando..."
+                                                        : "Eliminar"}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-semibold text-slate-500">
+                        Mostrando {paginatedUsers.length} de{" "}
+                        {filteredUsers.length} registros
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setCurrentPage((page) =>
+                                    Math.max(1, page - 1),
+                                )
+                            }
+                            disabled={activePage === 1}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Anterior
+                        </button>
+
+                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                            Página {activePage} de {totalPages}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setCurrentPage((page) =>
+                                    Math.min(totalPages, page + 1),
+                                )
+                            }
+                            disabled={activePage === totalPages}
+                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {isModalOpen ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
-                    <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[28px] bg-white shadow-2xl">
-                        <div className="border-b border-slate-200 px-6 py-5">
+                    <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-950">
+                                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
+                                        Formulario
+                                    </p>
+
+                                    <h3 className="mt-2 text-xl font-bold">
                                         {editingUser
                                             ? "Editar usuario"
                                             : "Crear nuevo usuario"}
                                     </h3>
-                                    <p className="mt-1 text-sm font-medium text-slate-500">
-                                        Completa los datos principales del usuario.
+
+                                    <p className="mt-1 text-sm text-blue-50">
+                                        Completa los datos principales del
+                                        usuario.
                                     </p>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="rounded-full border border-slate-200 px-3 py-1 text-sm font-black text-slate-500 transition hover:bg-slate-50"
+                                    className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
                                 >
                                     X
                                 </button>
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+                        <form
+                            onSubmit={handleSubmit}
+                            className="max-h-[calc(92vh-116px)] space-y-5 overflow-y-auto p-6"
+                        >
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div>
                                     <label className="mb-1 block text-sm font-bold text-slate-700">
@@ -739,7 +774,10 @@ export default function UsersPage() {
                                             className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                         >
                                             {modalRoleOptions.map((role) => (
-                                                <option key={role.id} value={role.id}>
+                                                <option
+                                                    key={role.id}
+                                                    value={role.id}
+                                                >
                                                     {role.label}
                                                 </option>
                                             ))}
@@ -748,24 +786,25 @@ export default function UsersPage() {
 
                                     {editingUser ? (
                                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                                            El rol no se modifica desde este formulario.
+                                            El rol no se modifica desde este
+                                            formulario.
                                         </p>
                                     ) : null}
                                 </div>
                             </div>
 
-                            {errorMessage && (
+                            {errorMessage ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                                     {errorMessage}
                                 </div>
-                            )}
+                            ) : null}
 
                             <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                                 <button
                                     type="button"
                                     onClick={closeModal}
                                     disabled={isSubmitting}
-                                    className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     Cancelar
                                 </button>
@@ -773,7 +812,7 @@ export default function UsersPage() {
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="rounded-2xl bg-[#172861] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {isSubmitting
                                         ? "Guardando..."
@@ -785,7 +824,7 @@ export default function UsersPage() {
                         </form>
                     </div>
                 </div>
-            )}
+            ) : null}
         </section>
     );
 }

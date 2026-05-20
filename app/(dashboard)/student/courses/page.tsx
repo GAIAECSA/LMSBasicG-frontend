@@ -100,14 +100,29 @@ function getStatusLabel(status: EnrollmentStatus) {
     return "En revisión";
 }
 
+function getTeacherStatusStyles() {
+    return {
+        border: "border-[#172861]/35",
+        bar: "bg-gradient-to-r from-[#07111F] via-[#172861] to-[#3B4A9F]",
+        badge: "bg-[#172861] text-white ring-1 ring-[#0B163F]",
+        iconBox: "bg-[#172861] text-white",
+        text: "text-white",
+        button:
+            "bg-[#172861] text-white hover:bg-[#0B163F] shadow-[0_8px_20px_rgba(23,40,97,0.28)]",
+        icon: CheckCircle2,
+    };
+}
+
 function getStatusStyles(status: EnrollmentStatus) {
     if (status === true) {
         return {
-            border: "border-emerald-200",
-            bar: "bg-gradient-to-r from-emerald-400 to-green-600",
-            badge: "bg-emerald-100 text-emerald-700",
-            iconBox: "bg-emerald-50 text-emerald-700",
-            text: "text-emerald-700",
+            border: "border-[#00c578]/35",
+            bar: "bg-gradient-to-r from-[#00c578] to-[#007a55]",
+            badge: "bg-[#00c578]/15 text-[#007a55] ring-1 ring-[#00c578]/25",
+            iconBox: "bg-[#00c578] text-white",
+            text: "text-[#007a55]",
+            button:
+                "bg-[#007a55] hover:bg-[#006246] shadow-[0_8px_20px_rgba(0,122,85,0.28)]",
             icon: CheckCircle2,
         };
     }
@@ -115,30 +130,34 @@ function getStatusStyles(status: EnrollmentStatus) {
     if (status === false) {
         return {
             border: "border-red-200",
-            bar: "bg-gradient-to-r from-red-400 to-rose-600",
-            badge: "bg-red-100 text-red-700",
-            iconBox: "bg-red-50 text-red-700",
+            bar: "bg-gradient-to-r from-red-500 via-rose-600 to-red-800",
+            badge: "bg-red-100 text-red-700 ring-1 ring-red-200",
+            iconBox: "bg-red-600 text-white",
             text: "text-red-700",
+            button:
+                "bg-red-600 hover:bg-red-700 shadow-[0_8px_20px_rgba(220,38,38,0.22)]",
             icon: XCircle,
         };
     }
 
     return {
-        border: "border-amber-200",
-        bar: "bg-gradient-to-r from-amber-400 to-orange-500",
-        badge: "bg-amber-100 text-amber-700",
-        iconBox: "bg-amber-50 text-amber-700",
-        text: "text-amber-700",
+        border: "border-orange-200",
+        bar: "bg-gradient-to-r from-orange-500 via-amber-500 to-[#F97316]",
+        badge: "bg-orange-100 text-orange-700 ring-1 ring-orange-200",
+        iconBox: "bg-orange-500 text-white",
+        text: "text-orange-700",
+        button:
+            "bg-orange-500 hover:bg-orange-600 shadow-[0_8px_20px_rgba(249,115,22,0.24)]",
         icon: Clock3,
     };
+
+
 }
 
 export default function StudentCoursesPage() {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [currentRoleId, setCurrentRoleId] = useState<number | null>(null);
-    const [courseImages, setCourseImages] = useState<
-        Record<number, string | null>
-    >({});
+    const [courseImages, setCourseImages] = useState<Record<number, string | null>>({});
     const [freeCourses, setFreeCourses] = useState<Record<number, boolean>>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -204,7 +223,10 @@ export default function StudentCoursesPage() {
 
                     if (courseId > 0) {
                         acc[courseId] = resolveCourseImageUrl(
-                            course.image_url ?? course.image ?? course.thumbnail ?? null,
+                            course.image_url ??
+                            course.image ??
+                            course.thumbnail ??
+                            null,
                         );
                     }
 
@@ -414,7 +436,9 @@ export default function StudentCoursesPage() {
             !isTeacherEnrollment && freeCourses[courseId] === true;
         const rawStatus = getEnrollmentStatus(enrollment);
         const status = isFreeStudentEnrollment ? true : rawStatus;
-        const styles = getStatusStyles(status);
+        const styles = isTeacherEnrollment
+            ? getTeacherStatusStyles()
+            : getStatusStyles(status);
         const StatusIcon = styles.icon;
         const voucherUrl = resolveEnrollmentVoucherUrl(enrollment.voucher_url);
         const courseImageUrl = courseImages[courseId] ?? null;
@@ -453,13 +477,18 @@ export default function StudentCoursesPage() {
 
                         <div className="flex flex-wrap justify-end gap-2">
                             {isFreeStudentEnrollment ? (
-                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-extrabold uppercase text-emerald-700">
+                                <span className="rounded-full bg-[#00c578]/15 px-3 py-1 text-xs font-extrabold uppercase text-[#007a55] ring-1 ring-[#00c578]/25">
                                     Gratis
                                 </span>
                             ) : null}
 
-                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold uppercase text-blue-700">
-                                {enrollment.role?.name || "Rol"}
+                            <span
+                                className={`rounded-full px-3 py-1 text-xs font-extrabold uppercase ring-1 ${isTeacherEnrollment
+                                        ? "bg-[#172861] !text-white ring-[#0B163F]"
+                                        : "bg-[#172861]/10 text-[#172861] ring-[#172861]/15"
+                                    }`}
+                            >
+                                {isTeacherEnrollment ? "Profesor" : enrollment.role?.name || "Rol"}
                             </span>
                         </div>
                     </div>
@@ -484,7 +513,7 @@ export default function StudentCoursesPage() {
                                 <span className="text-slate-500">Comprobante</span>
 
                                 {isFreeStudentEnrollment ? (
-                                    <span className="font-bold text-emerald-700">
+                                    <span className="font-bold text-[#007a55]">
                                         No requiere
                                     </span>
                                 ) : voucherUrl ? (
@@ -492,7 +521,7 @@ export default function StudentCoursesPage() {
                                         href={voucherUrl}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="inline-flex items-center gap-1 font-bold text-blue-700 hover:underline"
+                                        className="inline-flex items-center gap-1 font-bold text-[#172861] hover:underline"
                                     >
                                         <FileText className="h-4 w-4" />
                                         Ver archivo
@@ -508,7 +537,8 @@ export default function StudentCoursesPage() {
 
                     {enrollment.accepted === false && enrollment.comment ? (
                         <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                            <span className="font-bold">Motivo:</span> {enrollment.comment}
+                            <span className="font-bold">Motivo:</span>{" "}
+                            {enrollment.comment}
                         </div>
                     ) : null}
 
@@ -519,7 +549,7 @@ export default function StudentCoursesPage() {
                                     ? `/teacher/courses/${enrollment.course.id}`
                                     : `/student/courses/${enrollment.course.id}`
                             }
-                            className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(16,185,129,0.24)] transition hover:bg-emerald-700"
+                            className={`mt-5 inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-bold !text-white transition ${styles.button}`}
                         >
                             {isTeacherEnrollment ? "Gestionar curso" : "Ingresar al curso"}
                         </Link>
@@ -533,14 +563,14 @@ export default function StudentCoursesPage() {
                                 <button
                                     type="button"
                                     onClick={() => openEditModal(enrollment)}
-                                    className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-red-600 px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(220,38,38,0.22)] transition hover:bg-red-700"
+                                    className={`inline-flex h-11 w-full items-center justify-center rounded-2xl px-4 text-sm font-bold text-white transition ${styles.button}`}
                                 >
                                     Corregir comprobante
                                 </button>
                             </div>
                         )
                     ) : (
-                        <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-medium leading-5 text-amber-700">
+                        <p className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs font-medium leading-5 text-orange-700">
                             {isTeacherEnrollment
                                 ? "La asignación está en revisión. El curso se habilitará cuando el administrador apruebe la solicitud."
                                 : "Tu matrícula fue enviada correctamente. El acceso al curso se habilitará cuando el administrador apruebe la solicitud."}
@@ -552,9 +582,9 @@ export default function StudentCoursesPage() {
     }
 
     return (
-        <section className="space-y-6">
+        <section className="min-h-screen space-y-6 bg-[#f4f7fb]">
             <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-8 md:px-8">
+                <div className="bg-gradient-to-r from-[#07111F] via-[#172861] via-70% to-[#F97316] px-6 py-8 md:px-8">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="max-w-2xl">
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
@@ -566,7 +596,7 @@ export default function StudentCoursesPage() {
                                 {pageTitle}
                             </h1>
 
-                            <p className="mt-3 text-sm leading-6 text-slate-300 md:text-base">
+                            <p className="mt-3 text-sm leading-6 text-blue-50 md:text-base">
                                 {pageDescription}
                             </p>
                         </div>
@@ -625,20 +655,20 @@ export default function StudentCoursesPage() {
 
                 <div className="space-y-8 p-6 md:p-8">
                     {error ? (
-                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
                             {error}
                         </div>
                     ) : null}
 
                     {loading ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
                             Cargando tus cursos...
                         </div>
                     ) : null}
 
                     {!loading && !error && enrollments.length === 0 ? (
                         <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#172861]/10 text-[#172861]">
                                 <AlertCircle className="h-6 w-6" />
                             </div>
 
@@ -653,7 +683,7 @@ export default function StudentCoursesPage() {
                             <div className="mt-5">
                                 <Link
                                     href={catalogHref}
-                                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#4176ea_0%,#2f63d8_100%)] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(47,99,216,0.25)] transition hover:brightness-105"
+                                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#172861] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(23,40,97,0.25)] transition hover:bg-[#0B163F]"
                                 >
                                     {isTeacher ? "Ir al panel" : "Ver catálogo"}
                                 </Link>
@@ -684,7 +714,7 @@ export default function StudentCoursesPage() {
                                             | "rejected",
                                         )
                                     }
-                                    className="h-11 min-w-[190px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                    className="h-11 min-w-[190px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-[#172861] focus:ring-4 focus:ring-[#172861]/15"
                                 >
                                     <option value="all">Todos</option>
                                     <option value="review">En revisión</option>
@@ -696,7 +726,7 @@ export default function StudentCoursesPage() {
                                     type="button"
                                     onClick={loadEnrollments}
                                     disabled={loading}
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-white hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#172861]/20 bg-white px-4 text-sm font-semibold text-[#172861] transition hover:bg-[#172861]/5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     <RefreshCcw className="h-4 w-4" />
                                     Actualizar
@@ -708,7 +738,7 @@ export default function StudentCoursesPage() {
                     {!loading && !error && enrollments.length > 0 ? (
                         <div>
                             <div className="mb-4 flex items-center gap-2">
-                                <BookOpen className="h-5 w-5 text-blue-700" />
+                                <BookOpen className="h-5 w-5 text-[#172861]" />
                                 <h3 className="text-lg font-extrabold text-slate-950">
                                     {isTeacher ? "Cursos asignados" : "Mis matrículas"}
                                 </h3>
@@ -733,12 +763,12 @@ export default function StudentCoursesPage() {
             {editModalOpen && selectedEnrollment ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
                     <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-                        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+                        <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
                             <div>
-                                <h3 className="text-xl font-black text-slate-950">
+                                <h3 className="text-xl font-black">
                                     Corregir comprobante
                                 </h3>
-                                <p className="mt-1 text-sm text-slate-500">
+                                <p className="mt-1 text-sm text-blue-50">
                                     Sube un nuevo comprobante para que tu matrícula vuelva a
                                     revisión.
                                 </p>
@@ -747,7 +777,7 @@ export default function StudentCoursesPage() {
                             <button
                                 type="button"
                                 onClick={closeEditModal}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-700 transition hover:bg-slate-200"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl font-bold text-white transition hover:bg-white/20"
                             >
                                 ×
                             </button>
@@ -778,9 +808,11 @@ export default function StudentCoursesPage() {
 
                                 <input
                                     value={editReferenceCode}
-                                    onChange={(event) => setEditReferenceCode(event.target.value)}
+                                    onChange={(event) =>
+                                        setEditReferenceCode(event.target.value)
+                                    }
                                     placeholder="Ej: TRANSF-001"
-                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-[#172861] focus:ring-4 focus:ring-[#172861]/15"
                                 />
                             </div>
 
@@ -795,7 +827,7 @@ export default function StudentCoursesPage() {
                                     onChange={(event) =>
                                         setEditVoucherFile(event.target.files?.[0] ?? null)
                                     }
-                                    className="block h-12 w-full cursor-pointer rounded-2xl border border-slate-200 bg-white text-sm text-slate-600 file:mr-4 file:h-full file:border-0 file:bg-slate-100 file:px-4 file:text-sm file:font-bold file:text-slate-700"
+                                    className="block h-12 w-full cursor-pointer rounded-2xl border border-slate-200 bg-white text-sm text-slate-600 file:mr-4 file:h-full file:border-0 file:bg-[#172861] file:px-4 file:text-sm file:font-bold file:text-white"
                                 />
                             </div>
 
@@ -811,7 +843,7 @@ export default function StudentCoursesPage() {
                                 <button
                                     type="submit"
                                     disabled={updating}
-                                    className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex h-11 items-center justify-center rounded-xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {updating ? "Actualizando..." : "Enviar a revisión"}
                                 </button>

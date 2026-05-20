@@ -4,9 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
     Award,
-    BadgeCheck,
     BookOpen,
-    CalendarDays,
     Download,
     Eye,
     ExternalLink,
@@ -14,7 +12,6 @@ import {
     RefreshCw,
     ShieldCheck,
     ShieldX,
-    Star,
     Trophy,
     X,
 } from "lucide-react";
@@ -34,30 +31,6 @@ function toNumericId(value: unknown) {
     const numericValue = Number(value);
 
     return Number.isFinite(numericValue) ? numericValue : null;
-}
-
-function formatDate(value: string) {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return "Sin fecha";
-    }
-
-    return date.toLocaleDateString("es-EC", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
-}
-
-function formatGrade(value: string) {
-    const numericValue = Number(value);
-
-    if (!Number.isFinite(numericValue)) {
-        return value || "N/A";
-    }
-
-    return String(Math.round(numericValue * 100) / 100);
 }
 
 function getCertificateStatusLabel(certificate: Certificate) {
@@ -163,54 +136,56 @@ export function StudentCertificatesView() {
     return (
         <>
             <section className="space-y-6">
-                <div className="rounded-[30px] bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 p-7 text-white shadow-sm">
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-100">
-                                <Award className="h-4 w-4" />
-                                Área del estudiante
-                            </span>
+                <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm">
+                    <div className="bg-gradient-to-r from-[#07111F] via-[#172861] via-70% to-[#F97316] px-7 py-8 text-white">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-100">
+                                    <Award className="h-4 w-4" />
+                                    Área del estudiante
+                                </span>
 
-                            <h1 className="mt-4 text-3xl font-black">
-                                Mis certificados
-                            </h1>
+                                <h1 className="mt-4 text-3xl font-black">
+                                    Mis certificados
+                                </h1>
 
-                            <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">
-                                Consulta, previsualiza y descarga todos los
-                                certificados emitidos a tu nombre dentro de la
-                                plataforma.
-                            </p>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-3xl border border-white/15 bg-white/10 px-5 py-4">
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
-                                    Total
-                                </p>
-
-                                <p className="mt-1 text-3xl font-black">
-                                    {certificates.length}
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">
+                                    Consulta, previsualiza y descarga todos los
+                                    certificados emitidos a tu nombre dentro de la
+                                    plataforma.
                                 </p>
                             </div>
 
-                            <div className="rounded-3xl border border-white/15 bg-white/10 px-5 py-4">
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
-                                    Válidos
-                                </p>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                <div className="rounded-3xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
+                                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
+                                        Total
+                                    </p>
 
-                                <p className="mt-1 text-3xl font-black">
-                                    {validCertificatesCount}
-                                </p>
-                            </div>
+                                    <p className="mt-1 text-3xl font-black">
+                                        {certificates.length}
+                                    </p>
+                                </div>
 
-                            <div className="rounded-3xl border border-white/15 bg-white/10 px-5 py-4">
-                                <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
-                                    No válidos
-                                </p>
+                                <div className="rounded-3xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
+                                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
+                                        Válidos
+                                    </p>
 
-                                <p className="mt-1 text-3xl font-black">
-                                    {invalidCertificatesCount}
-                                </p>
+                                    <p className="mt-1 text-3xl font-black text-[#00c578]">
+                                        {validCertificatesCount}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-3xl border border-white/15 bg-white/10 px-5 py-4 backdrop-blur-sm">
+                                    <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
+                                        No válidos
+                                    </p>
+
+                                    <p className="mt-1 text-3xl font-black text-orange-200">
+                                        {invalidCertificatesCount}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -222,7 +197,7 @@ export function StudentCertificatesView() {
                             type="button"
                             onClick={() => setStatusFilter("all")}
                             className={`h-10 rounded-2xl px-4 text-sm font-black transition ${statusFilter === "all"
-                                    ? "bg-blue-700 text-white"
+                                    ? "bg-[#172861] text-white shadow-sm"
                                     : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                                 }`}
                         >
@@ -233,8 +208,8 @@ export function StudentCertificatesView() {
                             type="button"
                             onClick={() => setStatusFilter("valid")}
                             className={`h-10 rounded-2xl px-4 text-sm font-black transition ${statusFilter === "valid"
-                                    ? "bg-emerald-600 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                    ? "bg-[#007a55] text-white shadow-sm"
+                                    : "bg-[#00c578]/10 text-[#007a55] hover:bg-[#00c578]/20"
                                 }`}
                         >
                             Válidos
@@ -244,8 +219,8 @@ export function StudentCertificatesView() {
                             type="button"
                             onClick={() => setStatusFilter("invalid")}
                             className={`h-10 rounded-2xl px-4 text-sm font-black transition ${statusFilter === "invalid"
-                                    ? "bg-red-600 text-white"
-                                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                    ? "bg-red-600 text-white shadow-sm"
+                                    : "bg-red-50 text-red-700 hover:bg-red-100"
                                 }`}
                         >
                             No válidos
@@ -256,7 +231,7 @@ export function StudentCertificatesView() {
                         type="button"
                         onClick={() => void loadCertificates()}
                         disabled={isLoading}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#172861]/15 bg-white px-4 text-sm font-bold text-[#172861] shadow-sm transition hover:bg-[#172861]/5 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <RefreshCw
                             className={`h-4 w-4 ${isLoading ? "animate-spin" : ""
@@ -281,7 +256,7 @@ export function StudentCertificatesView() {
                         </div>
 
                         {!isLoading ? (
-                            <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                            <span className="w-fit rounded-full bg-[#172861]/10 px-3 py-1 text-xs font-black text-[#172861]">
                                 {filteredCertificates.length} resultado
                                 {filteredCertificates.length === 1 ? "" : "s"}
                             </span>
@@ -290,7 +265,7 @@ export function StudentCertificatesView() {
 
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
+                            <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#172861]/15 border-t-[#172861]" />
 
                             <p className="mt-4 text-sm font-bold text-slate-600">
                                 Cargando certificados...
@@ -304,9 +279,17 @@ export function StudentCertificatesView() {
                                 return (
                                     <article
                                         key={certificate.id}
-                                        className="group overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg"
+                                        className={`group overflow-hidden rounded-[30px] border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${isValid
+                                                ? "border-[#00c578]/30 hover:border-[#00c578]"
+                                                : "border-red-200 hover:border-red-300"
+                                            }`}
                                     >
-                                        <div className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-blue-900 to-blue-700 px-5 py-5 text-white">
+                                        <div
+                                            className={`relative overflow-hidden px-5 py-5 text-white ${isValid
+                                                    ? "bg-gradient-to-br from-[#07111F] via-[#172861] to-[#007a55]"
+                                                    : "bg-gradient-to-br from-[#07111F] via-[#172861] to-red-700"
+                                                }`}
+                                        >
                                             <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/10" />
                                             <div className="absolute -bottom-12 left-8 h-28 w-28 rounded-full bg-white/10" />
 
@@ -317,7 +300,7 @@ export function StudentCertificatesView() {
 
                                                 <span
                                                     className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${isValid
-                                                            ? "bg-emerald-400/20 text-emerald-100 ring-1 ring-emerald-200/30"
+                                                            ? "bg-[#00c578]/20 text-[#dfffee] ring-1 ring-[#00c578]/40"
                                                             : "bg-red-400/20 text-red-100 ring-1 ring-red-200/30"
                                                         }`}
                                                 >
@@ -341,7 +324,7 @@ export function StudentCertificatesView() {
                                                     Certificado emitido
                                                 </h3>
 
-                                                <p className="mt-2 line-clamp-2 text-sm leading-6 text-blue-100">
+                                                <p className="mt-2 line-clamp-2 text-sm leading-6 text-blue-50">
                                                     Este documento acredita tu
                                                     participación y aprobación
                                                     dentro del curso.
@@ -350,14 +333,12 @@ export function StudentCertificatesView() {
                                         </div>
 
                                         <div className="p-5">
-
-
-                                            <div className="mt-4 rounded-2xl bg-blue-50 px-4 py-3">
-                                                <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-500">
+                                            <div className="mt-1 rounded-2xl border border-[#172861]/10 bg-[#172861]/5 px-4 py-3">
+                                                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#172861]">
                                                     Código del certificado
                                                 </p>
 
-                                                <p className="mt-1 break-all text-sm font-black text-blue-950">
+                                                <p className="mt-1 break-all text-sm font-black text-slate-950">
                                                     {certificate.certificate_code ||
                                                         "Sin código"}
                                                 </p>
@@ -372,22 +353,20 @@ export function StudentCertificatesView() {
                                                                 certificate,
                                                             )
                                                         }
-                                                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-800"
+                                                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#0B163F]"
                                                     >
                                                         <Eye className="h-4 w-4" />
-                                                        Previsualizar
-                                                        certificado
+                                                        Previsualizar certificado
                                                     </button>
                                                 ) : (
-                                                    <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-black text-amber-700">
+                                                    <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 px-4 text-sm font-black text-orange-700">
                                                         PDF no disponible
                                                     </div>
                                                 )}
 
-
                                                 <Link
                                                     href={`/student/courses/${certificate.course_id}`}
-                                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-[#172861]/15 bg-white px-4 text-sm font-bold text-[#172861] transition hover:bg-[#172861]/5"
                                                 >
                                                     <BookOpen className="h-4 w-4" />
                                                     Ver curso
@@ -400,7 +379,7 @@ export function StudentCertificatesView() {
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
-                            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-100 text-blue-700">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#172861]/10 text-[#172861]">
                                 <Trophy className="h-10 w-10" />
                             </div>
 
@@ -417,7 +396,7 @@ export function StudentCertificatesView() {
                             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                                 <Link
                                     href="/student/courses"
-                                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-blue-700 px-5 text-sm font-black text-white transition hover:bg-blue-800"
+                                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-[#172861] px-5 text-sm font-black text-white transition hover:bg-[#0B163F]"
                                 >
                                     Ir a mis cursos
                                 </Link>
@@ -425,7 +404,7 @@ export function StudentCertificatesView() {
                                 <button
                                     type="button"
                                     onClick={() => void loadCertificates()}
-                                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-[#172861]/15 bg-white px-5 text-sm font-bold text-[#172861] transition hover:bg-[#172861]/5"
                                 >
                                     Actualizar listado
                                 </button>
@@ -438,8 +417,8 @@ export function StudentCertificatesView() {
             {selectedCertificate ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4">
                     <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
-                        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                            <h2 className="text-lg font-black text-slate-950">
+                        <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-[#07111F] via-[#172861] to-[#F97316] px-5 py-4 text-white">
+                            <h2 className="text-lg font-black">
                                 Vista previa del certificado
                             </h2>
 
@@ -450,7 +429,7 @@ export function StudentCertificatesView() {
                                             href={selectedCertificate.file_url}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-bold text-white transition hover:bg-white/20"
                                         >
                                             <ExternalLink className="h-4 w-4" />
                                             Abrir
@@ -460,7 +439,7 @@ export function StudentCertificatesView() {
                                             href={selectedCertificate.file_url}
                                             target="_blank"
                                             rel="noreferrer"
-                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 text-sm font-black text-white transition hover:bg-blue-800"
+                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[#00c578] px-4 text-sm font-black text-[#07111F] transition hover:bg-[#00b36d]"
                                         >
                                             <Download className="h-4 w-4" />
                                             Descargar
@@ -471,7 +450,7 @@ export function StudentCertificatesView() {
                                 <button
                                     type="button"
                                     onClick={closePreviewModal}
-                                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition hover:bg-slate-200"
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white transition hover:bg-white/20"
                                 >
                                     <X className="h-5 w-5" />
                                 </button>
@@ -491,7 +470,7 @@ export function StudentCertificatesView() {
                                 </div>
                             ) : (
                                 <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center">
-                                    <FileWarning className="h-10 w-10 text-amber-600" />
+                                    <FileWarning className="h-10 w-10 text-orange-600" />
 
                                     <p className="mt-4 text-sm font-black text-slate-700">
                                         PDF no disponible

@@ -182,8 +182,9 @@ function getPdfFontFamily(fontFamily: string) {
 function applySentenceCase(text: string) {
     const lowerText = text.toLowerCase();
 
-    return lowerText.replace(/(^\s*[a-záéíóúñü])|([.!?]\s+[a-záéíóúñü])|(\n\s*[a-záéíóúñü])/g, (match) =>
-        match.toUpperCase(),
+    return lowerText.replace(
+        /(^\s*[a-záéíóúñü])|([.!?]\s+[a-záéíóúñü])|(\n\s*[a-záéíóúñü])/g,
+        (match) => match.toUpperCase(),
     );
 }
 
@@ -1195,8 +1196,8 @@ export function CertificateTemplateWorkspace({
     if (isLoadingTemplate) {
         return (
             <section className="space-y-6">
-                <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
-                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-8 text-center shadow-sm">
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-[#172861]" />
 
                     <p className="mt-4 text-sm font-semibold text-slate-600">
                         {numericCourseId > 0
@@ -1211,69 +1212,61 @@ export function CertificateTemplateWorkspace({
     if (numericCourseId <= 0) {
         return (
             <section className="space-y-6">
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-6 md:px-7">
-                        <div>
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-100">
-                                <BadgeCheck className="h-3.5 w-3.5" />
-                                {isAdminRoute
-                                    ? "Panel del administrador"
-                                    : "Panel del profesor"}
-                            </div>
+                <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                    <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                            {isAdminRoute
+                                ? "Panel del administrador"
+                                : "Panel del profesor"}
+                        </p>
 
-                            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
-                                Gestión de certificados
-                            </h1>
+                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                            Gestión de certificados
+                        </h2>
 
-                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
-                                Selecciona primero un curso para cargar o crear
-                                la plantilla del certificado.
-                            </p>
-                        </div>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-50">
+                            Selecciona primero un curso para cargar o crear la
+                            plantilla del certificado.
+                        </p>
                     </div>
+                </div>
 
-                    <div className="p-5">
-                        {error ? (
-                            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                            <label className="block text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-                                Curso
-                            </label>
-
-                            <select
-                                value=""
-                                onChange={(event) =>
-                                    handleSelectCourse(event.target.value)
-                                }
-                                className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                            >
-                                <option value="">Selecciona un curso</option>
-                                {courseOptions.map((courseItem) => (
-                                    <option
-                                        key={courseItem.id}
-                                        value={courseItem.id}
-                                    >
-                                        {courseItem.name}
-                                    </option>
-                                ))}
-                            </select>
-
-                            {courseOptions.length === 0 ? (
-                                <p className="mt-3 text-sm font-semibold text-slate-500">
-                                    No hay cursos registrados para mostrar.
-                                </p>
-                            ) : (
-                                <p className="mt-3 text-sm font-semibold text-slate-500">
-                                    Al seleccionar un curso se cargará su
-                                    plantilla de certificado.
-                                </p>
-                            )}
-                        </div>
+                {error ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+                        {error}
                     </div>
+                ) : null}
+
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                    <h3 className="text-lg font-bold text-slate-950">
+                        Seleccionar curso
+                    </h3>
+
+                    <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                        Al seleccionar un curso se cargará su plantilla de
+                        certificado.
+                    </p>
+
+                    <select
+                        value=""
+                        onChange={(event) =>
+                            handleSelectCourse(event.target.value)
+                        }
+                        className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    >
+                        <option value="">Selecciona un curso</option>
+                        {courseOptions.map((courseItem) => (
+                            <option key={courseItem.id} value={courseItem.id}>
+                                {courseItem.name}
+                            </option>
+                        ))}
+                    </select>
+
+                    {courseOptions.length === 0 ? (
+                        <p className="mt-3 text-sm font-semibold text-slate-500">
+                            No hay cursos registrados para mostrar.
+                        </p>
+                    ) : null}
                 </div>
             </section>
         );
@@ -1282,7 +1275,7 @@ export function CertificateTemplateWorkspace({
     if (!template) {
         return (
             <section className="space-y-6">
-                <div className="rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-8 text-center shadow-sm">
                     <p className="text-sm font-semibold text-slate-600">
                         No se pudo cargar la plantilla del certificado.
                     </p>
@@ -1304,7 +1297,51 @@ export function CertificateTemplateWorkspace({
         : "Volver al curso";
 
     return (
-        <section className="space-y-5">
+        <section className="space-y-6">
+            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                    <div>
+                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+                            {isAdminRoute
+                                ? "Panel del administrador"
+                                : "Panel del profesor"}
+                        </p>
+
+                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                            Plantilla del certificado
+                        </h2>
+
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-50">
+                            Diseña y guarda la plantilla del certificado para{" "}
+                            <span className="font-bold text-white">
+                                {selectedCourseName}
+                            </span>
+                            . Puedes ubicar campos, firmas, fondo y código QR.
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[420px]">
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                Campos
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {template.fields.length}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
+                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                                QR
+                            </p>
+                            <p className="mt-2 text-3xl font-bold">
+                                {qrConfig.enabled ? "Activo" : "No"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Link
                     href={backHref}
@@ -1335,7 +1372,7 @@ export function CertificateTemplateWorkspace({
                         </select>
                     ) : null}
 
-                    <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50">
+                    <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-bold text-[#172861] shadow-sm transition hover:bg-blue-50">
                         <ImagePlus className="h-4 w-4" />
                         Subir fondo
                         <input
@@ -1360,7 +1397,7 @@ export function CertificateTemplateWorkspace({
                         type="button"
                         onClick={handleGeneratePdf}
                         disabled={isGenerating}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <Download className="h-4 w-4" />
                         {isGenerating ? "Generando..." : "Generar PDF"}
@@ -1369,27 +1406,30 @@ export function CertificateTemplateWorkspace({
             </div>
 
             {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
                     {error}
                 </div>
             ) : null}
 
             {notice ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
                     {notice}
                 </div>
             ) : null}
 
-
             <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-                <div className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
                     <div className="mb-4 flex flex-col gap-1 px-1">
-                        <h1 className="text-xl font-black text-slate-950">
-                            Plantilla del certificado
+                        <h1 className="text-xl font-bold text-slate-950">
+                            Área de diseño
                         </h1>
+                        <p className="text-sm text-[var(--muted-foreground)]">
+                            Arrastra los campos dentro del certificado para
+                            ubicarlos en la posición deseada.
+                        </p>
                     </div>
 
-                    <div className="rounded-[26px] border border-slate-200 bg-slate-100 p-3 shadow-inner">
+                    <div className="rounded-3xl border border-slate-200 bg-slate-100 p-3 shadow-inner">
                         <div
                             ref={certificateRef}
                             className="relative mx-auto aspect-[297/210] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-sm"
@@ -1407,10 +1447,10 @@ export function CertificateTemplateWorkspace({
                                     }}
                                 />
                             ) : (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-slate-100 text-center">
-                                    <BadgeCheck className="h-16 w-16 text-blue-700" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 text-center">
+                                    <BadgeCheck className="h-16 w-16 text-[#172861]" />
 
-                                    <h2 className="mt-4 text-3xl font-black text-slate-950">
+                                    <h2 className="mt-4 text-3xl font-bold text-slate-950">
                                         Certificado de finalización
                                     </h2>
 
@@ -1438,7 +1478,7 @@ export function CertificateTemplateWorkspace({
                                             handlePointerDown(event, field.id)
                                         }
                                         className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-move rounded-xl px-2 py-1 transition ${isSelected
-                                                ? "ring-2 ring-blue-600 ring-offset-2"
+                                                ? "ring-2 ring-[#172861] ring-offset-2"
                                                 : "hover:ring-2 hover:ring-blue-200"
                                             }`}
                                         style={{
@@ -1546,7 +1586,7 @@ export function CertificateTemplateWorkspace({
                                     tabIndex={0}
                                     onPointerDown={handleQrPointerDown}
                                     className={`absolute flex -translate-x-1/2 -translate-y-1/2 cursor-move flex-col items-center justify-center rounded-xl border-2 bg-white p-1 shadow-sm transition ${isDraggingQr
-                                            ? "border-blue-700 ring-2 ring-blue-600 ring-offset-2"
+                                            ? "border-[#172861] ring-2 ring-[#172861] ring-offset-2"
                                             : "border-slate-900 hover:ring-2 hover:ring-blue-200"
                                         }`}
                                     style={{
@@ -1557,7 +1597,7 @@ export function CertificateTemplateWorkspace({
                                     }}
                                 >
                                     <QrPreviewBox />
-                                    <span className="pointer-events-none absolute -bottom-6 rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-black text-white">
+                                    <span className="pointer-events-none absolute -bottom-6 rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-bold text-white">
                                         QR
                                     </span>
                                 </div>
@@ -1567,25 +1607,25 @@ export function CertificateTemplateWorkspace({
                 </div>
 
                 <aside className="space-y-5 xl:sticky xl:top-5 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1">
-                    <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
                         <button
                             type="button"
                             onClick={() =>
                                 setIsAddFieldsOpen((current) => !current)
                             }
-                            className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                            className="flex w-full items-center justify-between gap-3 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-5 py-4 text-left text-white"
                         >
                             <div>
-                                <h2 className="text-lg font-black text-slate-950">
+                                <h2 className="text-lg font-bold">
                                     Agregar campos
                                 </h2>
 
-                                <p className="mt-1 text-sm leading-6 text-slate-500">
+                                <p className="mt-1 text-sm leading-6 text-blue-50">
                                     Agrega textos, variables y firmas.
                                 </p>
                             </div>
 
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20">
                                 <ChevronDown
                                     className={`h-5 w-5 transition ${isAddFieldsOpen ? "" : "-rotate-90"
                                         }`}
@@ -1594,7 +1634,7 @@ export function CertificateTemplateWorkspace({
                         </button>
 
                         {isAddFieldsOpen ? (
-                            <div className="border-t border-slate-100 px-5 py-4">
+                            <div className="px-5 py-4">
                                 <div className="max-h-[260px] overflow-y-auto pr-1">
                                     <div className="grid gap-2">
                                         {fieldTypeOptions.map((option) => (
@@ -1604,7 +1644,7 @@ export function CertificateTemplateWorkspace({
                                                 onClick={() =>
                                                     handleAddField(option.value)
                                                 }
-                                                className="inline-flex h-10 items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                                                className="inline-flex h-10 items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#172861]"
                                             >
                                                 {option.label}
                                                 <Plus className="h-4 w-4" />
@@ -1614,7 +1654,7 @@ export function CertificateTemplateWorkspace({
                                 </div>
                             </div>
                         ) : (
-                            <div className="border-t border-slate-100 px-5 pb-4">
+                            <div className="px-5 py-4">
                                 <p className="rounded-2xl bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
                                     Panel minimizado. Presiona el encabezado
                                     para agregar más campos.
@@ -1623,11 +1663,11 @@ export function CertificateTemplateWorkspace({
                         )}
                     </div>
 
-                    <div className="rounded-[28px] border border-blue-200 bg-white p-5 shadow-sm">
+                    <div className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm">
                         <div className="space-y-4">
                             <label className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                                 <span>
-                                    <span className="block text-sm font-black text-slate-800">
+                                    <span className="block text-sm font-bold text-slate-800">
                                         Mostrar QR
                                     </span>
                                     <span className="block text-xs font-semibold text-slate-500">
@@ -1643,14 +1683,14 @@ export function CertificateTemplateWorkspace({
                                             enabled: event.target.checked,
                                         })
                                     }
-                                    className="h-5 w-5 accent-blue-700"
+                                    className="h-5 w-5 accent-[#172861]"
                                 />
                             </label>
                         </div>
                     </div>
 
-                    <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-                        <h2 className="text-lg font-black text-slate-950">
+                    <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                        <h2 className="text-lg font-bold text-slate-950">
                             Campo seleccionado
                         </h2>
 
@@ -1727,7 +1767,7 @@ export function CertificateTemplateWorkspace({
 
                                 {isSignatureField(selectedField) ? (
                                     <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                                        <p className="text-sm font-black text-blue-950">
+                                        <p className="text-sm font-bold text-blue-950">
                                             Imagen de la firma
                                         </p>
 
@@ -1737,7 +1777,7 @@ export function CertificateTemplateWorkspace({
                                             separado.
                                         </p>
 
-                                        <label className="mt-3 inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 text-sm font-bold text-white transition hover:bg-blue-800">
+                                        <label className="mt-3 inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-bold text-white transition hover:bg-[#0B163F]">
                                             <ImagePlus className="h-4 w-4" />
                                             Subir firma
                                             <input
@@ -1939,9 +1979,7 @@ export function CertificateTemplateWorkspace({
                                             <option value="normal">
                                                 Normal
                                             </option>
-                                            <option value="bold">
-                                                Negrita
-                                            </option>
+                                            <option value="bold">Negrita</option>
                                         </select>
                                     </div>
                                 </div>

@@ -1132,7 +1132,7 @@ export function TeacherCourseModulesPage({
         return (
             <section className="space-y-6">
                 <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-slate-200 bg-white p-8 text-center shadow-sm">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
+                    <Loader2 className="h-8 w-8 animate-spin text-[#172861]" />
                     <p className="mt-4 text-sm font-bold text-slate-600">
                         {numericCourseId > 0
                             ? "Cargando módulos del curso..."
@@ -1146,8 +1146,8 @@ export function TeacherCourseModulesPage({
     if (numericCourseId <= 0) {
         return (
             <section className="space-y-6">
-                <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-                    <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-8 md:px-8">
+                <div className="overflow-hidden rounded-3xl border border-white/10 bg-white shadow-sm">
+                    <div className="bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] px-6 py-8 text-white md:px-8">
                         <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
                             <Layers3 className="h-3.5 w-3.5" />
                             Gestión de módulos
@@ -1157,7 +1157,7 @@ export function TeacherCourseModulesPage({
                             Selecciona un curso
                         </h1>
 
-                        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-50 md:text-base">
                             Primero selecciona el curso para cargar sus módulos,
                             lecciones y contenido.
                         </p>
@@ -1246,7 +1246,7 @@ export function TeacherCourseModulesPage({
                     <button
                         type="button"
                         onClick={openCreateModuleModal}
-                        className="inline-flex w-fit items-center gap-2 rounded-2xl bg-blue-700 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex w-fit items-center gap-2 rounded-2xl bg-[#172861] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={isLoading || numericCourseId <= 0}
                     >
                         <Plus className="h-4 w-4" />
@@ -1269,8 +1269,8 @@ export function TeacherCourseModulesPage({
                 </div>
             ) : null}
 
-            <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 px-6 py-8 md:px-8">
+            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
+                <div className="bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] px-6 py-8 text-white md:px-8">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
@@ -1282,7 +1282,7 @@ export function TeacherCourseModulesPage({
                                 Módulos del curso
                             </h1>
 
-                            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300 md:text-base">
+                            <p className="mt-3 max-w-3xl text-sm leading-6 text-blue-50 md:text-base">
                                 Curso seleccionado:{" "}
                                 <span className="font-bold text-white">
                                     {selectedCourseName}
@@ -1292,7 +1292,7 @@ export function TeacherCourseModulesPage({
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
+                        <div className="rounded-2xl bg-white/15 px-5 py-4 text-white ring-1 ring-white/20">
                             <p className="text-xs font-bold uppercase tracking-[0.14em] text-blue-100">
                                 Total módulos
                             </p>
@@ -1307,7 +1307,7 @@ export function TeacherCourseModulesPage({
                 <div className="p-6 md:p-8">
                     {modules.length === 0 ? (
                         <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-[#172861]">
                                 <Layers3 className="h-6 w-6" />
                             </div>
 
@@ -1323,7 +1323,7 @@ export function TeacherCourseModulesPage({
                             <button
                                 type="button"
                                 onClick={openCreateModuleModal}
-                                className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800"
+                                className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F]"
                             >
                                 <Plus className="h-4 w-4" />
                                 Crear módulo
@@ -1363,7 +1363,7 @@ export function TeacherCourseModulesPage({
                                             handleDrop(event, moduleDragState)
                                         }
                                     >
-                                        <div className="absolute -left-[26px] top-7 h-4 w-4 rounded-full border-4 border-blue-700 bg-white" />
+                                        <div className="absolute -left-[26px] top-7 h-4 w-4 rounded-full border-4 border-[#172861] bg-white" />
 
                                         <div
                                             draggable
@@ -1394,12 +1394,12 @@ export function TeacherCourseModulesPage({
                                                         }
                                                         className="flex min-w-0 items-center gap-3 text-left"
                                                     >
-                                                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white">
+                                                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-white">
                                                             <Layers3 className="h-5 w-5" />
                                                         </span>
 
                                                         <span className="min-w-0">
-                                                            <span className="block text-xs font-bold uppercase tracking-[0.14em] text-blue-700">
+                                                            <span className="block text-xs font-bold uppercase tracking-[0.14em] text-[#172861]">
                                                                 Módulo{" "}
                                                                 {moduleIndex + 1}
                                                             </span>
@@ -1428,7 +1428,7 @@ export function TeacherCourseModulesPage({
                                                                 courseModule.id,
                                                             )
                                                         }
-                                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-50"
+                                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-bold text-[#172861] ring-1 ring-blue-100 transition hover:bg-blue-50"
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                         Lección
@@ -1634,7 +1634,7 @@ export function TeacherCourseModulesPage({
                                                                                             "video",
                                                                                         )
                                                                                     }
-                                                                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-50 px-3 text-xs font-black text-blue-700 transition hover:bg-blue-100"
+                                                                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-50 px-3 text-xs font-black text-[#172861] transition hover:bg-blue-100"
                                                                                 >
                                                                                     <PlayCircle className="h-4 w-4" />
                                                                                     Video
@@ -1764,7 +1764,7 @@ export function TeacherCourseModulesPage({
                                                                                                     }
                                                                                                 >
                                                                                                     <div className="flex min-w-0 items-center gap-3">
-                                                                                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-700 shadow-sm">
+                                                                                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#172861] shadow-sm">
                                                                                                             {renderItemIcon(
                                                                                                                 item.type,
                                                                                                                 "h-4 w-4",
@@ -1774,7 +1774,7 @@ export function TeacherCourseModulesPage({
                                                                                                         <div className="min-w-0">
                                                                                                             <Link
                                                                                                                 href={`${itemEditorBasePath}/${item.id}`}
-                                                                                                                className="block truncate text-sm font-black text-slate-950 transition hover:text-blue-700 hover:underline"
+                                                                                                                className="block truncate text-sm font-black text-slate-950 transition hover:text-[#172861] hover:underline"
                                                                                                             >
                                                                                                                 {
                                                                                                                     item.title
@@ -1830,25 +1830,27 @@ export function TeacherCourseModulesPage({
             {createModal ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
                     <div className="w-full max-w-lg overflow-hidden rounded-[28px] bg-white shadow-2xl">
-                        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
-                            <div>
-                                <h2 className="text-xl font-black text-slate-950">
-                                    {getCreateModalTitle(createModal)}
-                                </h2>
+                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-950">
+                                        {getCreateModalTitle(createModal)}
+                                    </h2>
 
-                                <p className="mt-1 text-sm leading-6 text-slate-500">
-                                    {getCreateModalDescription(createModal)}
-                                </p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                                        {getCreateModalDescription(createModal)}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={closeCreateModal}
+                                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={isSaving}
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={closeCreateModal}
-                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                                disabled={isSaving}
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
                         </div>
 
                         <form
@@ -1898,7 +1900,7 @@ export function TeacherCourseModulesPage({
 
                                 <button
                                     type="submit"
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                                     disabled={isSaving}
                                 >
                                     {isSaving ? (
@@ -1919,13 +1921,13 @@ export function TeacherCourseModulesPage({
                     <div className="w-full max-w-lg overflow-hidden rounded-[28px] bg-white shadow-2xl">
                         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                             <div>
-                                <h2 className="text-xl font-black text-slate-950">
+                                <h2 className="text-xl font-bold text-white">
                                     {editModal.type === "module"
                                         ? "Editar módulo"
                                         : "Editar lección"}
                                 </h2>
 
-                                <p className="mt-1 text-sm leading-6 text-slate-500">
+                                <p className="mt-1 text-sm leading-6 text-blue-50">
                                     Actualiza el título principal.
                                 </p>
                             </div>
@@ -1978,7 +1980,7 @@ export function TeacherCourseModulesPage({
 
                                 <button
                                     type="submit"
-                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                                     disabled={isSaving}
                                 >
                                     {isSaving ? (
