@@ -725,11 +725,11 @@ export default function StudentCalendarPage() {
                                                         {status.label}
                                                     </span>
 
-                                                    {activity.is_required ? (
+                                                    {/*  {activity.is_required ? (
                                                         <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase text-amber-700">
                                                             Obligatoria
                                                         </span>
-                                                    ) : null}
+                                                    ) : null} */}
                                                 </div>
 
                                                 <h4 className="mt-3 text-sm font-black text-[var(--foreground)]">
@@ -742,11 +742,11 @@ export default function StudentCalendarPage() {
                                                     )}
                                                 </p>
 
-                                                {activity.description ? (
+                                                {/*  {activity.description ? (
                                                     <p className="mt-2 text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
                                                         {activity.description}
                                                     </p>
-                                                ) : null}
+                                                ) : null} */}
 
                                                 {activity.url !== "#" ? (
                                                     <Link

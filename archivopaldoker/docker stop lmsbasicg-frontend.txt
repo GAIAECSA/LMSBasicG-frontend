@@ -8,9 +8,15 @@ docker run -d \
   -p 9001:9001 \
   lmsbasicg-frontend
 
-  **********************************************
+  *********************************************
+  DEMO
+  *********************************************
+docker stop lmsbasicg-frontend-demo-sva 2>/dev/null || true
+docker rm lmsbasicg-frontend-demo-sva 2>/dev/null || true
 
-  docker run -d \
+docker build -t lmsbasicg-frontend-demo-sva .
+
+docker run -d \
   --name lmsbasicg-frontend-demo-sva \
   --restart unless-stopped \
   -p 127.0.0.1:9003:9001 \
