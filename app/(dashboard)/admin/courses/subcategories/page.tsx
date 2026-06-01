@@ -276,6 +276,7 @@ export default function CourseSubcategoriesPage() {
                 await updateSubcategory(editingSubcategory.id, {
                     name: trimmedName,
                     category_id: formCategoryId,
+                    is_mdt: editingSubcategory.is_mdt ?? false,
                 });
 
                 setSuccess("Subcategoría actualizada correctamente.");
@@ -283,6 +284,7 @@ export default function CourseSubcategoriesPage() {
                 await createSubcategory({
                     name: trimmedName,
                     category_id: formCategoryId,
+                    is_mdt: false,
                 });
 
                 setSuccess("Subcategoría creada correctamente.");
@@ -401,8 +403,8 @@ export default function CourseSubcategoriesPage() {
                 {(error || success) && !isModalOpen ? (
                     <div
                         className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${error
-                                ? "border-red-200 bg-red-50 text-red-700"
-                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
                             }`}
                     >
                         {error || success}
