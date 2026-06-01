@@ -263,11 +263,11 @@ export function StudentNotificationsBell({
                                                     )}
                                                 </span>
 
-                                                {activity.is_required ? (
+                                                {/*  {activity.is_required ? (
                                                     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase text-amber-700">
                                                         Obligatoria
                                                     </span>
-                                                ) : null}
+                                                ) : null} */}
                                             </div>
 
                                             <p className="mt-2 line-clamp-1 text-sm font-black text-[var(--foreground)]">
