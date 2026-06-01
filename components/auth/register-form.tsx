@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { getDashboardRouteByRole } from "@/lib/auth";
 import { registerService } from "@/services/auth.service";
@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface RegisterFormState {
     username: string;
+    idnumber: string;
     firstname: string;
     lastname: string;
     email: string;
@@ -18,6 +19,7 @@ interface RegisterFormState {
 
 const INITIAL_FORM: RegisterFormState = {
     username: "",
+    idnumber: "",
     firstname: "",
     lastname: "",
     email: "",
@@ -43,7 +45,7 @@ export function RegisterForm() {
 
     function updateField<K extends keyof RegisterFormState>(
         key: K,
-        value: RegisterFormState[K]
+        value: RegisterFormState[K],
     ) {
         setForm((prev) => ({
             ...prev,
@@ -51,52 +53,63 @@ export function RegisterForm() {
         }));
     }
 
-    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        setError("");
-        setSuccess("");
-
+    function validateForm() {
         if (
             !form.username.trim() ||
+            !form.idnumber.trim() ||
             !form.firstname.trim() ||
             !form.lastname.trim() ||
             !form.email.trim() ||
             !form.phone_number.trim() ||
             !form.password.trim()
         ) {
-            setError("Completa todos los campos.");
-            return;
+            throw new Error("Completa todos los campos.");
+        }
+
+        if (form.idnumber.trim().length !== 10) {
+            throw new Error("La cédula debe tener 10 dígitos.");
         }
 
         if (form.password.length < 6) {
-            setError("La contraseña debe tener al menos 6 caracteres.");
-            return;
+            throw new Error("La contraseña debe tener al menos 6 caracteres.");
         }
+    }
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        setError("");
+        setSuccess("");
 
         try {
+            validateForm();
             setSubmitting(true);
 
-            const response = await registerService({
-                username: form.username,
-                firstname: form.firstname,
-                lastname: form.lastname,
-                email: form.email,
-                phone_number: form.phone_number,
+            const payload = {
+                username: form.username.trim(),
+                idnumber: form.idnumber.trim(),
+                firstname: form.firstname.trim(),
+                lastname: form.lastname.trim(),
+                email: form.email.trim(),
+                phone_number: form.phone_number.trim(),
                 password: form.password,
-            });
+            };
+
+            const response = await registerService(payload);
 
             setSuccess(
-                response.message || "Usuario registrado correctamente."
+                response.message ||
+                "Usuario registrado correctamente.",
             );
 
             setTimeout(() => {
                 router.push("/login");
-            }, 1400);
+            }, 1500);
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
-                    : "No se pudo completar el registro."
+                    : "No se pudo completar el registro.",
             );
         } finally {
             setSubmitting(false);
@@ -115,7 +128,7 @@ export function RegisterForm() {
                 </h2>
 
                 <p className="mt-3 text-[13px] leading-6 text-slate-500 sm:text-sm">
-                    Registra tu usuario con los datos que exige tu API.
+                    Registra tu usuario con los datos requeridos.
                 </p>
             </div>
 
@@ -132,24 +145,53 @@ export function RegisterForm() {
                     </div>
                 ) : null}
 
-                <div className="space-y-2">
-                    <label
-                        htmlFor="username"
-                        className="block text-[13px] font-semibold text-slate-700"
-                    >
-                        Usuario
-                    </label>
+                <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="username"
+                            className="block text-[13px] font-semibold text-slate-700"
+                        >
+                            Usuario
+                        </label>
 
-                    <input
-                        id="username"
-                        type="text"
-                        placeholder="Tu nombre de usuario"
-                        value={form.username}
-                        onChange={(event) =>
-                            updateField("username", event.target.value)
-                        }
-                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
-                    />
+                        <input
+                            id="username"
+                            type="text"
+                            placeholder="Tu nombre de usuario"
+                            value={form.username}
+                            onChange={(event) =>
+                                updateField("username", event.target.value)
+                            }
+                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label
+                            htmlFor="idnumber"
+                            className="block text-[13px] font-semibold text-slate-700"
+                        >
+                            Cédula
+                        </label>
+
+                        <input
+                            id="idnumber"
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={10}
+                            placeholder="Ingrese su cédula"
+                            value={form.idnumber}
+                            onChange={(event) =>
+                                updateField(
+                                    "idnumber",
+                                    event.target.value
+                                        .replace(/\D/g, "")
+                                        .slice(0, 10),
+                                )
+                            }
+                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
+                        />
+                    </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 md:gap-5">
@@ -287,3 +329,5 @@ export function RegisterForm() {
         </div>
     );
 }
+
+export default RegisterForm;

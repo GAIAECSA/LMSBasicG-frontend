@@ -2,7 +2,8 @@ const API_URL = (
     process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000"
 ).replace(/\/+$/, "");
 
-const MODULES_ENDPOINT = `${API_URL}/api/v1/modules`;
+const MODULES_ENDPOINT = `${API_URL}/api/v1/modules/modules`;
+const MODULES_BY_COURSE_ENDPOINT = `${API_URL}/api/v1/modules/courses`;
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
 
@@ -13,8 +14,8 @@ export type ModulePayload = {
 };
 
 export type UpdateModulePayload = {
-    name: string;
-    order: number;
+    name?: string;
+    order?: number;
 };
 
 export type CourseModule = {
@@ -135,23 +136,23 @@ function getAuthToken(): string | null {
     }
 }
 
-function getHeaders(): HeadersInit {
+function getJsonHeaders(): HeadersInit {
     const token = getAuthToken();
 
     if (!token) {
         throw new Error("No se encontró un token válido. Inicia sesión nuevamente.");
     }
 
-    const headers: Record<string, string> = {
+    return {
         "Content-Type": "application/json",
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
     };
-
-    return headers;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+    const rawText = await response.text();
+
     if (!response.ok) {
         if (response.status === 401) {
             clearAuthSession();
@@ -159,15 +160,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
             throw new Error("Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
         }
 
-        let errorMessage = "Ocurrió un error al procesar la solicitud.";
+        let errorMessage = `Error ${response.status}: ${response.statusText}`;
 
-        try {
-            const rawText = await response.text();
-
-            if (!rawText) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-
+        if (rawText) {
             try {
                 const errorData = JSON.parse(rawText) as BackendValidationError;
 
@@ -176,7 +171,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
                 } else if (Array.isArray(errorData.detail)) {
                     errorMessage =
                         errorData.detail
-                            .map((item) => item.msg)
+                            .map((item) => {
+                                const field = Array.isArray(item.loc)
+                                    ? item.loc.join(".")
+                                    : "";
+
+                                return field ? `${field}: ${item.msg}` : item.msg;
+                            })
                             .filter(Boolean)
                             .join(", ") || "Error de validación en la solicitud.";
                 } else if (typeof errorData.message === "string") {
@@ -187,72 +188,184 @@ async function handleResponse<T>(response: Response): Promise<T> {
             } catch {
                 errorMessage = rawText;
             }
-        } catch {
-            errorMessage = `Error ${response.status}: ${response.statusText}`;
         }
 
         throw new Error(errorMessage);
     }
 
+    if (!rawText) {
+        return undefined as T;
+    }
+
     const contentType = response.headers.get("content-type") || "";
 
     if (contentType.includes("application/json")) {
-        return response.json() as Promise<T>;
+        return JSON.parse(rawText) as T;
     }
 
-    return response.text() as Promise<T>;
+    return rawText as T;
 }
 
-export async function createModule(payload: ModulePayload): Promise<CourseModule> {
-    const response = await fetch(`${MODULES_ENDPOINT}/modules`, {
+function validateId(value: number, label: string): number {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        throw new Error(`${label} no válido.`);
+    }
+
+    return numericValue;
+}
+
+function normalizeModule(value: unknown): CourseModule {
+    if (!value || typeof value !== "object") {
+        throw new Error("La respuesta del módulo no tiene un formato válido.");
+    }
+
+    const record = value as Record<string, unknown>;
+
+    return {
+        id: Number(record.id ?? 0),
+        name: String(record.name ?? ""),
+        order: Number(record.order ?? 0),
+        course_id: Number(record.course_id ?? 0),
+    };
+}
+
+function normalizeModules(value: unknown): CourseModule[] {
+    if (!Array.isArray(value)) return [];
+
+    return value.map(normalizeModule);
+}
+
+function normalizeCreatePayload(payload: ModulePayload): ModulePayload {
+    const courseId = validateId(payload.course_id, "ID del curso");
+
+    const name = payload.name.trim();
+
+    if (!name) {
+        throw new Error("El nombre del módulo es obligatorio.");
+    }
+
+    return {
+        name,
+        order: Number.isFinite(Number(payload.order)) ? Number(payload.order) : 0,
+        course_id: courseId,
+    };
+}
+
+function normalizeUpdatePayload(payload: UpdateModulePayload): UpdateModulePayload {
+    const nextPayload: UpdateModulePayload = {};
+
+    if (payload.name !== undefined) {
+        const name = payload.name.trim();
+
+        if (!name) {
+            throw new Error("El nombre del módulo es obligatorio.");
+        }
+
+        nextPayload.name = name;
+    }
+
+    if (payload.order !== undefined) {
+        nextPayload.order = Number.isFinite(Number(payload.order))
+            ? Number(payload.order)
+            : 0;
+    }
+
+    return nextPayload;
+}
+
+export async function createModule(
+    payload: ModulePayload,
+): Promise<CourseModule> {
+    const response = await fetch(MODULES_ENDPOINT, {
         method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        headers: getJsonHeaders(),
+        body: JSON.stringify(normalizeCreatePayload(payload)),
     });
 
-    return handleResponse<CourseModule>(response);
+    const data = await handleResponse<unknown>(response);
+
+    return normalizeModule(data);
 }
 
 export async function updateModule(
     moduleId: number,
     payload: UpdateModulePayload,
 ): Promise<CourseModule> {
-    const response = await fetch(`${MODULES_ENDPOINT}/modules/${moduleId}`, {
+    const validModuleId = validateId(moduleId, "ID del módulo");
+
+    const response = await fetch(`${MODULES_ENDPOINT}/${validModuleId}`, {
         method: "PUT",
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        headers: getJsonHeaders(),
+        body: JSON.stringify(normalizeUpdatePayload(payload)),
     });
 
-    return handleResponse<CourseModule>(response);
+    const data = await handleResponse<unknown>(response);
+
+    return normalizeModule(data);
 }
 
 export async function deleteModule(moduleId: number): Promise<string> {
-    const response = await fetch(`${MODULES_ENDPOINT}/modules/${moduleId}`, {
+    const validModuleId = validateId(moduleId, "ID del módulo");
+
+    const response = await fetch(`${MODULES_ENDPOINT}/${validModuleId}`, {
         method: "DELETE",
-        headers: getHeaders(),
+        headers: getJsonHeaders(),
     });
 
     return handleResponse<string>(response);
 }
 
 export async function getModule(moduleId: number): Promise<CourseModule> {
-    const response = await fetch(`${MODULES_ENDPOINT}/modules/${moduleId}`, {
+    const validModuleId = validateId(moduleId, "ID del módulo");
+
+    const response = await fetch(`${MODULES_ENDPOINT}/${validModuleId}`, {
         method: "GET",
-        headers: getHeaders(),
+        headers: getJsonHeaders(),
         cache: "no-store",
     });
 
-    return handleResponse<CourseModule>(response);
+    const data = await handleResponse<unknown>(response);
+
+    return normalizeModule(data);
 }
 
-export async function getModulesByCourse(courseId: number): Promise<CourseModule[]> {
-    const response = await fetch(`${MODULES_ENDPOINT}/courses/${courseId}/modules`, {
-        method: "GET",
-        headers: getHeaders(),
-        cache: "no-store",
-    });
+export async function getModulesByCourse(
+    courseId: number,
+): Promise<CourseModule[]> {
+    const validCourseId = validateId(courseId, "ID del curso");
 
-    const data = await handleResponse<CourseModule[]>(response);
+    const response = await fetch(
+        `${MODULES_BY_COURSE_ENDPOINT}/${validCourseId}/modules`,
+        {
+            method: "GET",
+            headers: getJsonHeaders(),
+            cache: "no-store",
+        },
+    );
 
-    return Array.isArray(data) ? data : [];
+    const data = await handleResponse<unknown>(response);
+
+    return normalizeModules(data).sort((a, b) => a.order - b.order);
+}
+
+export async function reorderModules(
+    modules: CourseModule[],
+): Promise<CourseModule[]> {
+    const orderedModules = modules.map((courseModule, index) => ({
+        ...courseModule,
+        order: index + 1,
+    }));
+
+    const updatedModules = await Promise.all(
+        orderedModules.map((courseModule) =>
+            updateModule(courseModule.id, {
+                name: courseModule.name,
+                order: courseModule.order,
+            }),
+        ),
+    );
+
+    return updatedModules.sort((a, b) => a.order - b.order);
 }

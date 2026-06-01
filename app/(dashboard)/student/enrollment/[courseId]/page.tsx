@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getAllCourses } from "@/services/courses.service";
+import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
 import {
     createEnrollment,
     getEnrollmentsByUser,
@@ -332,7 +333,7 @@ function getEnrollmentState(
 
     if (enrollment.accepted === false) {
         return {
-            type: "pending",
+            type: "rejected",
             enrollment,
         };
     }
@@ -350,18 +351,8 @@ function PageTopBar({ initials }: { initials: string }) {
                 <GraduationCap className="h-4 w-4 text-[var(--primary)]" />
                 Rol: Estudiante
             </span>
-
-            <button
-                type="button"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:bg-[var(--muted)]"
-                aria-label="Notificaciones"
-            >
-                <Bell className="h-5 w-5" />
-
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-black text-[var(--primary-foreground)]">
-                    3
-                </span>
-            </button>
+            
+            <StudentNotificationsBell />
 
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-[var(--primary-foreground)] shadow-sm">
                 {initials}
@@ -668,33 +659,46 @@ export default function StudentEnrollmentPage() {
                 throw new Error("Debes cargar el comprobante de transferencia.");
             }
 
+            const isFreeEnrollment = course.isFree || paymentMethod === "gratis";
+
             const createdEnrollment = await createEnrollment({
-                reference_code: referenceCode || voucherNumber || "",
-                comment: observations || null,
+                accepted: isFreeEnrollment ? true : null,
+                reference_code: isFreeEnrollment
+                    ? `GRATIS-AUTO-${course.id}-${userId}`
+                    : referenceCode || voucherNumber || "",
+                comment: isFreeEnrollment
+                    ? "Matrícula gratuita aprobada automáticamente."
+                    : observations || null,
                 user_id: userId,
                 course_id: course.id,
                 role_id: 4,
-                image: voucherFile,
+                image: isFreeEnrollment ? null : voucherFile,
             });
 
+            const enrollmentIsApproved =
+                isFreeEnrollment || createdEnrollment.accepted === true;
+
             setExistingEnrollmentState({
-                type: createdEnrollment.accepted ? "approved" : "pending",
-                enrollment: createdEnrollment,
+                type: enrollmentIsApproved ? "approved" : "pending",
+                enrollment: {
+                    ...createdEnrollment,
+                    accepted: enrollmentIsApproved ? true : createdEnrollment.accepted,
+                },
             });
 
             setSubmitMessage(
-                createdEnrollment.accepted
-                    ? "Matrícula registrada correctamente. Ya puedes ingresar al aula."
+                enrollmentIsApproved
+                    ? "Matrícula gratuita registrada correctamente. Ya puedes ingresar al aula."
                     : "Tu matrícula fue registrada correctamente y quedó pendiente de validación.",
             );
 
             window.setTimeout(() => {
                 router.push(
-                    createdEnrollment.accepted
-                        ? "/student/courses"
+                    enrollmentIsApproved
+                        ? `/student/courses/${course.id}`
                         : "/student/catalog",
                 );
-            }, 1400);
+            }, 1200);
         } catch (err) {
             setSubmitError(
                 err instanceof Error
@@ -803,14 +807,14 @@ export default function StudentEnrollmentPage() {
 
                                 <div>
                                     <p className="text-base font-black">
-                                        {existingEnrollmentState.type === "approved"
-                                            ? "Ya tienes matrícula aprobada"
+                                        {existingEnrollmentState.type === "rejected"
+                                            ? "Tu matrícula fue rechazada"
                                             : "Tu matrícula está pendiente de validación"}
                                     </p>
 
                                     <p className="mt-1 text-sm font-semibold opacity-80">
-                                        {existingEnrollmentState.type === "approved"
-                                            ? "Puedes ingresar al aula desde tus cursos."
+                                        {existingEnrollmentState.type === "rejected"
+                                            ? "Revisa la información enviada o vuelve a intentar la matrícula."
                                             : "Cuando el administrador apruebe el comprobante, el curso aparecerá en Mis cursos."}
                                     </p>
                                 </div>
@@ -1241,33 +1245,18 @@ export default function StudentEnrollmentPage() {
 
                                 <StepItem
                                     number={3}
-                                    title="Validación"
-                                    description="La administración revisa tu solicitud y habilita el aula."
+                                    title={course.isFree ? "Acceso habilitado" : "Validación"}
+                                    description={
+                                        course.isFree
+                                            ? "El curso gratuito se aprueba automáticamente y se habilita en Mis cursos."
+                                            : "La administración revisa tu solicitud y habilita el aula."
+                                    }
                                     active={Boolean(voucherFile) || course.isFree}
+                                    done={course.isFree}
                                 />
                             </div>
                         </article>
 
-                        <article className="rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
-                            <div className="flex gap-3">
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--secondary)] text-[var(--primary)]">
-                                    <ShieldCheck className="h-5 w-5" />
-                                </div>
-
-                                <div>
-                                    <h3 className="text-base font-black text-[var(--foreground)]">
-                                        Validación segura
-                                    </h3>
-
-                                    <p className="mt-2 text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
-                                        Tu comprobante será revisado antes de
-                                        habilitar el aula. Cuando sea aprobado,
-                                        el curso aparecerá en la sección
-                                        “Mis cursos”.
-                                    </p>
-                                </div>
-                            </div>
-                        </article>
                     </aside>
                 </div>
             </section>

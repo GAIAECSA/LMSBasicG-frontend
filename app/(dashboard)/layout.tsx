@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import type { UserRole } from "@/types/auth";
 
 type DashboardLayoutProps = {
     children: React.ReactNode;
@@ -18,13 +21,32 @@ function getPathSegments(path?: string | null): string[] {
     return normalized.split("/").filter(Boolean);
 }
 
-function isStudentRoute(pathname: string) {
+function getRouteRole(pathname: string): UserRole | null {
     const segments = getPathSegments(pathname);
 
-    return segments[0] === "student";
+    if (segments[0] === "admin") return "admin";
+    if (segments[0] === "teacher") return "teacher";
+    if (segments[0] === "student") return "student";
+
+    return null;
 }
 
-function getRoleLabel(role?: string) {
+function getEffectiveRoleByPathname(
+    userRole: UserRole | string | undefined,
+    pathname: string,
+): UserRole {
+    const routeRole = getRouteRole(pathname);
+
+    if (routeRole) return routeRole;
+
+    if (userRole === "admin" || userRole === "teacher" || userRole === "student") {
+        return userRole;
+    }
+
+    return "student";
+}
+
+function getRoleLabel(role?: UserRole | string) {
     if (role === "admin") return "Admin";
     if (role === "teacher") return "Profesor";
     if (role === "student") return "Estudiante";
@@ -61,37 +83,72 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const router = useRouter();
     const { user, signOut } = useAuth();
 
-    const studentRoute = isStudentRoute(pathname);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+    const routeRole = getRouteRole(pathname);
+    const effectiveRole = getEffectiveRoleByPathname(user?.role, pathname);
+
+    const isAdmin = effectiveRole === "admin";
+    const isStudentRoute = routeRole === "student";
+    const isTeacherRoute = routeRole === "teacher";
+    const isProfileRoute = pathname === "/profile";
+    const isHelpRoute = pathname === "/help";
 
     /*
-     * El sidebar se mantiene visible también en:
-     * /student/courses/[courseId]
+     * Sidebar visible para todos los roles.
      */
     const hideSidebar = false;
 
     /*
-     * El header superior se oculta solo en estudiante.
-     * Admin y docente mantienen header.
+     * Header:
+     * - Admin: visible.
+     * - Teacher: oculto.
+     * - Student: oculto.
+     * - Profile y Help: oculto si no es admin.
      */
-    const hideHeader = studentRoute;
+    const hideHeader =
+        !isAdmin && (isStudentRoute || isTeacherRoute || isProfileRoute || isHelpRoute);
 
     function handleLogout() {
         if (typeof signOut === "function") {
             signOut();
-        } else {
+        } else if (typeof window !== "undefined") {
             localStorage.removeItem("lmsbasicg_auth");
         }
 
         router.push("/login");
     }
 
+    function getMainClassName() {
+        if (hideHeader) {
+            return "min-h-screen w-full bg-[var(--background)]";
+        }
+
+        return "min-h-[calc(100vh-72px)] w-full bg-[var(--background)] p-5 md:p-6";
+    }
+
+    const contentPaddingClass = hideSidebar
+        ? ""
+        : sidebarCollapsed
+            ? "md:pl-20"
+            : "md:pl-[280px]";
+
     return (
         <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-            {!hideSidebar ? <Sidebar /> : null}
+            {!hideSidebar ? (
+                <Sidebar
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapsed={() =>
+                        setSidebarCollapsed((current) => !current)
+                    }
+                />
+            ) : null}
 
-            <div className="min-h-screen w-full md:pl-[280px]">
+            <div
+                className={`min-h-screen w-full transition-[padding] duration-300 ease-in-out ${contentPaddingClass}`}
+            >
                 {!hideHeader ? (
-                    <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-5 md:px-6">
+                    <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-5 shadow-sm md:px-6">
                         <div>
                             <p className="text-sm font-semibold text-[var(--muted-foreground)]">
                                 Bienvenido
@@ -102,34 +159,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                             </h1>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <span className="rounded-2xl bg-[var(--muted)] px-4 py-2 text-sm text-[var(--muted-foreground)]">
+                        <div className="flex items-center gap-3">
+                            <span className="rounded-2xl bg-[var(--muted)] px-4 py-2 text-sm font-semibold text-[var(--muted-foreground)]">
                                 Rol:{" "}
-                                <span className="font-bold text-[var(--foreground)]">
-                                    {getRoleLabel(user?.role)}
+                                <span className="font-black text-[var(--foreground)]">
+                                    {getRoleLabel(effectiveRole)}
                                 </span>
                             </span>
 
                             <button
                                 type="button"
                                 onClick={handleLogout}
-                                className="text-sm font-semibold text-[var(--muted-foreground)] transition hover:text-[var(--primary)]"
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[var(--danger)] px-4 text-sm font-black text-white shadow-sm transition hover:opacity-90 focus:outline-none focus:ring-4 focus:ring-red-200"
                             >
+                                <LogOut className="h-4 w-4" />
                                 Cerrar sesión
                             </button>
                         </div>
                     </header>
                 ) : null}
 
-                <main
-                    className={
-                        hideHeader
-                            ? "min-h-screen w-full bg-[var(--background)]"
-                            : "min-h-[calc(100vh-72px)] w-full bg-[var(--background)] p-5 md:p-6"
-                    }
-                >
-                    {children}
-                </main>
+                <main className={getMainClassName()}>{children}</main>
             </div>
         </div>
     );

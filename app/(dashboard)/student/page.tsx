@@ -1,115 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
     AlertCircle,
-    Award,
     Bell,
     BookOpen,
     CalendarDays,
+    CheckCircle2,
     ChevronRight,
-    ClipboardList,
+    Clock3,
     GraduationCap,
     ImageIcon,
-    LineChart,
     Loader2,
-    MoreHorizontal,
     RefreshCw,
-    Star,
-    UserRound,
+    Search,
+    Sparkles,
+    XCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getAllCourses, type Course } from "@/services/courses.service";
+import {
+    getEnrollmentsByUser,
+    type Enrollment,
+} from "@/services/enrollments.service";
 import { getEffectiveRoleByPathname, roleLabels } from "@/lib/constants";
-import { usePathname } from "next/navigation";
+import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
 
-type Tone = "blue" | "green" | "orange" | "purple";
-
-type SummaryCard = {
-    title: string;
-    value: string;
-    detail: string;
-    href: string;
-    tone: Tone;
+type DashboardCourse = Course & {
+    image?: string | null;
+    thumbnail?: string | null;
+    progress?: number | string | null;
+    progress_percentage?: number | string | null;
+    completion_percentage?: number | string | null;
 };
 
-type Activity = {
-    type: string;
-    title: string;
-    course: string;
-    date: string;
-    time: string;
-    tone: Tone;
-};
+type Tone = "blue" | "green" | "orange" | "purple" | "red";
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
 
-const summaryCardsBase: Omit<SummaryCard, "value">[] = [
+const toneStyles: Record<
+    Tone,
     {
-        title: "Cursos activos",
-        detail: "Ver mis cursos",
-        href: "/student/courses",
-        tone: "blue",
-    },
-    {
-        title: "Progreso promedio",
-        detail: "+12% vs. mes pasado",
-        href: "/student/courses",
-        tone: "green",
-    },
-    {
-        title: "Evaluaciones pendientes",
-        detail: "Ver pendientes",
-        href: "/student/courses",
-        tone: "orange",
-    },
-    {
-        title: "Certificados obtenidos",
-        detail: "Ver certificados",
-        href: "/student/certificates",
-        tone: "purple",
-    },
-];
-
-const activities: Activity[] = [
-    {
-        type: "Evaluación",
-        title: "Evaluación Final",
-        course: "Programación Orientada a Objetos",
-        date: "24 may",
-        time: "23:59",
-        tone: "orange",
-    },
-    {
-        type: "Tarea",
-        title: "Actividad 2: Herencia y Polimorfismo",
-        course: "Programación Orientada a Objetos",
-        date: "27 may",
-        time: "23:59",
-        tone: "blue",
-    },
-    {
-        type: "Foro",
-        title: "Foro: Buenas prácticas de código",
-        course: "Tejido Stitch",
-        date: "30 may",
-        time: "23:59",
-        tone: "green",
-    },
-    {
-        type: "Recurso",
-        title: "Lectura: Patrones de diseño",
-        course: "Programación Orientada a Objetos",
-        date: "02 jun",
-        time: "23:59",
-        tone: "purple",
-    },
-];
-
-const toneStyles = {
+        bg: string;
+        text: string;
+        soft: string;
+    }
+> = {
     blue: {
         bg: "bg-[var(--secondary)]",
         text: "text-[var(--primary)]",
@@ -130,7 +70,43 @@ const toneStyles = {
         text: "text-purple-600",
         soft: "bg-purple-50 text-purple-600",
     },
+    red: {
+        bg: "bg-[var(--danger-soft)]",
+        text: "text-[var(--danger)]",
+        soft: "bg-[var(--danger-soft)] text-[var(--danger)]",
+    },
 };
+
+function toNumber(value: unknown, fallback = 0) {
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    if (typeof value === "string") {
+        const parsed = Number(value.trim().replace(",", "."));
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    return fallback;
+}
+
+function clamp(value: number, min = 0, max = 100) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function getUserId(user: unknown) {
+    if (!user || typeof user !== "object") return null;
+
+    const value = user as {
+        id?: string | number;
+        user_id?: string | number;
+        userId?: string | number;
+    };
+
+    const userId = Number(value.id ?? value.user_id ?? value.userId);
+
+    return Number.isFinite(userId) && userId > 0 ? userId : null;
+}
 
 function getUserFullName(user: unknown) {
     if (!user || typeof user !== "object") return "Estudiante";
@@ -138,6 +114,7 @@ function getUserFullName(user: unknown) {
     const value = user as {
         firstname?: string;
         lastname?: string;
+        fullName?: string;
         name?: string;
         username?: string;
         email?: string;
@@ -146,6 +123,7 @@ function getUserFullName(user: unknown) {
     const fullName = `${value.firstname ?? ""} ${value.lastname ?? ""}`.trim();
 
     return (
+        value.fullName ||
         fullName ||
         value.name ||
         value.username ||
@@ -174,7 +152,8 @@ function buildImageUrl(imageUrl?: string | null) {
     if (
         cleanImageUrl.startsWith("http://") ||
         cleanImageUrl.startsWith("https://") ||
-        cleanImageUrl.startsWith("data:image/")
+        cleanImageUrl.startsWith("data:image/") ||
+        cleanImageUrl.startsWith("blob:")
     ) {
         return cleanImageUrl;
     }
@@ -183,15 +162,58 @@ function buildImageUrl(imageUrl?: string | null) {
         return `${API_BASE_URL}${cleanImageUrl}`;
     }
 
-    return `${API_BASE_URL}/${cleanImageUrl}`;
+    return `${API_BASE_URL}/${cleanImageUrl.replace(/^\/+/, "")}`;
 }
 
-function isCoursePublished(course: Course) {
+function getCourseImage(course: DashboardCourse) {
+    return buildImageUrl(
+        course.image_url ?? course.image ?? course.thumbnail ?? null,
+    );
+}
+
+function isCoursePublished(course: DashboardCourse) {
     if (typeof course.is_published === "boolean") {
         return course.is_published;
     }
 
     return true;
+}
+
+function isCourseOpen(course: DashboardCourse) {
+    if (typeof course.open_enrollment === "boolean") {
+        return course.open_enrollment;
+    }
+
+    return true;
+}
+
+function isFreeCourse(course: DashboardCourse) {
+    return Boolean(course.is_free) || toNumber(course.price) <= 0;
+}
+
+function formatPrice(course: DashboardCourse) {
+    if (isFreeCourse(course)) return "Gratis";
+
+    const discountPrice = toNumber(course.discount_price);
+    const price = toNumber(course.price);
+
+    const finalPrice = discountPrice > 0 && discountPrice < price ? discountPrice : price;
+
+    return new Intl.NumberFormat("es-EC", {
+        style: "currency",
+        currency: course.currency || "USD",
+    }).format(finalPrice);
+}
+
+function getCourseProgress(course: DashboardCourse) {
+    const progress = toNumber(
+        course.progress_percentage ??
+        course.completion_percentage ??
+        course.progress ??
+        0,
+    );
+
+    return clamp(Math.round(progress));
 }
 
 function formatLevel(level?: Course["level"] | string | null) {
@@ -206,101 +228,49 @@ function formatLevel(level?: Course["level"] | string | null) {
     return String(level).trim() || "Sin nivel";
 }
 
-function formatCourseModule(course: Course, index: number) {
-    if (course.total_lessons && course.total_lessons > 0) {
-        return `${course.total_lessons} lecciones`;
-    }
-
-    return `Módulo ${index + 1}`;
+function getEnrollmentCourseId(enrollment: Enrollment) {
+    return Number(enrollment.course?.id ?? 0);
 }
 
-function getCourseProgress(index: number) {
-    const values = [25, 68, 40, 85, 15, 55];
-    return values[index % values.length];
-}
+function isStudentEnrollment(enrollment: Enrollment) {
+    const roleId = Number(enrollment.role?.id ?? 0);
+    const roleName = String(enrollment.role?.name ?? "").toLowerCase();
 
-function getContinueCourse(courses: Course[]) {
-    if (courses.length === 0) return null;
-
-    const openCourse = courses.find((course) => course.open_enrollment);
-
-    return openCourse ?? courses[0];
-}
-
-function renderSummaryIcon(title: string, tone: Tone) {
-    const className = "h-7 w-7";
-    const toneClass = `${toneStyles[tone].bg} ${toneStyles[tone].text}`;
-
-    if (title.includes("Cursos")) {
-        return (
-            <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-            >
-                <BookOpen className={className} />
-            </div>
-        );
-    }
-
-    if (title.includes("Progreso")) {
-        return (
-            <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-            >
-                <LineChart className={className} />
-            </div>
-        );
-    }
-
-    if (title.includes("Evaluaciones")) {
-        return (
-            <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-            >
-                <ClipboardList className={className} />
-            </div>
-        );
-    }
+    if (!roleId && !roleName) return true;
 
     return (
-        <div
-            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-        >
-            <Award className={className} />
-        </div>
+        roleId === 4 ||
+        roleName.includes("student") ||
+        roleName.includes("estudiante")
     );
 }
 
-function renderActivityIcon(type: string, tone: Tone) {
-    const className = "h-5 w-5";
-    const toneClass = `${toneStyles[tone].bg} ${toneStyles[tone].text}`;
+function mergeEnrollmentCourse(
+    enrollment: Enrollment,
+    courseMap: Map<number, DashboardCourse>,
+): DashboardCourse {
+    const courseId = getEnrollmentCourseId(enrollment);
+    const foundCourse = courseMap.get(courseId);
 
-    if (type === "Evaluación") {
-        return (
-            <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-            >
-                <ClipboardList className={className} />
-            </div>
-        );
-    }
+    if (foundCourse) return foundCourse;
 
-    if (type === "Foro") {
-        return (
-            <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-            >
-                <UserRound className={className} />
-            </div>
-        );
-    }
-
-    return (
-        <div
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${toneClass}`}
-        >
-            <BookOpen className={className} />
-        </div>
-    );
+    return {
+        id: courseId,
+        name: enrollment.course?.name || "Curso",
+        description: "",
+        price: 0,
+        is_free: true,
+        level: "PRINCIPIANTE",
+        is_published: true,
+        open_enrollment: true,
+        duration_hours: 0,
+        total_lessons: 0,
+        image_url: "",
+        discount_price: 0,
+        currency: "USD",
+        rating: 0,
+        total_students: 0,
+    } as DashboardCourse;
 }
 
 function ImageWithFallback({
@@ -325,6 +295,7 @@ function ImageWithFallback({
     }
 
     return (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
             src={src}
             alt={alt}
@@ -359,7 +330,8 @@ function StudentTopArea({
                 </h1>
 
                 <p className="mt-3 text-sm font-semibold text-[var(--muted-foreground)] sm:text-base">
-                    Continúa tu aprendizaje y alcanza tus metas académicas.
+                    Continúa tus cursos, revisa matrículas pendientes y encuentra
+                    nuevos cursos disponibles.
                 </p>
             </div>
 
@@ -369,201 +341,115 @@ function StudentTopArea({
                     Rol: {roleLabel}
                 </div>
 
-                <button
-                    type="button"
-                    className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:bg-[var(--muted)]"
-                    aria-label="Notificaciones"
-                >
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-black text-white">
-                        3
-                    </span>
-                </button>
+                <StudentNotificationsBell />
 
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-white shadow-sm">
                     {initials}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                    {isRefreshing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                        <RefreshCw className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">Actualizar cursos</span>
-                    <span className="sm:hidden">Actualizar</span>
-                </button>
             </div>
         </div>
     );
 }
 
-function SummaryCards({ coursesCount }: { coursesCount: number }) {
-    const summaryCards: SummaryCard[] = [
-        {
-            ...summaryCardsBase[0],
-            value: String(coursesCount),
-        },
-        {
-            ...summaryCardsBase[1],
-            value: coursesCount > 0 ? "47%" : "0%",
-        },
-        {
-            ...summaryCardsBase[2],
-            value: "1",
-        },
-        {
-            ...summaryCardsBase[3],
-            value: "0",
-        },
-    ];
+function SummaryItem({
+    title,
+    value,
+    detail,
+    href,
+    tone,
+    icon,
+}: {
+    title: string;
+    value: string;
+    detail: string;
+    href: string;
+    tone: Tone;
+    icon: ReactNode;
+}) {
+    const styles = toneStyles[tone];
 
     return (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {summaryCards.map((item) => (
+        <div className="rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <div className="flex items-center gap-4">
                 <div
-                    key={item.title}
-                    className="rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm"
+                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${styles.bg} ${styles.text}`}
                 >
-                    <div className="flex items-center gap-4">
-                        {renderSummaryIcon(item.title, item.tone)}
-
-                        <div>
-                            <p className="text-sm font-semibold text-[var(--muted-foreground)]">
-                                {item.title}
-                            </p>
-
-                            <p className="mt-1 text-3xl font-black text-[var(--foreground)]">
-                                {item.value}
-                            </p>
-                        </div>
-                    </div>
-
-                    <Link
-                        href={item.href}
-                        className={`mt-4 inline-flex items-center gap-2 text-sm font-black ${item.tone === "green"
-                            ? "text-[var(--success)]"
-                            : "text-[var(--primary)]"
-                            }`}
-                    >
-                        {item.detail}
-                        <ChevronRight className="h-4 w-4" />
-                    </Link>
+                    {icon}
                 </div>
-            ))}
-        </div>
-    );
-}
 
-function ContinueLearningCard({ course }: { course: Course | null }) {
-    if (!course) {
-        return (
-            <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                <h2 className="text-lg font-black text-[var(--foreground)]">
-                    Continuar aprendiendo
-                </h2>
+                <div>
+                    <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                        {title}
+                    </p>
 
-                <div className="mt-4 rounded-2xl bg-[var(--muted)] p-6 text-center">
-                    <BookOpen className="mx-auto h-10 w-10 text-[var(--muted-foreground)]" />
-                    <p className="mt-3 text-sm font-semibold text-[var(--muted-foreground)]">
-                        Todavía no hay cursos disponibles para continuar.
+                    <p className="mt-1 text-3xl font-black text-[var(--foreground)]">
+                        {value}
                     </p>
                 </div>
             </div>
-        );
-    }
 
-    const progress = getCourseProgress(0);
-    const imageUrl = buildImageUrl(course.image_url);
-
-    return (
-        <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-black text-[var(--foreground)]">
-                    Continuar aprendiendo
-                </h2>
-
-                <button
-                    type="button"
-                    className="rounded-full p-2 text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
-                >
-                    <MoreHorizontal className="h-5 w-5" />
-                </button>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-[300px_minmax(0,1fr)]">
-                <div className="h-[145px] overflow-hidden rounded-2xl bg-[var(--muted)] sm:h-[160px]">
-                    <ImageWithFallback
-                        src={imageUrl}
-                        alt={course.name}
-                        className="h-full w-full object-cover"
-                    />
-                </div>
-
-                <div className="flex min-w-0 flex-col justify-center">
-                    <span className="mb-3 inline-flex w-fit rounded-full bg-[var(--secondary)] px-3 py-1 text-xs font-black uppercase tracking-wide text-[var(--primary)]">
-                        En progreso
-                    </span>
-
-                    <h3 className="line-clamp-1 text-xl font-black uppercase text-[var(--foreground)] sm:text-2xl">
-                        {course.name}
-                    </h3>
-
-                    <div className="mt-4 flex items-center justify-between gap-4">
-                        <p className="text-sm font-semibold text-[var(--muted-foreground)]">
-                            {course.total_lessons && course.total_lessons > 0
-                                ? `Lección 1 de ${course.total_lessons}`
-                                : "Lección 1"}
-                        </p>
-
-                        <p className="text-sm font-black text-[var(--primary)]">
-                            {progress}%
-                        </p>
-                    </div>
-
-                    <div className="mt-2 h-2 rounded-full bg-[var(--muted)]">
-                        <div
-                            className="h-2 rounded-full bg-[var(--primary)]"
-                            style={{ width: `${progress}%` }}
-                        />
-                    </div>
-
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                        <Link
-                            href={`/student/courses/${course.id}`}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-5 text-sm font-black text-white shadow-sm transition hover:opacity-95"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                            Entrar al aula
-                        </Link>
-
-                        <Link
-                            href={`/student/courses/${course.id}`}
-                            className="inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-black text-[var(--primary)] transition hover:bg-[var(--secondary)]"
-                        >
-                            Ver detalles del curso
-                        </Link>
-                    </div>
-                </div>
-            </div>
+            <Link
+                href={href}
+                className={`mt-4 inline-flex items-center gap-2 text-sm font-black ${styles.text}`}
+            >
+                {detail}
+                <ChevronRight className="h-4 w-4" />
+            </Link>
         </div>
     );
 }
 
-function CourseMiniCard({
-    course,
-    index,
+function SummaryCards({
+    activeCount,
+    pendingCount,
+    rejectedCount,
+    newCount,
+    averageProgress,
 }: {
-    course: Course;
-    index: number;
+    activeCount: number;
+    pendingCount: number;
+    rejectedCount: number;
+    newCount: number;
+    averageProgress: number;
 }) {
-    const progress = getCourseProgress(index);
-    const imageUrl = buildImageUrl(course.image_url);
+    return (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SummaryItem
+                title="Cursos activos"
+                value={String(activeCount)}
+                detail="Ver mis cursos"
+                href="/student/courses"
+                tone="blue"
+                icon={<BookOpen className="h-7 w-7" />}
+            />
+
+
+            <SummaryItem
+                title="Matrículas pendientes"
+                value={String(pendingCount)}
+                detail="Ver pendientes"
+                href="/student/courses"
+                tone="orange"
+                icon={<Clock3 className="h-7 w-7" />}
+            />
+
+            <SummaryItem
+                title="Nuevos cursos"
+                value={String(newCount)}
+                detail="Buscar cursos"
+                href="/student/catalog"
+                tone={rejectedCount > 0 ? "red" : "purple"}
+                icon={<Sparkles className="h-7 w-7" />}
+            />
+        </div>
+    );
+}
+
+
+function CourseMiniCard({ course }: { course: DashboardCourse }) {
+    const progress = getCourseProgress(course);
+    const imageUrl = getCourseImage(course);
 
     return (
         <article className="overflow-hidden rounded-[22px] border border-[var(--border)] bg-white shadow-sm">
@@ -577,13 +463,6 @@ function CourseMiniCard({
                 <span className="absolute left-3 top-3 rounded-md bg-white px-3 py-1 text-[11px] font-black uppercase text-[var(--primary)] shadow-sm">
                     {formatLevel(course.level)}
                 </span>
-
-                <button
-                    type="button"
-                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-xl bg-white text-[var(--foreground)] shadow-sm"
-                >
-                    <MoreHorizontal className="h-5 w-5" />
-                </button>
             </div>
 
             <div className="p-4">
@@ -594,7 +473,9 @@ function CourseMiniCard({
                         </h3>
 
                         <p className="mt-1 text-sm font-semibold text-[var(--muted-foreground)]">
-                            {formatCourseModule(course, index)}
+                            {course.total_lessons && course.total_lessons > 0
+                                ? `${course.total_lessons} lecciones`
+                                : "Curso activo"}
                         </p>
                     </div>
 
@@ -618,38 +499,24 @@ function CourseMiniCard({
                             : "Sin duración"}
                     </div>
 
-                    <span
-                        className={`rounded-lg px-3 py-1 text-xs font-black ${course.open_enrollment
-                            ? "bg-[var(--success-soft)] text-[var(--success)]"
-                            : "bg-[var(--muted)] text-[var(--muted-foreground)]"
-                            }`}
-                    >
-                        {course.open_enrollment ? "En progreso" : "Cerrado"}
+                    <span className="rounded-lg bg-[var(--success-soft)] px-3 py-1 text-xs font-black text-[var(--success)]">
+                        Aprobado
                     </span>
                 </div>
 
-                <div className="mt-4 grid grid-cols-[1fr_48px] gap-2">
-                    <Link
-                        href={`/student/courses/${course.id}`}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-white text-sm font-black text-[var(--primary)] transition hover:bg-[var(--secondary)]"
-                    >
-                        <BookOpen className="h-4 w-4" />
-                        Entrar al aula
-                    </Link>
-
-                    <button
-                        type="button"
-                        className="flex h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-white text-[var(--primary)] transition hover:bg-[var(--secondary)]"
-                    >
-                        <Star className="h-4 w-4" />
-                    </button>
-                </div>
+                <Link
+                    href={`/student/courses/${course.id}`}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-white text-sm font-black text-[var(--primary)] transition hover:bg-[var(--secondary)]"
+                >
+                    <BookOpen className="h-4 w-4" />
+                    Entrar al aula
+                </Link>
             </div>
         </article>
     );
 }
 
-function MyCoursesSection({ courses }: { courses: Course[] }) {
+function MyCoursesSection({ courses }: { courses: DashboardCourse[] }) {
     return (
         <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-4">
@@ -661,7 +528,7 @@ function MyCoursesSection({ courses }: { courses: Course[] }) {
                     href="/student/courses"
                     className="inline-flex items-center gap-1 text-sm font-black text-[var(--primary)]"
                 >
-                    Ver todos mis cursos
+                    Ver todos
                     <ChevronRight className="h-4 w-4" />
                 </Link>
             </div>
@@ -670,17 +537,13 @@ function MyCoursesSection({ courses }: { courses: Course[] }) {
                 <div className="rounded-2xl bg-[var(--muted)] p-6 text-center">
                     <BookOpen className="mx-auto h-10 w-10 text-[var(--muted-foreground)]" />
                     <p className="mt-3 text-sm font-semibold text-[var(--muted-foreground)]">
-                        No se encontraron cursos para mostrar.
+                        No tienes cursos aprobados todavía.
                     </p>
                 </div>
             ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
-                    {courses.slice(0, 2).map((course, index) => (
-                        <CourseMiniCard
-                            key={course.id}
-                            course={course}
-                            index={index}
-                        />
+                    {courses.slice(0, 2).map((course) => (
+                        <CourseMiniCard key={course.id} course={course} />
                     ))}
                 </div>
             )}
@@ -688,92 +551,149 @@ function MyCoursesSection({ courses }: { courses: Course[] }) {
     );
 }
 
-function UpcomingActivities() {
+function PendingEnrollmentsPanel({
+    pendingEnrollments,
+    rejectedEnrollments,
+    courseMap,
+}: {
+    pendingEnrollments: Enrollment[];
+    rejectedEnrollments: Enrollment[];
+    courseMap: Map<number, DashboardCourse>;
+}) {
+    const items = [...pendingEnrollments, ...rejectedEnrollments].slice(0, 5);
+
     return (
-        <aside className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm xl:h-full">
+        <aside className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <CalendarDays className="h-5 w-5 text-[var(--primary)]" />
+                    <Clock3 className="h-5 w-5 text-[var(--warning)]" />
                     <h2 className="text-lg font-black text-[var(--foreground)]">
-                        Próximas actividades
+                        Matrículas pendientes
                     </h2>
                 </div>
 
                 <Link
-                    href="/student/calendar"
+                    href="/student/courses"
                     className="inline-flex items-center gap-1 text-sm font-black text-[var(--primary)]"
                 >
-                    Ver calendario
+                    Ver todo
                     <ChevronRight className="h-4 w-4" />
                 </Link>
             </div>
 
-            <div className="divide-y divide-[var(--border)]">
-                {activities.map((activity) => {
-                    const tone = toneStyles[activity.tone];
+            {items.length === 0 ? (
+                <div className="rounded-2xl bg-[var(--muted)] p-5 text-center">
+                    <CheckCircle2 className="mx-auto h-9 w-9 text-[var(--success)]" />
+                    <p className="mt-3 text-sm font-semibold text-[var(--muted-foreground)]">
+                        No tienes matrículas pendientes.
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {items.map((enrollment) => {
+                        const course = mergeEnrollmentCourse(enrollment, courseMap);
+                        const isRejected = enrollment.accepted === false;
 
-                    return (
-                        <div
-                            key={`${activity.type}-${activity.title}`}
-                            className="flex gap-4 py-4 first:pt-0 last:pb-0"
-                        >
-                            {renderActivityIcon(activity.type, activity.tone)}
-
-                            <div className="min-w-0 flex-1">
-                                <span
-                                    className={`inline-flex rounded px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${tone.soft}`}
+                        return (
+                            <div
+                                key={enrollment.id}
+                                className="flex items-center gap-3 rounded-2xl bg-[var(--muted)] p-4"
+                            >
+                                <div
+                                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${isRejected
+                                        ? "bg-[var(--danger-soft)] text-[var(--danger)]"
+                                        : "bg-[var(--warning-soft)] text-[var(--warning)]"
+                                        }`}
                                 >
-                                    {activity.type}
-                                </span>
+                                    {isRejected ? (
+                                        <XCircle className="h-5 w-5" />
+                                    ) : (
+                                        <Clock3 className="h-5 w-5" />
+                                    )}
+                                </div>
 
-                                <h3 className="mt-2 line-clamp-1 text-sm font-black text-[var(--foreground)] sm:text-base">
-                                    {activity.title}
-                                </h3>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="line-clamp-1 text-sm font-black text-[var(--foreground)]">
+                                        {course.name}
+                                    </h3>
 
-                                <p className="mt-1 line-clamp-1 text-sm font-semibold text-[var(--muted-foreground)]">
-                                    {activity.course}
-                                </p>
+                                    <p
+                                        className={`mt-1 text-xs font-black ${isRejected
+                                            ? "text-[var(--danger)]"
+                                            : "text-[var(--warning)]"
+                                            }`}
+                                    >
+                                        {isRejected ? "No aprobado" : "En revisión"}
+                                    </p>
+                                </div>
+
+                                <Link
+                                    href={`/student/enrollment/${course.id}`}
+                                    className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-[var(--primary)] shadow-sm transition hover:bg-[var(--secondary)]"
+                                >
+                                    Revisar
+                                </Link>
                             </div>
-
-                            <div className="shrink-0 text-right text-xs font-bold text-[var(--muted-foreground)] sm:text-sm">
-                                <p>{activity.date}</p>
-                                <p>{activity.time}</p>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <Link
-                href="/student/calendar"
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black text-[var(--primary)] transition hover:bg-[var(--secondary)]"
-            >
-                Ver todas las actividades
-                <ChevronRight className="h-4 w-4" />
-            </Link>
+                        );
+                    })}
+                </div>
+            )}
         </aside>
     );
 }
 
-async function getVisibleCoursesFromApi() {
-    const response = await getAllCourses();
+function NewCourseCard({ course }: { course: DashboardCourse }) {
+    const imageUrl = getCourseImage(course);
 
-    const courses = Array.isArray(response) ? response : [];
+    return (
+        <article className="overflow-hidden rounded-[22px] border border-[var(--border)] bg-white shadow-sm">
+            <div className="relative h-[115px] bg-[var(--muted)]">
+                <ImageWithFallback
+                    src={imageUrl}
+                    alt={course.name}
+                    className="h-full w-full object-cover"
+                />
 
-    const visibleCourses = courses.filter((course) => {
-        if (isCoursePublished(course)) return true;
-        if (course.open_enrollment) return true;
-        return false;
-    });
+                <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/70 to-transparent" />
 
-    return visibleCourses.length > 0 ? visibleCourses : courses;
+                <span className="absolute left-3 top-3 rounded-full bg-[var(--primary)] px-3 py-1 text-[10px] font-black uppercase text-white">
+                    {formatLevel(course.level)}
+                </span>
+
+                <span className="absolute bottom-3 right-3 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase text-[var(--primary)]">
+                    {formatPrice(course)}
+                </span>
+            </div>
+
+            <div className="p-4">
+                <h3 className="line-clamp-1 text-sm font-black text-[var(--foreground)]">
+                    {course.name}
+                </h3>
+
+                <p className="mt-2 line-clamp-2 min-h-[40px] text-xs font-semibold leading-5 text-[var(--muted-foreground)]">
+                    {course.description ||
+                        "Curso disponible para iniciar tu aprendizaje."}
+                </p>
+
+                <Link
+                    href={`/student/enrollment/${course.id}`}
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 text-sm font-black text-white transition hover:opacity-95"
+                >
+                    <BookOpen className="h-4 w-4" />
+                    Matricularme
+                </Link>
+            </div>
+        </article>
+    );
 }
+
 
 export default function StudentPage() {
     const pathname = usePathname();
     const { user } = useAuth();
 
-    const [courses, setCourses] = useState<Course[]>([]);
+    const [courses, setCourses] = useState<DashboardCourse[]>([]);
+    const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
@@ -783,65 +703,122 @@ export default function StudentPage() {
 
     const displayName = getUserFullName(user);
     const initials = getInitials(displayName);
+    const userId = getUserId(user);
 
-    function handleRefreshCourses() {
-        setIsRefreshing(true);
-        setErrorMessage("");
+    const courseMap = useMemo(() => {
+        return new Map(courses.map((course) => [Number(course.id), course]));
+    }, [courses]);
 
-        getVisibleCoursesFromApi()
-            .then((data) => {
-                setCourses(data);
-            })
-            .catch((error) => {
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : "No se pudo cargar la lista de cursos.";
+    const studentEnrollments = useMemo(() => {
+        return enrollments.filter(isStudentEnrollment);
+    }, [enrollments]);
 
-                setErrorMessage(message);
-                setCourses([]);
-            })
-            .finally(() => {
-                setIsRefreshing(false);
-            });
+    const approvedEnrollments = useMemo(() => {
+        return studentEnrollments.filter((enrollment) => enrollment.accepted === true);
+    }, [studentEnrollments]);
+
+    const pendingEnrollments = useMemo(() => {
+        return studentEnrollments.filter((enrollment) => enrollment.accepted === null);
+    }, [studentEnrollments]);
+
+    const rejectedEnrollments = useMemo(() => {
+        return studentEnrollments.filter((enrollment) => enrollment.accepted === false);
+    }, [studentEnrollments]);
+
+    const myCourses = useMemo(() => {
+        return approvedEnrollments.map((enrollment) =>
+            mergeEnrollmentCourse(enrollment, courseMap),
+        );
+    }, [approvedEnrollments, courseMap]);
+
+    const enrolledCourseIds = useMemo(() => {
+        return new Set(
+            studentEnrollments
+                .map((enrollment) => getEnrollmentCourseId(enrollment))
+                .filter((courseId) => courseId > 0),
+        );
+    }, [studentEnrollments]);
+
+    const newCourses = useMemo(() => {
+        return courses.filter((course) => {
+            const courseId = Number(course.id);
+
+            return (
+                isCoursePublished(course) &&
+                isCourseOpen(course) &&
+                !enrolledCourseIds.has(courseId)
+            );
+        });
+    }, [courses, enrolledCourseIds]);
+
+    const continueCourse = useMemo(() => {
+        return (
+            myCourses
+                .slice()
+                .sort((a, b) => getCourseProgress(b) - getCourseProgress(a))[0] ??
+            null
+        );
+    }, [myCourses]);
+
+    const averageProgress = useMemo(() => {
+        if (myCourses.length === 0) return 0;
+
+        const totalProgress = myCourses.reduce(
+            (total, course) => total + getCourseProgress(course),
+            0,
+        );
+
+        return Math.round(totalProgress / myCourses.length);
+    }, [myCourses]);
+
+    async function loadDashboardData(isRefresh = false) {
+        try {
+            if (isRefresh) {
+                setIsRefreshing(true);
+            } else {
+                setIsLoading(true);
+            }
+
+            setErrorMessage("");
+
+            const [coursesResponse, enrollmentsResponse] = await Promise.all([
+                getAllCourses(),
+                userId ? getEnrollmentsByUser(userId) : Promise.resolve([]),
+            ]);
+
+            const validCourses = Array.isArray(coursesResponse)
+                ? (coursesResponse as DashboardCourse[]).filter(isCoursePublished)
+                : [];
+
+            const validEnrollments = Array.isArray(enrollmentsResponse)
+                ? enrollmentsResponse
+                : [];
+
+            setCourses(validCourses);
+            setEnrollments(validEnrollments);
+        } catch (error) {
+            setCourses([]);
+            setEnrollments([]);
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo cargar la información del estudiante.",
+            );
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
     }
 
     useEffect(() => {
-        let isMounted = true;
-
-        const timer = window.setTimeout(() => {
-            getVisibleCoursesFromApi()
-                .then((data) => {
-                    if (!isMounted) return;
-
-                    setCourses(data);
-                    setErrorMessage("");
-                })
-                .catch((error) => {
-                    if (!isMounted) return;
-
-                    const message =
-                        error instanceof Error
-                            ? error.message
-                            : "No se pudo cargar la lista de cursos.";
-
-                    setErrorMessage(message);
-                    setCourses([]);
-                })
-                .finally(() => {
-                    if (!isMounted) return;
-
-                    setIsLoading(false);
-                });
+        const timeoutId = window.setTimeout(() => {
+            void loadDashboardData(false);
         }, 0);
 
         return () => {
-            isMounted = false;
-            window.clearTimeout(timer);
+            window.clearTimeout(timeoutId);
         };
-    }, []);
-
-    const continueCourse = useMemo(() => getContinueCourse(courses), [courses]);
+    }, [userId]);
 
     return (
         <section className="min-h-screen space-y-5 bg-[var(--background)] px-4 py-5 pt-16 text-[var(--foreground)] sm:space-y-6 sm:px-5 md:px-6 md:pt-5 xl:px-8">
@@ -850,7 +827,7 @@ export default function StudentPage() {
                 roleLabel={roleLabel}
                 initials={initials}
                 isRefreshing={isRefreshing}
-                onRefresh={handleRefreshCourses}
+                onRefresh={() => void loadDashboardData(true)}
             />
 
             {errorMessage ? (
@@ -858,7 +835,7 @@ export default function StudentPage() {
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <div>
                         <p className="font-black">
-                            No se pudieron cargar los cursos.
+                            No se pudo cargar el resumen.
                         </p>
                         <p className="mt-1">{errorMessage}</p>
                     </div>
@@ -875,25 +852,88 @@ export default function StudentPage() {
                     ))}
                 </div>
             ) : (
-                <SummaryCards coursesCount={courses.length} />
+                <SummaryCards
+                    activeCount={myCourses.length}
+                    pendingCount={pendingEnrollments.length}
+                    rejectedCount={rejectedEnrollments.length}
+                    newCount={newCourses.length}
+                    averageProgress={averageProgress}
+                />
             )}
 
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_500px] 2xl:grid-cols-[minmax(0,1fr)_560px]">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
                 <div className="space-y-5">
-                    {isLoading ? (
-                        <div className="h-[250px] animate-pulse rounded-[24px] border border-[var(--border)] bg-white" />
-                    ) : (
-                        <ContinueLearningCard course={continueCourse} />
-                    )}
-
                     {isLoading ? (
                         <div className="h-[300px] animate-pulse rounded-[24px] border border-[var(--border)] bg-white" />
                     ) : (
-                        <MyCoursesSection courses={courses} />
+                        <MyCoursesSection courses={myCourses} />
                     )}
                 </div>
 
-                <UpcomingActivities />
+                <div className="space-y-5">
+                    <PendingEnrollmentsPanel
+                        pendingEnrollments={pendingEnrollments}
+                        rejectedEnrollments={rejectedEnrollments}
+                        courseMap={courseMap}
+                    />
+
+                    <div className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <Sparkles className="h-5 w-5 text-[var(--primary)]" />
+                                <h2 className="text-lg font-black text-[var(--foreground)]">
+                                    Recomendados
+                                </h2>
+                            </div>
+
+                            <Link
+                                href="/student/catalog"
+                                className="inline-flex items-center gap-1 text-sm font-black text-[var(--primary)]"
+                            >
+                                Ver catálogo
+                                <ChevronRight className="h-4 w-4" />
+                            </Link>
+                        </div>
+
+                        {newCourses.length === 0 ? (
+                            <div className="rounded-2xl bg-[var(--muted)] p-5 text-center">
+                                <p className="text-sm font-semibold text-[var(--muted-foreground)]">
+                                    No hay cursos nuevos por ahora.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {newCourses.slice(0, 3).map((course) => (
+                                    <Link
+                                        key={course.id}
+                                        href={`/student/enrollment/${course.id}`}
+                                        className="flex items-center gap-3 rounded-2xl bg-[var(--muted)] p-3 transition hover:bg-[var(--secondary)]"
+                                    >
+                                        <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-white">
+                                            <ImageWithFallback
+                                                src={getCourseImage(course)}
+                                                alt={course.name}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="line-clamp-1 text-sm font-black text-[var(--foreground)]">
+                                                {course.name}
+                                            </h3>
+
+                                            <p className="mt-1 text-xs font-black text-[var(--primary)]">
+                                                {formatPrice(course)}
+                                            </p>
+                                        </div>
+
+                                        <ChevronRight className="h-4 w-4 text-[var(--primary)]" />
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </section>
     );

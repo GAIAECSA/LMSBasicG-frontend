@@ -8,6 +8,7 @@ const AUTH_STORAGE_KEY = "lmsbasicg_auth";
 
 export interface RegisterPayload {
     username: string;
+    idnumber: string;
     firstname: string;
     lastname: string;
     email: string;
@@ -328,7 +329,12 @@ function resolveRole(value: unknown): UserRole {
         return "admin";
     }
 
-    if (roleId === 3 || raw === "teacher" || raw === "docente" || raw === "profesor") {
+    if (
+        roleId === 3 ||
+        raw === "teacher" ||
+        raw === "docente" ||
+        raw === "profesor"
+    ) {
         return "teacher";
     }
 
@@ -344,10 +350,15 @@ function normalizeCurrentUserResponse(payload: unknown): AuthUser {
     const firstname = asString(source.firstname).trim();
     const lastname = asString(source.lastname).trim();
     const username = asString(source.username ?? source.email).trim();
+    const idnumber = asString(source.idnumber).trim();
     const email = asString(source.email).trim();
 
     const phoneNumber = asString(
         source.phone_number ?? source.phoneNumber ?? source.phone,
+    ).trim();
+
+    const departament = asString(
+        source.departament ?? source.department,
     ).trim();
 
     const roleId = asNumber(source.role_id ?? source.roleId) ?? 2;
@@ -357,20 +368,25 @@ function normalizeCurrentUserResponse(payload: unknown): AuthUser {
         asString(source.fullName ?? source.full_name).trim() ||
         [firstname, lastname].filter(Boolean).join(" ").trim() ||
         username ||
+        idnumber ||
         email ||
         "Usuario";
 
-    return {
+    const normalizedUser = {
         id: asString(source.id, ""),
         username,
+        idnumber,
         firstname,
         lastname,
         fullName,
         email,
         phone_number: phoneNumber,
+        departament,
         role_id: roleId,
         role: resolveRole(rawRole),
     };
+
+    return normalizedUser as AuthUser;
 }
 
 export async function getCurrentUserService(
@@ -433,6 +449,7 @@ export async function registerService(
         },
         body: JSON.stringify({
             username: payload.username.trim(),
+            idnumber: payload.idnumber.trim(),
             password: payload.password,
             firstname: payload.firstname.trim(),
             lastname: payload.lastname.trim(),
@@ -450,6 +467,118 @@ export async function registerService(
         message: extractMessage(data) || "Usuario registrado correctamente.",
         user: null,
     };
+}
+
+export interface UpdateCurrentUserPayload {
+    password?: string;
+    firstname?: string;
+    lastname?: string;
+    email?: string;
+    phone_number?: string | null;
+    departament?: string | null;
+}
+
+type CurrentUserForUpdate = AuthUser & {
+    username?: string | null;
+    idnumber?: string | null;
+    firstname?: string | null;
+    lastname?: string | null;
+    email?: string | null;
+    phone_number?: string | null;
+    departament?: string | null;
+};
+
+type UpdateUserByIdPayload = {
+    username: string;
+    idnumber: string;
+    firstname: string;
+    lastname: string;
+    email: string;
+    phone_number: string;
+    departament: string;
+    password?: string;
+};
+
+function buildUpdateUserByIdPayload(
+    currentUser: CurrentUserForUpdate,
+    payload: UpdateCurrentUserPayload,
+): UpdateUserByIdPayload {
+    const body: UpdateUserByIdPayload = {
+        username: currentUser.username?.trim() || "",
+        idnumber: currentUser.idnumber?.trim() || "",
+        firstname:
+            payload.firstname !== undefined
+                ? payload.firstname.trim()
+                : currentUser.firstname?.trim() || "",
+        lastname:
+            payload.lastname !== undefined
+                ? payload.lastname.trim()
+                : currentUser.lastname?.trim() || "",
+        email:
+            payload.email !== undefined
+                ? payload.email.trim()
+                : currentUser.email?.trim() || "",
+        phone_number:
+            payload.phone_number !== undefined
+                ? payload.phone_number?.trim() || ""
+                : currentUser.phone_number?.trim() || "",
+        departament:
+            payload.departament !== undefined
+                ? payload.departament?.trim() || ""
+                : currentUser.departament?.trim() || "",
+    };
+
+    if (payload.password?.trim()) {
+        body.password = payload.password.trim();
+    }
+
+    return body;
+}
+
+export async function updateCurrentUserService(
+    userId: string | number,
+    payload: UpdateCurrentUserPayload,
+): Promise<AuthUser> {
+    const currentUser = (await getCurrentUserService()) as CurrentUserForUpdate;
+
+    const numericUserId = Number(currentUser.id || userId);
+
+    if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
+        throw new Error("No se encontró el ID válido del usuario logeado.");
+    }
+
+    const response = await fetch(
+        `${API_URL}/api/v1/users/users/${numericUserId}`,
+        {
+            method: "PUT",
+            headers: {
+                ...buildAuthHeaders(),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(
+                buildUpdateUserByIdPayload(currentUser, payload),
+            ),
+            cache: "no-store",
+        },
+    );
+
+    const data = await parseResponse<unknown>(response);
+    const updatedUser = normalizeCurrentUserResponse(data);
+
+    const currentSession = getStoredAuthSession();
+
+    if (currentSession) {
+        saveAuthSession({
+            ...currentSession,
+            user: updatedUser,
+        });
+    }
+
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("lmsbasicg_auth_updated"));
+    }
+
+    return updatedUser;
 }
 
 export function logoutService() {

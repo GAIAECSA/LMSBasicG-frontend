@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getAllCourses, type Course } from "@/services/courses.service";
+import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
 
 type CatalogFilter = "all" | "free" | "paid" | "open" | "offers";
 type LevelFilter = "all" | "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO";
@@ -40,6 +41,15 @@ type CourseWithExtraFields = Course & {
     category_name?: string | null;
     subcategory?: string | null;
     subcategory_name?: string | null;
+
+    is_mdt?: boolean | number | string | null;
+    is_mdt_course?: boolean | number | string | null;
+    mdt?: boolean | number | string | null;
+    course_type?: string | null;
+    type?: string | null;
+    modality?: string | null;
+    origin?: string | null;
+    source?: string | null;
 };
 
 const API_BASE_URL =
@@ -176,6 +186,36 @@ function isCoursePublished(course: CourseWithExtraFields) {
     return true;
 }
 
+function isMdtCourse(course: CourseWithExtraFields) {
+    const values = [
+        course.is_mdt,
+        course.is_mdt_course,
+        course.mdt,
+        course.course_type,
+        course.type,
+        course.modality,
+        course.origin,
+        course.source,
+    ];
+
+    return values.some((value) => {
+        if (typeof value === "boolean") return value;
+        if (typeof value === "number") return value === 1;
+
+        if (typeof value === "string") {
+            const normalizedValue = value.trim().toLowerCase();
+
+            return (
+                normalizedValue === "1" ||
+                normalizedValue === "true" ||
+                normalizedValue.includes("mdt")
+            );
+        }
+
+        return false;
+    });
+}
+
 function getUserFullName(user: unknown) {
     if (!user || typeof user !== "object") return "Estudiante";
 
@@ -286,35 +326,14 @@ function PageTopBar({
                 Rol: Estudiante
             </span>
 
-            <button
-                type="button"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:bg-[var(--muted)]"
-                aria-label="Notificaciones"
-            >
-                <Bell className="h-5 w-5" />
+            <StudentNotificationsBell />
 
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-black text-[var(--primary-foreground)]">
-                    3
-                </span>
-            </button>
+
 
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-[var(--primary-foreground)] shadow-sm">
                 {initials}
             </div>
 
-            <button
-                type="button"
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-                {isRefreshing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                    <RefreshCw className="h-4 w-4" />
-                )}
-                Actualizar
-            </button>
         </div>
     );
 }
@@ -435,6 +454,7 @@ function CourseCard({ course }: { course: CourseWithExtraFields }) {
     const durationHours = Number(course.duration_hours || 0);
     const hasOffer = hasCourseOffer(course);
     const discountPercentage = getDiscountPercentage(course);
+    const isMdt = isMdtCourse(course);
 
     return (
         <article className="overflow-hidden rounded-[26px] border border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -458,10 +478,16 @@ function CourseCard({ course }: { course: CourseWithExtraFields }) {
                     </div>
                 ) : null}
 
-                <div className="absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-2">
-                    <span className="rounded-full bg-[var(--primary)] px-3 py-1 text-xs font-black uppercase text-[var(--primary-foreground)] shadow-sm">
+                <div className="absolute left-4 top-4 flex max-w-[78%] flex-wrap gap-2">
+                    <span className="rounded-full bg-[var(--primary)] px-3 py-1 text-xs font-black uppercase text-white shadow-sm">
                         {level}
                     </span>
+
+                    {isMdt ? (
+                        <span className="rounded-full bg-purple-600 px-3 py-1 text-xs font-black uppercase text-white shadow-sm">
+                            MDT
+                        </span>
+                    ) : null}
 
                     {available ? (
                         <span className="rounded-full bg-[var(--success)] px-3 py-1 text-xs font-black uppercase text-white shadow-sm">
@@ -536,10 +562,10 @@ function CourseCard({ course }: { course: CourseWithExtraFields }) {
                 <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
                     <Link
                         href={`/student/enrollment/${course.id}`}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black !text-white shadow-sm transition hover:opacity-95"
                     >
-                        <BookOpen className="h-4 w-4" />
-                        Matricularme
+                        <BookOpen className="h-4 w-4 text-white" />
+                        <span className="text-white">Matricularme</span>
                     </Link>
                 </div>
             </div>

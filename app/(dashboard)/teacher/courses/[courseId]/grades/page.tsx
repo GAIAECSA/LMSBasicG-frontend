@@ -1,4 +1,4 @@
-import { TeacherQuizGradesView } from "@/components/teacher/teacher-quiz-grades-view";
+import { TeacherQuizGradesView } from "@/components/teacher/teacher-grades";
 
 type TeacherCourseGradesPageProps = {
     params: Promise<{

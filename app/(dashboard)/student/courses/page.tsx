@@ -19,6 +19,7 @@ import {
     RefreshCw,
     Search,
     SlidersHorizontal,
+    UserCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,8 +30,10 @@ import {
 } from "@/services/enrollments.service";
 import { getAuthSession } from "@/lib/auth";
 import { getEffectiveRoleByPathname, roleLabels } from "@/lib/constants";
+import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
 
 type CourseFilter = "all" | "progress" | "completed";
+type CourseAccessRole = "student" | "teacher";
 
 type SessionUserWithRole = {
     id?: number | string;
@@ -40,6 +43,7 @@ type SessionUserWithRole = {
 };
 
 type CourseWithExtraFields = Course & {
+    [key: string]: unknown;
     image?: string | null;
     image_url?: string | null;
     course_image_url?: string | null;
@@ -48,14 +52,102 @@ type CourseWithExtraFields = Course & {
     subcategory?: string | null;
     category_name?: string | null;
     subcategory_name?: string | null;
+    description?: string | null;
+    total_lessons?: number | string | null;
+    lessons_count?: number | string | null;
+    modules_count?: number | string | null;
+    total_modules?: number | string | null;
+    modules?: unknown[] | null;
+};
+
+type EnrollmentWithExtraFields = Enrollment & {
+    [key: string]: unknown;
+    course_id?: number | string | null;
+    role_id?: number | string | null;
+    role?: string | null;
+    user_role_id?: number | string | null;
+    user_role?: string | null;
+    is_teacher?: boolean | null;
+    teacher_id?: number | string | null;
+    teacher_user_id?: number | string | null;
+    docente_id?: number | string | null;
+    course?: CourseWithExtraFields | null;
+    user?: {
+        id?: number | string;
+        firstname?: string;
+        lastname?: string;
+        fullName?: string;
+        name?: string;
+        username?: string;
+        email?: string;
+        role_id?: number | string;
+        role?: string;
+    } | null;
 };
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
 
+const ROLE_ID_TEACHER = 3;
+const ROLE_ID_STUDENT = 4;
+
+function readRecord(value: unknown) {
+    if (!value || typeof value !== "object") return null;
+    return value as Record<string, unknown>;
+}
+
+function toNumericId(value: unknown) {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    if (typeof value === "string") {
+        const cleanValue = value.replace("%", "").trim();
+
+        if (!cleanValue) return null;
+
+        const numericValue = Number(cleanValue);
+
+        return Number.isFinite(numericValue) ? numericValue : null;
+    }
+
+    return null;
+}
+
+function toText(value: unknown): string {
+    if (value === null || value === undefined) return "";
+
+    if (typeof value === "string" || typeof value === "number") {
+        return String(value).trim();
+    }
+
+    if (typeof value === "object") {
+        const record = value as Record<string, unknown>;
+
+        return (
+            toText(record.name) ||
+            toText(record.title) ||
+            toText(record.label)
+        );
+    }
+
+    return "";
+}
+
+function cleanText(value: unknown) {
+    return toText(value)
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 function getUserFullName(user: unknown) {
-    if (!user || typeof user !== "object") return "Estudiante";
+    if (!user || typeof user !== "object") return "Usuario";
 
     const value = user as {
         firstname?: string;
@@ -74,14 +166,14 @@ function getUserFullName(user: unknown) {
         value.name ||
         value.username ||
         value.email?.split("@")[0] ||
-        "Estudiante"
+        "Usuario"
     );
 }
 
 function getInitials(name: string) {
     const words = name.trim().split(/\s+/).filter(Boolean);
 
-    if (words.length === 0) return "ES";
+    if (words.length === 0) return "US";
 
     if (words.length === 1) {
         return words[0].slice(0, 2).toUpperCase();
@@ -128,97 +220,351 @@ function getCourseCategory(course: CourseWithExtraFields | null) {
     if (!course) return "Curso académico";
 
     return (
-        course.subcategory_name ||
-        course.category_name ||
-        course.subcategory ||
-        course.category ||
+        cleanText(course.subcategory_name) ||
+        cleanText(course.category_name) ||
+        cleanText(course.subcategory) ||
+        cleanText(course.category) ||
         "Curso académico"
     );
 }
 
 function getEnrollmentCourseId(enrollment: Enrollment) {
-    const value = enrollment as Enrollment & {
-        course_id?: number | string | null;
-    };
+    const value = enrollment as EnrollmentWithExtraFields;
 
     return Number(value.course?.id ?? value.course_id ?? 0);
 }
 
-function isApprovedStudentEnrollment(enrollment: Enrollment) {
-    const courseId = getEnrollmentCourseId(enrollment);
+function getCourseTitle(
+    enrollment: Enrollment,
+    course: CourseWithExtraFields | null,
+) {
+    const value = enrollment as EnrollmentWithExtraFields;
 
-    return enrollment.accepted === true && courseId > 0;
+    return cleanText(value.course?.name) || cleanText(course?.name) || "Curso";
 }
 
-function getCourseProgress(index: number) {
-    const values = [25, 68, 40, 85, 15, 55, 100];
-    return values[index % values.length];
+function getCourseDescription(
+    enrollment: Enrollment,
+    course: CourseWithExtraFields | null,
+) {
+    const value = enrollment as EnrollmentWithExtraFields;
+
+    return (
+        cleanText(value.course?.description) ||
+        cleanText(course?.description) ||
+        "Curso disponible en tu aula virtual."
+    );
 }
 
-function getCourseLastActivity(index: number) {
-    const dates = [
-        "18 may 2024",
-        "30 may 2024",
-        "20 may 2024",
-        "22 may 2024",
-        "25 may 2024",
-        "02 jun 2024",
+function formatDate(value: unknown) {
+    const text = toText(value);
+
+    if (!text) return "";
+
+    const date = new Date(text);
+
+    if (Number.isNaN(date.getTime())) {
+        return text;
+    }
+
+    return new Intl.DateTimeFormat("es-EC", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(date);
+}
+
+function getCourseAccessRole(
+    enrollment: Enrollment,
+    sessionUser: SessionUserWithRole | undefined,
+    currentUserId: number,
+): CourseAccessRole {
+    const enrollmentRecord = readRecord(enrollment);
+    const userRecord = readRecord((enrollment as EnrollmentWithExtraFields).user);
+    const sessionRecord = readRecord(sessionUser);
+
+    const teacherIds = [
+        enrollmentRecord?.teacher_id,
+        enrollmentRecord?.teacher_user_id,
+        enrollmentRecord?.docente_id,
     ];
 
-    return dates[index % dates.length];
-}
+    const isTeacherById =
+        currentUserId > 0 &&
+        teacherIds.some((value) => toNumericId(value) === currentUserId);
 
-function getNextActivity(enrollment: Enrollment, progress: number) {
-    if (progress >= 100) return "No hay actividades pendientes";
-
-    const courseName = enrollment.course?.name?.toLowerCase() ?? "";
-
-    if (courseName.includes("programación") || courseName.includes("programacion")) {
-        return "Actividad 2: Herencia y Polimorfismo";
+    if ((enrollment as EnrollmentWithExtraFields).is_teacher === true) {
+        return "teacher";
     }
 
-    if (courseName.includes("stitch") || courseName.includes("tejido")) {
-        return "Video: Puntadas básicas";
+    if (isTeacherById) {
+        return "teacher";
     }
 
-    return "Continuar con el siguiente recurso";
+    const roleId =
+        toNumericId(enrollmentRecord?.course_role_id) ??
+        toNumericId(enrollmentRecord?.user_course_role_id) ??
+        toNumericId(enrollmentRecord?.role_id) ??
+        toNumericId(enrollmentRecord?.user_role_id) ??
+        toNumericId(userRecord?.role_id) ??
+        toNumericId(sessionRecord?.role_id) ??
+        toNumericId(sessionRecord?.roleId);
+
+    const roleText = [
+        toText(enrollmentRecord?.course_role),
+        toText(enrollmentRecord?.user_course_role),
+        toText(enrollmentRecord?.role),
+        toText(enrollmentRecord?.user_role),
+        toText(userRecord?.role),
+        toText(sessionRecord?.role),
+    ]
+        .join(" ")
+        .toLowerCase();
+
+    if (
+        roleId === ROLE_ID_TEACHER ||
+        roleText.includes("docente") ||
+        roleText.includes("teacher") ||
+        roleText.includes("profesor")
+    ) {
+        return "teacher";
+    }
+
+    if (
+        roleId === ROLE_ID_STUDENT ||
+        roleText.includes("estudiante") ||
+        roleText.includes("student")
+    ) {
+        return "student";
+    }
+
+    return "student";
 }
 
-function getLessonsLabel(course: CourseWithExtraFields | null, index: number) {
-    const totalLessons = Number(course?.total_lessons || 0);
+function isActiveUserCourseEnrollment(
+    enrollment: Enrollment,
+    sessionUser: SessionUserWithRole | undefined,
+    currentUserId: number,
+) {
+    const courseId = getEnrollmentCourseId(enrollment);
 
-    if (totalLessons > 0) {
+    if (courseId <= 0) return false;
+
+    const accessRole = getCourseAccessRole(enrollment, sessionUser, currentUserId);
+    const accepted = (enrollment as EnrollmentWithExtraFields).accepted;
+
+    if (accessRole === "teacher") {
+        return accepted !== false;
+    }
+
+    return accepted === true;
+}
+
+function getUniqueActiveCourseEnrollments(
+    enrollments: Enrollment[],
+    sessionUser: SessionUserWithRole | undefined,
+    currentUserId: number,
+) {
+    const result: Enrollment[] = [];
+    const seen = new Set<string>();
+
+    enrollments.forEach((enrollment) => {
+        if (!isActiveUserCourseEnrollment(enrollment, sessionUser, currentUserId)) {
+            return;
+        }
+
+        const courseId = getEnrollmentCourseId(enrollment);
+        const accessRole = getCourseAccessRole(
+            enrollment,
+            sessionUser,
+            currentUserId,
+        );
+        const key = `${courseId}-${accessRole}`;
+
+        if (seen.has(key)) return;
+
+        seen.add(key);
+        result.push(enrollment);
+    });
+
+    return result;
+}
+
+function getCourseProgress(
+    enrollment: Enrollment,
+    course: CourseWithExtraFields | null,
+) {
+    const enrollmentRecord = readRecord(enrollment);
+    const courseRecord = readRecord(course);
+
+    const progressCandidates = [
+        enrollmentRecord?.progress_percent,
+        enrollmentRecord?.progress,
+        enrollmentRecord?.percentage,
+        enrollmentRecord?.course_progress,
+        enrollmentRecord?.completed_percentage,
+        courseRecord?.progress_percent,
+        courseRecord?.progress,
+        courseRecord?.percentage,
+        courseRecord?.course_progress,
+    ]
+        .map(toNumericId)
+        .filter((value): value is number => value !== null);
+
+    if (progressCandidates.length > 0) {
+        return Math.max(0, Math.min(100, Math.round(progressCandidates[0])));
+    }
+
+    const statusText = [
+        toText(enrollmentRecord?.status),
+        toText(courseRecord?.status),
+    ]
+        .join(" ")
+        .toLowerCase();
+
+    if (
+        enrollmentRecord?.completed === true ||
+        enrollmentRecord?.is_completed === true ||
+        statusText.includes("completado") ||
+        statusText.includes("completed")
+    ) {
+        return 100;
+    }
+
+    return 0;
+}
+
+function getCourseLastActivity(enrollment: Enrollment) {
+    const record = readRecord(enrollment);
+
+    return (
+        formatDate(record?.last_activity_at) ||
+        formatDate(record?.last_activity) ||
+        formatDate(record?.lastAccessAt) ||
+        "Sin actividad registrada"
+    );
+}
+
+function getNextActivity(
+    enrollment: Enrollment,
+    course: CourseWithExtraFields | null,
+    accessRole: CourseAccessRole,
+) {
+    const enrollmentRecord = readRecord(enrollment);
+    const courseRecord = readRecord(course);
+
+    const nextActivity =
+        cleanText(enrollmentRecord?.next_activity) ||
+        cleanText(enrollmentRecord?.nextActivity) ||
+        cleanText(enrollmentRecord?.next_lesson_name) ||
+        cleanText(enrollmentRecord?.next_block_name) ||
+        cleanText(courseRecord?.next_activity);
+
+    if (nextActivity) return nextActivity;
+
+    if (accessRole === "teacher") {
+        return "Gestionar módulos, actividades y estudiantes";
+    }
+
+    return "Continuar desde el aula del curso";
+}
+
+function getLessonsLabel(course: CourseWithExtraFields | null) {
+    const record = readRecord(course);
+
+    const totalLessons =
+        toNumericId(record?.total_lessons) ??
+        toNumericId(record?.lessons_count);
+
+    if (totalLessons && totalLessons > 0) {
         return `${totalLessons} lecciones`;
     }
 
-    return `Módulo ${index + 1}`;
+    const totalModules =
+        toNumericId(record?.modules_count) ?? toNumericId(record?.total_modules);
+
+    if (totalModules && totalModules > 0) {
+        return `${totalModules} módulos`;
+    }
+
+    if (Array.isArray(course?.modules) && course.modules.length > 0) {
+        return `${course.modules.length} módulos`;
+    }
+
+    return "Aula virtual";
 }
 
-function getStatusLabel(progress: number) {
+function getStatusLabel(progress: number, accessRole: CourseAccessRole) {
+    if (accessRole === "teacher") return "Docente asignado";
     if (progress >= 100) return "Completado";
-    return "En progreso";
+    if (progress > 0) return "En progreso";
+    return "Matrícula aprobada";
+}
+
+function getAccessRoleLabel(accessRole: CourseAccessRole) {
+    return accessRole === "teacher" ? "Docente" : "Estudiante";
+}
+
+function getCourseWorkspaceHref(courseId: number, accessRole: CourseAccessRole) {
+    if (accessRole === "teacher") {
+        return `/teacher/courses/${courseId}`;
+    }
+
+    return `/student/courses/${courseId}?tab=summary`;
+}
+
+function getRoleBadgeClass(accessRole: CourseAccessRole) {
+    if (accessRole === "teacher") {
+        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+    }
+
+    return "bg-[var(--secondary)] text-[var(--primary)]";
+}
+
+function getStatusBadgeClass(completed: boolean, accessRole: CourseAccessRole) {
+    if (accessRole === "teacher") {
+        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+    }
+
+    if (completed) {
+        return "bg-[var(--success-soft)] text-[var(--success)]";
+    }
+
+    return "bg-[var(--secondary)] text-[var(--primary)]";
 }
 
 function getFilteredEnrollments(
     enrollments: Enrollment[],
+    coursesById: Record<number, CourseWithExtraFields>,
     filter: CourseFilter,
     searchTerm: string,
 ) {
     const cleanSearchTerm = searchTerm.trim().toLowerCase();
 
-    return enrollments.filter((enrollment, index) => {
-        const progress = getCourseProgress(index);
+    return enrollments.filter((enrollment) => {
+        const courseId = getEnrollmentCourseId(enrollment);
+        const course =
+            coursesById[courseId] ??
+            ((enrollment as EnrollmentWithExtraFields).course ?? null);
+
+        const progress = getCourseProgress(enrollment, course);
 
         const matchesFilter =
             filter === "all" ||
             (filter === "progress" && progress < 100) ||
             (filter === "completed" && progress >= 100);
 
-        const courseName = enrollment.course?.name?.toLowerCase() ?? "";
+        const searchContent = [
+            getCourseTitle(enrollment, course),
+            getCourseDescription(enrollment, course),
+            getCourseCategory(course),
+        ]
+            .join(" ")
+            .toLowerCase();
 
         const matchesSearch =
             cleanSearchTerm.length === 0 ||
-            courseName.includes(cleanSearchTerm);
+            searchContent.includes(cleanSearchTerm);
 
         return matchesFilter && matchesSearch;
     });
@@ -274,34 +620,12 @@ function PageTopBar({
                 Rol: {roleLabel}
             </span>
 
-            <button
-                type="button"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] shadow-sm transition hover:bg-[var(--muted)]"
-                aria-label="Notificaciones"
-            >
-                <Bell className="h-5 w-5" />
-                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-black text-white">
-                    3
-                </span>
-            </button>
+            <StudentNotificationsBell />
 
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-white shadow-sm">
                 {initials}
             </div>
 
-            <button
-                type="button"
-                onClick={onRefresh}
-                disabled={isRefreshing}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-                {isRefreshing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                    <RefreshCw className="h-4 w-4" />
-                )}
-                <span className="hidden sm:inline">Actualizar</span>
-            </button>
         </div>
     );
 }
@@ -309,138 +633,165 @@ function PageTopBar({
 function CourseCard({
     enrollment,
     course,
-    index,
+    accessRole,
 }: {
     enrollment: Enrollment;
     course: CourseWithExtraFields | null;
-    index: number;
+    accessRole: CourseAccessRole;
 }) {
-    const progress = getCourseProgress(index);
+    const displayCourse =
+        course ?? ((enrollment as EnrollmentWithExtraFields).course ?? null);
+
+    const progress = getCourseProgress(enrollment, displayCourse);
     const completed = progress >= 100;
     const courseId = getEnrollmentCourseId(enrollment);
-    const courseName = enrollment.course?.name || course?.name || "Curso";
-    const imageUrl = getCourseImage(course);
-    const category = getCourseCategory(course);
-    const lastActivity = getCourseLastActivity(index);
+    const courseName = getCourseTitle(enrollment, displayCourse);
+    const description = getCourseDescription(enrollment, displayCourse);
+    const imageUrl = getCourseImage(displayCourse);
+    const category = getCourseCategory(displayCourse);
+    const accessRoleLabel = getAccessRoleLabel(accessRole);
+    const href = getCourseWorkspaceHref(courseId, accessRole);
+
+    const isTeacher = accessRole === "teacher";
+    const showProgress = !isTeacher;
 
     return (
-        <article className="overflow-hidden rounded-[26px] border border-[var(--border)] bg-[var(--card)] shadow-sm">
-            <div className="grid min-h-[260px] gap-0 lg:grid-cols-[380px_minmax(0,1fr)_280px]">
-                <div className="h-[220px] overflow-hidden bg-[var(--muted)] lg:h-[260px]">
+        <article
+            className={`group overflow-hidden rounded-[26px] border bg-[var(--card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isTeacher ? "border-green-200" : "border-[var(--border)]"
+                }`}
+        >
+            <div className="grid gap-0 xl:h-[220px] xl:grid-cols-[285px_minmax(0,1fr)_245px]">
+                <div className="relative h-[190px] overflow-hidden bg-[var(--muted)] xl:h-[220px]">
                     <ImageWithFallback
                         src={imageUrl}
                         alt={courseName}
-                        className="h-full w-full object-cover object-center"
+                        className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-105"
                     />
-                </div>
 
-                <div className="min-w-0 p-5 md:p-6">
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/75 to-transparent" />
+
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
                         <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-wide ${completed
-                                ? "bg-[var(--success-soft)] text-[var(--success)]"
-                                : "bg-[var(--secondary)] text-[var(--primary)]"
+                            className={`rounded-full px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ${isTeacher ? "bg-green-600" : "bg-[var(--primary)]"
                                 }`}
                         >
-                            {getStatusLabel(progress)}
+                            {accessRoleLabel}
                         </span>
 
-                        <span className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--muted-foreground)]">
-                            <Folder className="h-4 w-4" />
-                            {category}
+                        {!isTeacher ? (
+                            <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black text-[var(--foreground)] shadow-sm">
+                                {progress}%
+                            </span>
+                        ) : null}
+                    </div>
+                </div>
+
+                <div className="flex min-w-0 flex-col justify-center p-5 xl:h-[220px]">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span
+                            className={`inline-flex rounded-full px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide ${isTeacher
+                                ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                                : completed
+                                    ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                    : "bg-[var(--secondary)] text-[var(--primary)]"
+                                }`}
+                        >
+                            {isTeacher
+                                ? "Docente asignado"
+                                : getStatusLabel(progress, accessRole)}
+                        </span>
+
+                        <span className="inline-flex max-w-[220px] items-center gap-1.5 truncate rounded-full bg-[var(--muted)] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[var(--muted-foreground)]">
+                            <Folder className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{category}</span>
                         </span>
                     </div>
 
-                    <h2 className="mt-3 line-clamp-2 text-2xl font-black tracking-tight text-[var(--foreground)]">
+                    <h2 className="mt-3 line-clamp-1 text-2xl font-black tracking-tight text-[var(--foreground)]">
                         {courseName}
                     </h2>
 
-                    <div className="mt-4 border-t border-[var(--border)] pt-4">
-                        <div className="flex items-center justify-between gap-4">
-                            <p className="text-sm font-semibold text-[var(--muted-foreground)]">
-                                Progreso del curso
+                    <p className="mt-2 line-clamp-2 max-w-3xl text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
+                        {description}
+                    </p>
+
+                    {showProgress ? (
+                        <div className="mt-5">
+                            <div className="mb-2 flex items-center justify-between gap-4">
+                                <span className="text-[10px] font-black uppercase tracking-wide text-[var(--muted-foreground)]">
+                                    Progreso del curso
+                                </span>
+
+                                <span
+                                    className={`text-sm font-black ${completed
+                                        ? "text-[var(--success)]"
+                                        : "text-[var(--primary)]"
+                                        }`}
+                                >
+                                    {progress}%
+                                </span>
+                            </div>
+
+                            <div className="h-2 overflow-hidden rounded-full bg-[var(--muted)]">
+                                <div
+                                    className={`h-full rounded-full transition-all duration-500 ${completed
+                                        ? "bg-[var(--success)]"
+                                        : "bg-[var(--primary)]"
+                                        }`}
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="mt-4 rounded-2xl bg-[var(--muted)]/70 px-4 py-3">
+                            <p className="text-xs font-bold text-[var(--muted-foreground)]">
+                                Acceso docente
                             </p>
-
-                            <p
-                                className={`text-sm font-black ${completed
-                                    ? "text-[var(--success)]"
-                                    : "text-[var(--primary)]"
-                                    }`}
-                            >
-                                {progress}%
+                            <p className="mt-1 text-sm font-semibold leading-6 text-[var(--foreground)]">
+                                Puedes administrar módulos, actividades y estudiantes del curso.
                             </p>
                         </div>
-
-                        <div className="mt-2 h-2 rounded-full bg-[var(--muted)]">
-                            <div
-                                className={`h-2 rounded-full ${completed
-                                    ? "bg-[var(--success)]"
-                                    : "bg-[var(--primary)]"
-                                    }`}
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--muted)] text-[var(--muted-foreground)]">
-                                <CalendarDays className="h-5 w-5" />
-                            </div>
-
-                            <div>
-                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
-                                    Última actividad
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--muted)] text-[var(--muted-foreground)]">
-                                <SlidersHorizontal className="h-5 w-5" />
-                            </div>
-
-                            <div className="min-w-0">
-                                <p className="text-xs font-bold text-[var(--muted-foreground)]">
-                                    Próxima actividad
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
-                <div className="flex flex-col justify-center gap-5 border-t border-[var(--border)] p-5 lg:border-l lg:border-t-0 md:p-6">
-                    <div className="flex items-center justify-between lg:justify-end">
-                        <span className="inline-flex items-center gap-2 rounded-xl bg-[var(--muted)] px-3 py-2 text-xs font-black text-[var(--muted-foreground)]">
-                            <Clock3 className="h-4 w-4" />
-                            {getLessonsLabel(course, index)}
-                        </span>
+                <aside className="flex h-full flex-col justify-between gap-3 border-t border-[var(--border)] bg-[var(--background)]/60 p-4 xl:h-[220px] xl:border-l xl:border-t-0">
 
-                        <button
-                            type="button"
-                            className="flex h-10 w-10 items-center justify-center rounded-xl text-[var(--muted-foreground)] transition hover:bg-[var(--muted)]"
-                            aria-label="Más opciones"
+                    <div
+                        className={`rounded-[18px] border px-4 py-3 ${isTeacher
+                            ? "border-green-200 bg-green-50"
+                            : "border-[var(--border)] bg-[var(--card)]"
+                            }`}
+                    >
+                        <p
+                            className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide ${isTeacher
+                                ? "text-green-700"
+                                : "text-[var(--primary)]"
+                                }`}
                         >
-                            <MoreVertical className="h-5 w-5" />
-                        </button>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Acceso
+                        </p>
+
+                        <p className="mt-2 text-[18px] font-black leading-tight text-[var(--foreground)]">
+                            {accessRoleLabel}
+                        </p>
+
+                        <p className="mt-2 line-clamp-2 text-[11px] font-semibold leading-5 text-[var(--muted-foreground)]">
+                            {isTeacher
+                                ? "Administrar módulos, actividades y estudiantes."
+                                : "Continuar desde el resumen del aula."}
+                        </p>
                     </div>
 
                     <Link
-                        href={`/student/courses/${courseId}`}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black !text-white shadow-sm transition hover:opacity-95 [&_svg]:!text-white"
+                        href={href}
+                        className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-2xl px-4 text-xs font-black !text-white shadow-sm transition hover:opacity-95 [&_svg]:!text-white ${isTeacher ? "bg-green-600" : "bg-[var(--primary)]"
+                            }`}
                     >
-                        Detalles del curso
-                        <ChevronRight className="h-4 w-4" />
+                        Ir al curso
+                        <ChevronRight className="h-3.5 w-3.5" />
                     </Link>
-
-                    <Link
-                        href={`/student/courses/${courseId}?tab=summary`}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl px-5 text-sm font-black text-[var(--primary)] transition hover:bg-[var(--secondary)]"
-                    >
-                        Detalles del curso
-                        <ChevronRight className="h-4 w-4" />
-                    </Link>
-                </div>
+                </aside>
             </div>
         </article>
     );
@@ -449,6 +800,10 @@ function CourseCard({
 export default function StudentCoursesPage() {
     const pathname = usePathname();
     const { user } = useAuth();
+
+    const authSession = getAuthSession();
+    const sessionUser = authSession?.user as SessionUserWithRole | undefined;
+    const currentUserId = toNumericId(user?.id ?? sessionUser?.id) ?? 0;
 
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [coursesById, setCoursesById] = useState<
@@ -465,53 +820,77 @@ export default function StudentCoursesPage() {
     const effectiveRole = getEffectiveRoleByPathname(user?.role, pathname);
     const roleLabel = roleLabels[effectiveRole];
 
-    const inProgressCount = enrollments.filter(
-        (_, index) => getCourseProgress(index) < 100,
-    ).length;
+    const inProgressCount = enrollments.filter((enrollment) => {
+        const courseId = getEnrollmentCourseId(enrollment);
+        const course =
+            coursesById[courseId] ??
+            ((enrollment as EnrollmentWithExtraFields).course ?? null);
 
-    const completedCount = enrollments.filter(
-        (_, index) => getCourseProgress(index) >= 100,
-    ).length;
+        return getCourseProgress(enrollment, course) < 100;
+    }).length;
+
+    const completedCount = enrollments.filter((enrollment) => {
+        const courseId = getEnrollmentCourseId(enrollment);
+        const course =
+            coursesById[courseId] ??
+            ((enrollment as EnrollmentWithExtraFields).course ?? null);
+
+        return getCourseProgress(enrollment, course) >= 100;
+    }).length;
 
     const filteredEnrollments = useMemo(
-        () => getFilteredEnrollments(enrollments, activeFilter, searchTerm),
-        [enrollments, activeFilter, searchTerm],
+        () =>
+            getFilteredEnrollments(
+                enrollments,
+                coursesById,
+                activeFilter,
+                searchTerm,
+            ),
+        [enrollments, coursesById, activeFilter, searchTerm],
     );
 
-    const loadStudentCourses = useCallback(async () => {
+    const loadMyCourses = useCallback(async () => {
         const session = getAuthSession();
-        const sessionUser = session?.user as SessionUserWithRole | undefined;
-        const userId = Number(user?.id ?? sessionUser?.id);
+        const localSessionUser = session?.user as SessionUserWithRole | undefined;
+        const userId = Number(user?.id ?? localSessionUser?.id);
 
         if (!userId || Number.isNaN(userId)) {
-            throw new Error("No se pudo identificar al estudiante autenticado.");
+            throw new Error("No se pudo identificar al usuario autenticado.");
         }
 
-        const [enrollmentsResponse, coursesResponse] = await Promise.all([
-            getEnrollmentsByUser(userId),
-            getAllCourses(),
-        ]);
+        const enrollmentsResponse = await getEnrollmentsByUser(userId);
 
-        const approvedStudentEnrollments = Array.isArray(enrollmentsResponse)
-            ? enrollmentsResponse.filter(isApprovedStudentEnrollment)
+        let coursesResponse: Course[] = [];
+
+        try {
+            const data = await getAllCourses();
+            coursesResponse = Array.isArray(data) ? data : [];
+        } catch {
+            coursesResponse = [];
+        }
+
+        const myCourseEnrollments = Array.isArray(enrollmentsResponse)
+            ? getUniqueActiveCourseEnrollments(
+                enrollmentsResponse,
+                localSessionUser,
+                userId,
+            )
             : [];
 
-        const coursesMap = Array.isArray(coursesResponse)
-            ? (coursesResponse as CourseWithExtraFields[]).reduce<
-                Record<number, CourseWithExtraFields>
-            >((accumulator, course) => {
-                const courseId = Number(course.id);
+        const coursesMap = coursesResponse.reduce<
+            Record<number, CourseWithExtraFields>
+        >((accumulator, course) => {
+            const courseId = Number(course.id);
 
-                if (courseId > 0) {
-                    accumulator[courseId] = course;
-                }
+            if (courseId > 0) {
+                accumulator[courseId] = course as CourseWithExtraFields;
+            }
 
-                return accumulator;
-            }, {})
-            : {};
+            return accumulator;
+        }, {});
 
         return {
-            approvedStudentEnrollments,
+            myCourseEnrollments,
             coursesMap,
         };
     }, [user?.id]);
@@ -521,9 +900,9 @@ export default function StudentCoursesPage() {
             setIsRefreshing(true);
             setErrorMessage("");
 
-            const data = await loadStudentCourses();
+            const data = await loadMyCourses();
 
-            setEnrollments(data.approvedStudentEnrollments);
+            setEnrollments(data.myCourseEnrollments);
             setCoursesById(data.coursesMap);
         } catch (error) {
             setEnrollments([]);
@@ -531,7 +910,7 @@ export default function StudentCoursesPage() {
             setErrorMessage(
                 error instanceof Error
                     ? error.message
-                    : "No se pudieron cargar tus cursos matriculados.",
+                    : "No se pudieron cargar tus cursos.",
             );
         } finally {
             setIsRefreshing(false);
@@ -542,11 +921,11 @@ export default function StudentCoursesPage() {
         let isMounted = true;
 
         const timer = window.setTimeout(() => {
-            loadStudentCourses()
+            loadMyCourses()
                 .then((data) => {
                     if (!isMounted) return;
 
-                    setEnrollments(data.approvedStudentEnrollments);
+                    setEnrollments(data.myCourseEnrollments);
                     setCoursesById(data.coursesMap);
                     setErrorMessage("");
                 })
@@ -558,7 +937,7 @@ export default function StudentCoursesPage() {
                     setErrorMessage(
                         error instanceof Error
                             ? error.message
-                            : "No se pudieron cargar tus cursos matriculados.",
+                            : "No se pudieron cargar tus cursos.",
                     );
                 })
                 .finally(() => {
@@ -572,7 +951,7 @@ export default function StudentCoursesPage() {
             isMounted = false;
             window.clearTimeout(timer);
         };
-    }, [loadStudentCourses]);
+    }, [loadMyCourses]);
 
     return (
         <section className="min-h-screen bg-[var(--background)] px-4 py-5 pt-16 text-[var(--foreground)] sm:px-5 md:px-8 md:pt-7 xl:px-10">
@@ -583,8 +962,8 @@ export default function StudentCoursesPage() {
                     </h1>
 
                     <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[var(--muted-foreground)] sm:text-base">
-                        Aquí aparecen únicamente los cursos donde tienes una
-                        matrícula aprobada.
+                        Aquí aparecen tus cursos activos. En cada curso se
+                        indica si tu acceso es como estudiante o como docente.
                     </p>
                 </div>
 
@@ -683,12 +1062,12 @@ export default function StudentCoursesPage() {
                     <BookOpen className="mx-auto h-12 w-12 text-[var(--muted-foreground)]" />
 
                     <h2 className="mt-4 text-xl font-black text-[var(--foreground)]">
-                        No tienes cursos matriculados
+                        No tienes cursos activos
                     </h2>
 
                     <p className="mt-2 text-sm font-semibold text-[var(--muted-foreground)]">
-                        Para acceder a un aula, primero debes matricularte desde
-                        el catálogo y esperar la aprobación si corresponde.
+                        Para acceder a un aula como estudiante, primero debes
+                        matricularte desde el catálogo y esperar la aprobación.
                     </p>
 
                     <Link
@@ -700,23 +1079,32 @@ export default function StudentCoursesPage() {
                 </div>
             ) : (
                 <div className="space-y-5">
-                    {filteredEnrollments.map((enrollment, index) => {
+                    {filteredEnrollments.map((enrollment) => {
                         const courseId = getEnrollmentCourseId(enrollment);
-                        const course = coursesById[courseId] ?? null;
+                        const course =
+                            coursesById[courseId] ??
+                            ((enrollment as EnrollmentWithExtraFields).course ??
+                                null);
+
+                        const accessRole = getCourseAccessRole(
+                            enrollment,
+                            sessionUser,
+                            currentUserId,
+                        );
 
                         return (
                             <CourseCard
-                                key={enrollment.id}
+                                key={`${enrollment.id}-${courseId}-${accessRole}`}
                                 enrollment={enrollment}
                                 course={course}
-                                index={index}
+                                accessRole={accessRole}
                             />
                         );
                     })}
 
                     <p className="pb-4 text-center text-sm font-semibold text-[var(--muted-foreground)]">
                         Mostrando {filteredEnrollments.length} de{" "}
-                        {enrollments.length} cursos matriculados
+                        {enrollments.length} cursos activos
                     </p>
                 </div>
             )}

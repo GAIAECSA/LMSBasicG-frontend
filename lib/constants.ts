@@ -13,20 +13,24 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             href: "/admin",
         },
         {
-            label: "Usuarios",
-            href: "/admin/users",
+            label: "Gestión de usuarios",
+            children: [
+                {
+                    label: "Usuarios",
+                    href: "/admin/users",
+                },
+                {
+                    label: "Docentes",
+                    href: "/admin/teachers",
+                },
+                {
+                    label: "Estudiantes",
+                    href: "/admin/students",
+                },
+            ],
         },
         {
-            label: "Docentes",
-            href: "/admin/teachers",
-        },
-        {
-            label: "Estudiantes",
-            href: "/admin/students",
-        },
-        {
-            label: "Cursos",
-            href: "/admin/courses",
+            label: "Cursos y contenidos",
             children: [
                 {
                     label: "Lista de cursos",
@@ -40,23 +44,66 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     label: "Subcategorías",
                     href: "/admin/courses/subcategories",
                 },
+                {
+                    label: "Módulos",
+                    href: "/admin/modules",
+                },
             ],
         },
         {
-            label: "Módulos",
-            href: "/admin/modules",
+            label: "Matrículas y notas",
+            children: [
+                {
+                    label: "Matrículas",
+                    href: "/admin/enrollments",
+                },
+                {
+                    label: "Matrículación Masiva",
+                    href: "/admin/bulk-enrollment"
+                },
+                {
+                    label: "Asistencia Estudiante",
+                    href: "/admin/attendance/student",
+                },
+                {
+                    label: "Asistencia Profesor",
+                    href: "/admin/attendance/teacher",
+                },
+                {
+                    label: "Calificaciones",
+                    href: "/admin/grades",
+                },
+            ],
         },
         {
-            label: "Matrículas",
-            href: "/admin/enrollments",
+            label: "Certificados y MDT",
+            children: [
+                {
+                    label: "Certificados",
+                    href: "/admin/certificates",
+                },
+                {
+                    label: "Archivos MDT",
+                    href: "/admin/mdt-required-files",
+                },
+                {
+                    label: "Certificados MDT",
+                    href: "/admin/mdt-certificados",
+                },
+            ],
         },
         {
-            label: "Calificaciones",
-            href: "/admin/grades",
-        },
-        {
-            label: "Certificados",
-            href: "/admin/certificates",
+            label: "Administración",
+            children: [
+                {
+                    label: "Reportes",
+                    href: "/admin/reports",
+                },
+                {
+                    label: "Políticas de privacidad",
+                    href: "/admin/privacy",
+                },
+            ],
         },
     ],
 
@@ -70,12 +117,21 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             href: "/teacher/courses",
         },
         {
-            label: "Calificaciones",
-            href: "/teacher/grades",
-        },
-        {
-            label: "Certificados",
-            href: "/teacher/certificates",
+            label: "Evaluación",
+            children: [
+                {
+                    label: "Calificaciones",
+                    href: "/teacher/grades",
+                },
+                {
+                    label: "Certificados",
+                    href: "/teacher/certificates",
+                },
+                {
+                    label: "Certificados MDT",
+                    href: "/teacher/mdt-certificados",
+                },
+            ],
         },
     ],
 
@@ -121,15 +177,22 @@ export function getEffectiveRoleByPathname(
 }
 
 export function getTeacherCourseIdFromPathname(pathname: string): string | null {
-    const match = pathname.match(/^\/teacher\/courses\/([^/]+)/);
+    const match = pathname.match(/^\/teacher\/courses\/(\d+)(?:\/.*)?$/);
 
     return match?.[1] ?? null;
 }
 
 export function getStudentCourseIdFromPathname(pathname: string): string | null {
-    const match = pathname.match(/^\/student\/courses\/([^/]+)/);
+    const match = pathname.match(/^\/student\/courses\/(\d+)(?:\/.*)?$/);
 
     return match?.[1] ?? null;
+}
+
+export function getAdminCourseIdFromPathname(pathname: string): string | null {
+    const courseMatch = pathname.match(/^\/admin\/courses\/(\d+)(?:\/.*)?$/);
+    const modulesMatch = pathname.match(/^\/admin\/modules\/(\d+)(?:\/.*)?$/);
+
+    return courseMatch?.[1] ?? modulesMatch?.[1] ?? null;
 }
 
 export function getSidebarItemsByRoute(
@@ -158,13 +221,17 @@ export function getSidebarItemsByRoute(
 
     return [
         {
+            label: "Mis cursos",
+            href: "/student/courses",
+        },
+        {
             label: "Curso actual",
             href: `/teacher/courses/${courseId}`,
             children: [
-                {
-                    label: "Presentación",
-                    href: `/teacher/courses/${courseId}`,
-                },
+                /*                 {
+                                    label: "Presentación",
+                                    href: `/teacher/courses/${courseId}`,
+                                }, */
                 {
                     label: "Módulos",
                     href: `/teacher/courses/${courseId}/modules`,
@@ -177,19 +244,27 @@ export function getSidebarItemsByRoute(
                     label: "Certificados",
                     href: `/teacher/courses/${courseId}/certificates`,
                 },
+                {
+                    label: "Mi Asistencia",
+                    href: `/teacher/courses/${courseId}/my-attendance`,
+                },
+                {
+                    label: "Asistencia Estudiante",
+                    href: `/teacher/courses/${courseId}/attendance`,
+                },
+                {
+                    label: "Certificados MDT",
+                    href: `/teacher/courses/${courseId}/mdt-certificados`,
+                },
+                {
+                    label: "Archivos MDT",
+                    href: `/teacher/courses/${courseId}/mdt-required-files`,
+                }
             ],
         },
-        {
-            label: "Mis cursos",
-            href: "/teacher/courses",
-        },
-        {
-            label: "Calificaciones",
-            href: "/teacher/grades",
-        },
-        {
-            label: "Certificados",
-            href: "/teacher/certificates",
-        },
+/*         {
+            label: "Reportes",
+            href: `/teacher/courses/${courseId}/reports`,
+        } */
     ];
 }

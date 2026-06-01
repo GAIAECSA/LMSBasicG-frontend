@@ -1,0 +1,33 @@
+import type { LessonItemState } from "../hook";
+
+type TextSectionProps = {
+    item: LessonItemState;
+};
+
+export function TextSection({ item }: TextSectionProps) {
+    if (item.itemType !== "text") return null;
+
+    return (
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-black text-slate-950">
+                Texto de la lección
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+                Este bloque se guarda como texto simple.
+            </p>
+
+            <textarea
+                value={item.form.text}
+                onChange={(event) =>
+                    item.setForm((current) => ({
+                        ...current,
+                        text: event.target.value,
+                    }))
+                }
+                placeholder="Escribe el texto que verá el estudiante..."
+                className="mt-5 min-h-[360px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium leading-7 text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            />
+        </div>
+    );
+}

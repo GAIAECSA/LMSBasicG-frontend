@@ -262,17 +262,13 @@ function hasDiscount(course: CourseSummary) {
 
 const theme = {
     card: "border border-[var(--border)] bg-[var(--card)] shadow-sm",
-    cardGradient: "border border-[var(--border)] [background:var(--gradient-card)] shadow-sm",
     mutedCard: "border border-[var(--border)] bg-[var(--muted)]",
     textMain: "text-[var(--foreground)]",
-    textMuted: "text-[var(--muted-foreground)]",
     primaryText: "text-[var(--primary)]",
     primaryBg: "bg-[var(--primary)] text-[var(--primary-foreground)]",
     primarySoft: "bg-[var(--secondary)] text-[var(--secondary-foreground)]",
     gradientSoft: "[background:var(--gradient-soft)]",
-    gradientPrimary: "[background:var(--gradient-primary)] text-[var(--primary-foreground)]",
     successSoft: "bg-[var(--success-soft)] text-[var(--success)]",
-    dangerSoft: "border border-[var(--danger)] bg-[var(--danger-soft)] text-[var(--danger)]",
     overlay: "bg-gradient-to-t from-black/75 via-black/20 to-transparent",
 };
 
@@ -288,8 +284,8 @@ function StatusBadge({
     return (
         <span
             className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${active
-                ? theme.successSoft
-                : "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                    ? theme.successSoft
+                    : "bg-[var(--muted)] text-[var(--muted-foreground)]"
                 }`}
         >
             {active ? (
@@ -315,259 +311,307 @@ export default async function TeacherCoursePresentationPage({
 
     if (!course) {
         return (
-            <section className="space-y-6">
-                <Link
-                    href="/student/courses"
-                    className={`inline-flex w-fit items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition hover:bg-[var(--muted)] ${theme.card} ${theme.textMain}`}
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Volver a mis cursos
-                </Link>
+            <section className="min-h-screen w-full bg-slate-50 px-4 py-6 pb-10 sm:px-6 lg:px-8">
+                <div className="mx-auto w-full max-w-[1500px] space-y-6">
+                    <Link
+                        href="/student/courses"
+                        className={`inline-flex w-fit items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition hover:bg-[var(--muted)] ${theme.card} ${theme.textMain}`}
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Volver a mis cursos
+                    </Link>
 
-                <div className="rounded-[30px] border border-red-200 bg-red-50 p-8 text-center shadow-sm">
-                    <h1 className="text-2xl font-black text-red-700">
-                        Curso no encontrado
-                    </h1>
+                    <div className="rounded-[2rem] border border-red-200 bg-red-50 p-8 text-center shadow-sm">
+                        <h1 className="text-2xl font-black text-red-700">
+                            Curso no encontrado
+                        </h1>
 
-                    <p className="mt-2 text-sm font-semibold text-red-600">
-                        No se pudo cargar la información del curso seleccionado.
-                    </p>
+                        <p className="mt-2 text-sm font-semibold text-red-600">
+                            No se pudo cargar la información del curso
+                            seleccionado.
+                        </p>
+                    </div>
                 </div>
             </section>
         );
     }
 
     return (
-        <section className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Link
-                    href="/student/courses"
-                    className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Volver a mis cursos
-                </Link>
+        <section className="min-h-screen w-full bg-slate-50 px-4 py-6 pb-10 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-[1500px] space-y-6">
+                <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <Link
+                            href="/student/courses"
+                            className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Volver a mis cursos
+                        </Link>
 
-                <div className="flex flex-wrap gap-2">
-                    <StatusBadge
-                        active={course.isPublished}
-                        activeText="Publicado"
-                        inactiveText="No publicado"
-                    />
-
-                    <StatusBadge
-                        active={course.openEnrollment}
-                        activeText="Matrícula abierta"
-                        inactiveText="Matrícula cerrada"
-                    />
-                </div>
-            </div>
-
-            <div className={`overflow-hidden rounded-[32px] ${theme.card}`}>
-                <div className="grid gap-0 xl:grid-cols-[420px_minmax(0,1fr)]">
-                    <div className="relative min-h-[320px] bg-slate-100 xl:min-h-full">
-                        {course.imageUrl ? (
-                            <div
-                                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                                style={{
-                                    backgroundImage: `url("${course.imageUrl.replace(
-                                        /"/g,
-                                        '\\"',
-                                    )}")`,
-                                }}
+                        <div className="flex flex-wrap gap-2">
+                            <StatusBadge
+                                active={course.isPublished}
+                                activeText="Publicado"
+                                inactiveText="No publicado"
                             />
+
+                            <StatusBadge
+                                active={course.openEnrollment}
+                                activeText="Matrícula abierta"
+                                inactiveText="Matrícula cerrada"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className={`overflow-hidden rounded-[2rem] ${theme.card}`}>
+                    <div className="grid gap-0 xl:grid-cols-[430px_minmax(0,1fr)]">
+                        <div className="relative min-h-[320px] bg-slate-100 xl:min-h-full">
+                            {course.imageUrl ? (
+                                <div
+                                    className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+                                    style={{
+                                        backgroundImage: `url("${course.imageUrl.replace(
+                                            /"/g,
+                                            '\\"',
+                                        )}")`,
+                                    }}
+                                />
+                            ) : (
+                                <div
+                                    className={`absolute inset-0 flex items-center justify-center ${theme.gradientSoft} ${theme.primaryText}`}
+                                >
+                                    <BookOpen className="h-20 w-20" />
+                                </div>
+                            )}
+
+                            <div
+                                className={`absolute inset-0 ${theme.overlay}`}
+                            />
+
+                            <div className="absolute bottom-6 left-6 right-6">
+                                <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[var(--primary)] shadow-sm">
+                                    Vista docente
+                                </span>
+
+                                <h1 className="mt-3 line-clamp-2 text-2xl font-black leading-tight text-white md:text-3xl">
+                                    {course.name}
+                                </h1>
+                            </div>
+                        </div>
+
+                        <div className="p-6 sm:p-7 md:p-8 lg:p-9">
+                            <span
+                                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${theme.primarySoft}`}
+                            >
+                                <Eye className="h-4 w-4" />
+                                Presentación del curso
+                            </span>
+
+                            <h2 className="mt-5 text-3xl font-black leading-tight text-[var(--foreground)] md:text-4xl">
+                                {course.name}
+                            </h2>
+
+                            <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--muted-foreground)] md:text-base">
+                                {course.description}
+                            </p>
+
+                            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div
+                                    className={`rounded-3xl p-4 ${theme.mutedCard}`}
+                                >
+                                    <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                        <Clock3 className="h-4 w-4" />
+                                        <p className="text-xs font-black uppercase tracking-[0.14em]">
+                                            Duración
+                                        </p>
+                                    </div>
+
+                                    <p className="mt-2 text-2xl font-black text-[var(--foreground)]">
+                                        {course.durationHours || 0} h
+                                    </p>
+                                </div>
+
+                                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                    <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                        <Layers3 className="h-4 w-4" />
+                                        <p className="text-xs font-black uppercase tracking-[0.14em]">
+                                            Módulos
+                                        </p>
+                                    </div>
+
+                                    <p className="mt-2 text-2xl font-black text-[var(--foreground)]">
+                                        {modules.length}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                    <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                        <GraduationCap className="h-4 w-4" />
+                                        <p className="text-xs font-black uppercase tracking-[0.14em]">
+                                            Nivel
+                                        </p>
+                                    </div>
+
+                                    <p className="mt-2 text-lg font-black text-[var(--foreground)]">
+                                        {course.level}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                    <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
+                                        <DollarSign className="h-4 w-4" />
+                                        <p className="text-xs font-black uppercase tracking-[0.14em]">
+                                            Precio
+                                        </p>
+                                    </div>
+
+                                    <p className="mt-2 text-lg font-black text-[var(--foreground)]">
+                                        {course.isFree
+                                            ? "Gratis"
+                                            : hasDiscount(course)
+                                                ? formatMoney(
+                                                    course.discountPrice,
+                                                )
+                                                : formatMoney(course.price)}
+                                    </p>
+
+                                    {hasDiscount(course) ? (
+                                        <p className="mt-1 text-xs font-bold text-slate-400 line-through">
+                                            {formatMoney(course.price)}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 md:p-7">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                                    <ListChecks className="h-4 w-4" />
+                                    Resumen
+                                </span>
+
+                                <h2 className="mt-4 text-xl font-black text-[var(--foreground)]">
+                                    Estructura del curso
+                                </h2>
+                            </div>
+
+                            <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-[var(--muted-foreground)]">
+                                {modules.length} módulo
+                                {modules.length === 1 ? "" : "s"}
+                            </span>
+                        </div>
+
+                        {modules.length > 0 ? (
+                            <div className="mt-6 space-y-3">
+                                {modules.map((module) => (
+                                    <div
+                                        key={module.id}
+                                        className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-blue-50/40"
+                                    >
+                                        <div
+                                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-black shadow-sm ${theme.primaryBg}`}
+                                        >
+                                            {module.order || module.id}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                                                Módulo{" "}
+                                                {module.order || module.id}
+                                            </p>
+
+                                            <h3 className="mt-1 line-clamp-2 text-base font-black text-[var(--foreground)]">
+                                                {module.name}
+                                            </h3>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
-                            <div className={`absolute inset-0 flex items-center justify-center ${theme.gradientSoft} ${theme.primaryText}`}>
-                                <BookOpen className="h-20 w-20" />
+                            <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                                    <Layers3 className="h-7 w-7" />
+                                </div>
+
+                                <h3 className="mt-4 text-lg font-black text-[var(--foreground)]">
+                                    Aún no hay módulos registrados
+                                </h3>
+
+                                <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+                                    Cuando agregues módulos, aparecerán aquí
+                                    como un resumen rápido de la estructura del
+                                    curso.
+                                </p>
                             </div>
                         )}
-
-                        <div className={`absolute inset-0 ${theme.overlay}`} />
-
-                        <div className="absolute bottom-5 left-5 right-5">
-                            <span className="inline-flex rounded-full bg-white/90 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-[var(--primary)] shadow-sm">
-                                Vista docente
-                            </span>
-
-                            <h1 className="mt-3 line-clamp-2 text-2xl font-black leading-tight text-white">
-                                {course.name}
-                            </h1>
-                        </div>
                     </div>
 
-                    <div className="p-7 md:p-8">
-                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.16em] ${theme.primarySoft}`}>
-                            <Eye className="h-4 w-4" />
-                            Presentación del curso
-                        </span>
-
-                        <h2 className="mt-5 text-3xl font-black leading-tight text-[var(--foreground)] md:text-4xl">
-                            {course.name}
-                        </h2>
-
-                        <p className="mt-4 max-w-4xl text-sm leading-7 text-[var(--muted-foreground)] md:text-base">
-                            {course.description}
-                        </p>
-
-                        <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <div className={`rounded-3xl p-4 ${theme.mutedCard}`}>
-                                <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                    <Clock3 className="h-4 w-4" />
-                                    <p className="text-xs font-black uppercase tracking-[0.14em]">
-                                        Duración
-                                    </p>
-                                </div>
-
-                                <p className="mt-2 text-2xl font-black text-[var(--foreground)]">
-                                    {course.durationHours || 0} h
-                                </p>
-                            </div>
-
-                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                    <Layers3 className="h-4 w-4" />
-                                    <p className="text-xs font-black uppercase tracking-[0.14em]">
-                                        Módulos
-                                    </p>
-                                </div>
-
-                                <p className="mt-2 text-2xl font-black text-[var(--foreground)]">
-                                    {modules.length}
-                                </p>
-                            </div>
-
-                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                <div className="flex items-center gap-2 text-[var(--muted-foreground)]">
-                                    <GraduationCap className="h-4 w-4" />
-                                    <p className="text-xs font-black uppercase tracking-[0.14em]">
-                                        Nivel
-                                    </p>
-                                </div>
-
-                                <p className="mt-2 text-lg font-black text-[var(--foreground)]">
-                                    {course.level}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-                <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-700">
-                                <ListChecks className="h-4 w-4" />
-                                Resumen
-                            </span>
-
-                            <h2 className="mt-4 text-xl font-black text-[var(--foreground)]">
-                                Estructura del curso
+                    <aside className="space-y-5 xl:sticky xl:top-6">
+                        <div
+                            className={`rounded-[2rem] p-5 sm:p-6 ${theme.card}`}
+                        >
+                            <h2 className="text-lg font-black text-[var(--foreground)]">
+                                Resumen rápido
                             </h2>
-                        </div>
 
-                        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-[var(--muted-foreground)]">
-                            {modules.length} módulo
-                            {modules.length === 1 ? "" : "s"}
-                        </span>
-                    </div>
+                            <div className="mt-4 space-y-3">
+                                <div className="flex items-center justify-between rounded-2xl bg-[var(--muted)] px-4 py-3">
+                                    <span className="text-sm font-bold text-[var(--muted-foreground)]">
+                                        ID del curso
+                                    </span>
 
-                    {modules.length > 0 ? (
-                        <div className="mt-6 space-y-3">
-                            {modules.map((module) => (
-                                <div
-                                    key={module.id}
-                                    className="flex items-center gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 transition hover:border-blue-200 hover:bg-blue-50/40"
-                                >
-                                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-black shadow-sm ${theme.primaryBg}`}>
-                                        {module.order || module.id}
-                                    </div>
-
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
-                                            Módulo {module.order || module.id}
-                                        </p>
-
-                                        <h3 className="mt-1 line-clamp-2 text-base font-black text-[var(--foreground)]">
-                                            {module.name}
-                                        </h3>
-                                    </div>
+                                    <span className="font-black text-slate-900">
+                                        #{course.id}
+                                    </span>
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                                <Layers3 className="h-7 w-7" />
+
+                                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                                    <span className="text-sm font-bold text-[var(--muted-foreground)]">
+                                        Publicación
+                                    </span>
+
+                                    <span className="font-black text-slate-900">
+                                        {course.isPublished
+                                            ? "Visible"
+                                            : "Oculto"}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                                    <span className="text-sm font-bold text-[var(--muted-foreground)]">
+                                        Matrícula
+                                    </span>
+
+                                    <span className="font-black text-slate-900">
+                                        {course.openEnrollment
+                                            ? "Disponible"
+                                            : "No disponible"}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                                    <span className="text-sm font-bold text-[var(--muted-foreground)]">
+                                        Tipo
+                                    </span>
+
+                                    <span className="font-black text-slate-900">
+                                        {course.isFree
+                                            ? "Gratuito"
+                                            : "Pagado"}
+                                    </span>
+                                </div>
                             </div>
-
-                            <h3 className="mt-4 text-lg font-black text-[var(--foreground)]">
-                                Aún no hay módulos registrados
-                            </h3>
-
-                            <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
-                                Cuando agregues módulos, aparecerán aquí como un
-                                resumen rápido de la estructura del curso.
-                            </p>
                         </div>
-                    )}
+                    </aside>
                 </div>
-
-                <aside className="space-y-5">
-
-
-                    <div className={`rounded-[30px] p-5 ${theme.card}`}>
-                        <h2 className="text-lg font-black text-[var(--foreground)]">
-                            Resumen rápido
-                        </h2>
-
-                        <div className="mt-4 space-y-3">
-                            <div className="flex items-center justify-between rounded-2xl bg-[var(--muted)] px-4 py-3">
-                                <span className="text-sm font-bold text-[var(--muted-foreground)]">
-                                    ID del curso
-                                </span>
-
-                                <span className="font-black text-slate-900">
-                                    #{course.id}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                                <span className="text-sm font-bold text-[var(--muted-foreground)]">
-                                    Publicación
-                                </span>
-
-                                <span className="font-black text-slate-900">
-                                    {course.isPublished ? "Visible" : "Oculto"}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                                <span className="text-sm font-bold text-[var(--muted-foreground)]">
-                                    Matrícula
-                                </span>
-
-                                <span className="font-black text-slate-900">
-                                    {course.openEnrollment
-                                        ? "Disponible"
-                                        : "No disponible"}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                                <span className="text-sm font-bold text-[var(--muted-foreground)]">
-                                    Tipo
-                                </span>
-
-                                <span className="font-black text-slate-900">
-                                    {course.isFree ? "Gratuito" : "Pagado"}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
             </div>
-        </section >
+        </section>
     );
 }

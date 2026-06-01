@@ -1,6 +1,7 @@
 export interface User {
     id: number;
     username: string;
+    idnumber?: string | null;
     firstname: string;
     lastname: string;
     role_id: number;
@@ -11,6 +12,7 @@ export interface User {
 
 export interface RegisterUserPayload {
     username: string;
+    idnumber?: string;
     password: string;
     firstname: string;
     lastname: string;
@@ -27,6 +29,7 @@ export interface LoginPayload {
 
 export interface UpdateUserPayload {
     username?: string;
+    idnumber?: string;
     password?: string;
     firstname?: string;
     lastname?: string;
@@ -62,6 +65,12 @@ function clearAuthSession() {
     if (typeof window === "undefined") return;
 
     localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function cleanToken(value: unknown): string {
+    if (typeof value !== "string") return "";
+
+    return value.trim().replace(/^Bearer\s+/i, "");
 }
 
 function decodeJwtPayload(token: string): { exp?: number } | null {
@@ -102,7 +111,7 @@ function getAuthToken(): string | null {
     try {
         const parsed = JSON.parse(rawSession);
 
-        const token =
+        const token = cleanToken(
             parsed?.accessToken ??
             parsed?.token ??
             parsed?.access_token ??
@@ -111,9 +120,10 @@ function getAuthToken(): string | null {
             parsed?.data?.access_token ??
             parsed?.session?.accessToken ??
             parsed?.session?.token ??
-            parsed?.session?.access_token;
+            parsed?.session?.access_token,
+        );
 
-        if (typeof token !== "string" || !token.trim()) {
+        if (!token) {
             clearAuthSession();
             return null;
         }
@@ -125,17 +135,24 @@ function getAuthToken(): string | null {
 
         return token;
     } catch {
-        if (isTokenExpired(rawSession)) {
+        const token = cleanToken(rawSession);
+
+        if (!token) {
             clearAuthSession();
             return null;
         }
 
-        return rawSession;
+        if (isTokenExpired(token)) {
+            clearAuthSession();
+            return null;
+        }
+
+        return token;
     }
 }
 
 function buildHeaders(hasBody = false): HeadersInit {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
         Accept: "application/json",
     };
 
@@ -152,6 +169,18 @@ function buildHeaders(hasBody = false): HeadersInit {
     return headers;
 }
 
+function textValue(value: unknown): string {
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number") return String(value);
+    return "";
+}
+
+function nullableTextValue(value: string | null | undefined): string {
+    if (typeof value !== "string") return "";
+
+    return value.trim();
+}
+
 async function parseUserErrorResponse(response: Response): Promise<never> {
     let rawText = "";
 
@@ -160,6 +189,15 @@ async function parseUserErrorResponse(response: Response): Promise<never> {
     } catch {
         throw new ApiError(
             "No se pudo leer la respuesta del servidor.",
+            response.status,
+        );
+    }
+
+    if (response.status === 401) {
+        clearAuthSession();
+
+        throw new ApiError(
+            "Tu sesión expiró o no es válida. Inicia sesión nuevamente.",
             response.status,
         );
     }
@@ -176,13 +214,18 @@ async function parseUserErrorResponse(response: Response): Promise<never> {
             | {
                 detail?: string | Array<{ msg?: string }>;
                 message?: string;
+                error?: string;
             }
             | undefined;
 
         if (Array.isArray(parsed?.detail) && parsed.detail.length > 0) {
+            const detailMessage = parsed.detail
+                .map((item) => item.msg)
+                .filter(Boolean)
+                .join(", ");
+
             throw new ApiError(
-                parsed.detail.map((item) => item.msg).filter(Boolean).join(", ") ||
-                "Error de validación al consultar usuarios.",
+                detailMessage || "Error de validación al consultar usuarios.",
                 response.status,
             );
         }
@@ -193,6 +236,10 @@ async function parseUserErrorResponse(response: Response): Promise<never> {
 
         if (typeof parsed?.message === "string") {
             throw new ApiError(parsed.message, response.status);
+        }
+
+        if (typeof parsed?.error === "string") {
+            throw new ApiError(parsed.error, response.status);
         }
 
         throw new ApiError(rawText, response.status);
@@ -239,19 +286,73 @@ async function apiRequest<T>(
     return readResponse<T>(response);
 }
 
+function buildRegisterPayload(payload: RegisterUserPayload) {
+    return {
+        username: textValue(payload.username),
+        idnumber: textValue(payload.idnumber),
+        password: textValue(payload.password),
+        firstname: textValue(payload.firstname),
+        lastname: textValue(payload.lastname),
+        email: textValue(payload.email),
+        phone_number: nullableTextValue(payload.phone_number),
+        departament: nullableTextValue(payload.departament),
+    };
+}
+
+function buildUpdatePayload(payload: UpdateUserPayload) {
+    const body: Record<string, string> = {};
+
+    if (payload.username !== undefined) {
+        body.username = textValue(payload.username);
+    }
+
+    if (payload.idnumber !== undefined) {
+        body.idnumber = textValue(payload.idnumber);
+    }
+
+    if (payload.password !== undefined && payload.password.trim()) {
+        body.password = textValue(payload.password);
+    }
+
+    if (payload.firstname !== undefined) {
+        body.firstname = textValue(payload.firstname);
+    }
+
+    if (payload.lastname !== undefined) {
+        body.lastname = textValue(payload.lastname);
+    }
+
+    if (payload.email !== undefined) {
+        body.email = textValue(payload.email);
+    }
+
+    if (payload.phone_number !== undefined) {
+        body.phone_number = nullableTextValue(payload.phone_number);
+    }
+
+    if (payload.departament !== undefined) {
+        body.departament = nullableTextValue(payload.departament);
+    }
+
+    return body;
+}
+
 export async function registerUser(
     payload: RegisterUserPayload,
 ): Promise<string> {
     return apiRequest<string>(REGISTER_ENDPOINT, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildRegisterPayload(payload)),
     });
 }
 
 export async function loginUser(payload: LoginPayload): Promise<string> {
     return apiRequest<string>(LOGIN_ENDPOINT, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+            username: textValue(payload.username),
+            password: textValue(payload.password),
+        }),
     });
 }
 
@@ -281,10 +382,9 @@ export async function updateUser(
 ): Promise<User> {
     return apiRequest<User>(userEndpoint(userId), {
         method: "PUT",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildUpdatePayload(payload)),
     });
 }
-
 
 export async function deleteUser(userId: number): Promise<void | string> {
     return apiRequest<void | string>(userEndpoint(userId), {

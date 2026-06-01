@@ -1,4 +1,4 @@
-import { TeacherCourseModulesPage } from "@/components/teacher/course-modules-workspace";
+import { TeacherCourseModulesPage } from "@/components/teacher/course-modules";
 
 export default async function AdminModulesByCoursePage({
     params,

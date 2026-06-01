@@ -24,6 +24,7 @@ export interface Course {
     duration_hours: number;
     total_lessons: number;
     subcategory_id: number;
+    is_mdt: boolean;
     image_url: string | null;
     course_image_url?: string | null;
     image?: string | null;
@@ -45,8 +46,19 @@ export interface CoursePayload {
     duration_hours: number;
     total_lessons: number;
     subcategory_id: number;
-    image?: File;
-    discount_price?: number;
+    is_mdt: boolean;
+    image?: File | null;
+    discount_price?: number | null;
+}
+
+class ApiError extends Error {
+    status: number;
+
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+    }
 }
 
 const API_BASE_URL =
@@ -54,13 +66,24 @@ const API_BASE_URL =
     "http://213.165.74.184:9000";
 
 const COURSES_ENDPOINT = `${API_BASE_URL}/api/v1/courses`;
-
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
+
+const courseEndpoint = (courseId: number) =>
+    `${COURSES_ENDPOINT}/${courseId}`;
+
+const coursesBySubcategoryEndpoint = (subcategoryId: number) =>
+    `${COURSES_ENDPOINT}/subcategory/${subcategoryId}`;
 
 function clearAuthSession() {
     if (typeof window === "undefined") return;
 
     localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function cleanToken(value: unknown): string {
+    if (typeof value !== "string") return "";
+
+    return value.trim().replace(/^Bearer\s+/i, "");
 }
 
 function decodeJwtPayload(token: string): { exp?: number } | null {
@@ -101,7 +124,7 @@ function getAuthToken(): string | null {
     try {
         const parsed = JSON.parse(rawSession);
 
-        const token =
+        const token = cleanToken(
             parsed?.accessToken ??
             parsed?.token ??
             parsed?.access_token ??
@@ -110,9 +133,10 @@ function getAuthToken(): string | null {
             parsed?.data?.access_token ??
             parsed?.session?.accessToken ??
             parsed?.session?.token ??
-            parsed?.session?.access_token;
+            parsed?.session?.access_token,
+        );
 
-        if (typeof token !== "string" || !token.trim()) {
+        if (!token) {
             clearAuthSession();
             return null;
         }
@@ -124,12 +148,19 @@ function getAuthToken(): string | null {
 
         return token;
     } catch {
-        if (isTokenExpired(rawSession)) {
+        const token = cleanToken(rawSession);
+
+        if (!token) {
             clearAuthSession();
             return null;
         }
 
-        return rawSession;
+        if (isTokenExpired(token)) {
+            clearAuthSession();
+            return null;
+        }
+
+        return token;
     }
 }
 
@@ -154,10 +185,34 @@ function toNumber(value: unknown, fallback = 0): number {
 
     if (typeof value === "string") {
         const normalized = value.trim().replace(",", ".");
+
         if (!normalized) return fallback;
 
         const parsed = Number(normalized);
+
         return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    return fallback;
+}
+
+function toBoolean(value: unknown, fallback = false): boolean {
+    if (typeof value === "boolean") return value;
+
+    if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+
+        if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
+            return true;
+        }
+
+        if (["false", "0", "no"].includes(normalized)) {
+            return false;
+        }
+    }
+
+    if (typeof value === "number") {
+        return value === 1;
     }
 
     return fallback;
@@ -190,81 +245,66 @@ function normalizeCourse(item: Record<string, unknown>): Course {
         description:
             typeof item.description === "string" ? item.description : "",
         price: toNumber(item.price),
-        is_free: Boolean(item.is_free),
+        is_free: toBoolean(item.is_free),
         level: normalizeCourseLevel(item.level),
-        is_published: Boolean(item.is_published),
-        open_enrollment:
-            typeof item.open_enrollment === "boolean"
-                ? item.open_enrollment
-                : true,
+        is_published: toBoolean(item.is_published),
+        open_enrollment: toBoolean(item.open_enrollment, true),
         duration_hours: toNumber(item.duration_hours),
         total_lessons: toNumber(item.total_lessons),
         subcategory_id: toNumber(item.subcategory_id),
+        is_mdt: toBoolean(item.is_mdt),
         image_url:
             getStringValue(item.image_url) ||
             getStringValue(item.course_image_url) ||
             getStringValue(item.image) ||
             getStringValue(item.thumbnail) ||
             null,
+        course_image_url: getStringValue(item.course_image_url),
+        image: getStringValue(item.image),
+        thumbnail: getStringValue(item.thumbnail),
         discount_price: toNumber(item.discount_price),
         currency:
             typeof item.currency === "string" && item.currency.trim().length > 0
                 ? item.currency
                 : "USD",
-        rating: toNumber(item.rating, 5),
+        rating: toNumber(item.rating, 0),
         total_students: toNumber(item.total_students),
     };
 }
 
-function buildCourseFormData(payload: CoursePayload | Partial<CoursePayload>): FormData {
+function appendFormDataValue(
+    formData: FormData,
+    key: string,
+    value: string | number | boolean | null | undefined,
+) {
+    if (value === undefined || value === null) return;
+
+    formData.append(key, String(value));
+}
+
+function buildCourseFormData(
+    payload: CoursePayload | Partial<CoursePayload>,
+): FormData {
     const formData = new FormData();
 
-    if (payload.name !== undefined) {
-        formData.append("name", payload.name);
-    }
+    appendFormDataValue(formData, "name", payload.name);
+    appendFormDataValue(formData, "description", payload.description);
+    appendFormDataValue(formData, "price", payload.price);
+    appendFormDataValue(formData, "is_free", payload.is_free);
+    appendFormDataValue(formData, "level", payload.level);
+    appendFormDataValue(formData, "is_published", payload.is_published);
+    appendFormDataValue(formData, "open_enrollment", payload.open_enrollment);
+    appendFormDataValue(formData, "duration_hours", payload.duration_hours);
+    appendFormDataValue(formData, "total_lessons", payload.total_lessons);
+    appendFormDataValue(formData, "subcategory_id", payload.subcategory_id);
+    appendFormDataValue(formData, "is_mdt", payload.is_mdt);
+    appendFormDataValue(formData, "discount_price", payload.discount_price);
 
-    if (payload.description !== undefined) {
-        formData.append("description", payload.description);
-    }
-
-    if (payload.price !== undefined) {
-        formData.append("price", String(payload.price));
-    }
-
-    if (payload.is_free !== undefined) {
-        formData.append("is_free", String(payload.is_free));
-    }
-
-    if (payload.level !== undefined) {
-        formData.append("level", payload.level);
-    }
-
-    if (payload.is_published !== undefined) {
-        formData.append("is_published", String(payload.is_published));
-    }
-
-    if (payload.open_enrollment !== undefined) {
-        formData.append("open_enrollment", String(payload.open_enrollment));
-    }
-
-    if (payload.duration_hours !== undefined) {
-        formData.append("duration_hours", String(payload.duration_hours));
-    }
-
-    if (payload.total_lessons !== undefined) {
-        formData.append("total_lessons", String(payload.total_lessons));
-    }
-
-    if (payload.subcategory_id !== undefined) {
-        formData.append("subcategory_id", String(payload.subcategory_id));
-    }
-
-    if (payload.image instanceof File) {
+    if (
+        typeof File !== "undefined" &&
+        payload.image instanceof File
+    ) {
         formData.append("image", payload.image);
-    }
-
-    if (payload.discount_price !== undefined) {
-        formData.append("discount_price", String(payload.discount_price));
     }
 
     return formData;
@@ -273,36 +313,51 @@ function buildCourseFormData(payload: CoursePayload | Partial<CoursePayload>): F
 function normalizeCourseErrorMessage(message: string): string {
     if (!message) return "Ocurrió un error al procesar la solicitud.";
 
-    if (
-        /duplicate key|already exists|unique constraint|ix_/i.test(message)
-    ) {
+    if (/duplicate key|already exists|unique constraint|ix_/i.test(message)) {
         return "Ya existe un curso con esos datos.";
     }
 
-    if (/not found|no encontrado/i.test(message)) {
+    if (/not found|no encontrado|does not exist/i.test(message)) {
         return "No se encontró el curso solicitado.";
+    }
+
+    if (/subcategory_id|foreign key|violates foreign key/i.test(message)) {
+        return "La subcategoría seleccionada no existe o no es válida.";
+    }
+
+    if (/is_mdt/i.test(message)) {
+        return "Debes indicar si el curso pertenece a MDT.";
     }
 
     return message;
 }
 
 async function parseErrorResponse(response: Response): Promise<never> {
-    if (response.status === 401) {
-        clearAuthSession();
-
-        throw new Error("Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
-    }
-
     let rawText = "";
 
     try {
         rawText = await response.text();
     } catch {
-        throw new Error("No se pudo leer la respuesta del servidor.");
+        throw new ApiError(
+            "No se pudo leer la respuesta del servidor.",
+            response.status,
+        );
+    }
+
+    if (response.status === 401) {
+        clearAuthSession();
+
+        throw new ApiError(
+            "Tu sesión expiró o no es válida. Inicia sesión nuevamente.",
+            response.status,
+        );
     }
 
     if (!rawText) {
-        throw new Error("Ocurrió un error inesperado en la solicitud.");
+        throw new ApiError(
+            "Ocurrió un error inesperado en la solicitud.",
+            response.status,
+        );
     }
 
     try {
@@ -314,6 +369,7 @@ async function parseErrorResponse(response: Response): Promise<never> {
                     msg?: string;
                 }>;
                 message?: string;
+                error?: string;
             }
             | undefined;
 
@@ -324,31 +380,71 @@ async function parseErrorResponse(response: Response): Promise<never> {
                     .filter(Boolean)
                     .join(", ") || "Error de validación en la solicitud.";
 
-            throw new Error(normalizeCourseErrorMessage(message));
+            throw new ApiError(
+                normalizeCourseErrorMessage(message),
+                response.status,
+            );
         }
 
         if (typeof parsed?.detail === "string") {
-            throw new Error(normalizeCourseErrorMessage(parsed.detail));
+            throw new ApiError(
+                normalizeCourseErrorMessage(parsed.detail),
+                response.status,
+            );
         }
 
         if (typeof parsed?.message === "string") {
-            throw new Error(normalizeCourseErrorMessage(parsed.message));
+            throw new ApiError(
+                normalizeCourseErrorMessage(parsed.message),
+                response.status,
+            );
         }
 
-        throw new Error(normalizeCourseErrorMessage(rawText));
+        if (typeof parsed?.error === "string") {
+            throw new ApiError(
+                normalizeCourseErrorMessage(parsed.error),
+                response.status,
+            );
+        }
+
+        throw new ApiError(
+            normalizeCourseErrorMessage(rawText),
+            response.status,
+        );
     } catch (error) {
-        if (error instanceof Error) {
-            throw error;
-        }
+        if (error instanceof ApiError) throw error;
 
-        throw new Error(normalizeCourseErrorMessage(rawText));
+        throw new ApiError(
+            normalizeCourseErrorMessage(rawText),
+            response.status,
+        );
     }
 }
 
-export async function getAllCourses(): Promise<Course[]> {
-    const response = await fetch(`${COURSES_ENDPOINT}/`, {
-        method: "GET",
-        headers: buildAuthHeaders(),
+async function readResponse<T>(response: Response): Promise<T> {
+    const rawText = await response.text();
+
+    if (!rawText) {
+        return undefined as T;
+    }
+
+    try {
+        return JSON.parse(rawText) as T;
+    } catch {
+        return rawText as T;
+    }
+}
+
+async function apiRequest<T>(
+    endpoint: string,
+    options: RequestInit = {},
+): Promise<T> {
+    const response = await fetch(endpoint, {
+        ...options,
+        headers: {
+            ...buildAuthHeaders(),
+            ...(options.headers || {}),
+        },
         cache: "no-store",
     });
 
@@ -356,7 +452,13 @@ export async function getAllCourses(): Promise<Course[]> {
         await parseErrorResponse(response);
     }
 
-    const data = (await response.json()) as unknown;
+    return readResponse<T>(response);
+}
+
+export async function getAllCourses(): Promise<Course[]> {
+    const data = await apiRequest<unknown>(`${COURSES_ENDPOINT}/`, {
+        method: "GET",
+    });
 
     if (!Array.isArray(data)) {
         return [];
@@ -365,33 +467,30 @@ export async function getAllCourses(): Promise<Course[]> {
     return data.map((item) => normalizeCourse(item as Record<string, unknown>));
 }
 
+export async function getCourses(): Promise<Course[]> {
+    return getAllCourses();
+}
+
 export async function getCourseById(courseId: number): Promise<Course> {
-    const response = await fetch(`${COURSES_ENDPOINT}/${courseId}`, {
-        method: "GET",
-        headers: buildAuthHeaders(),
-        cache: "no-store",
-    });
+    const data = await apiRequest<Record<string, unknown>>(
+        courseEndpoint(courseId),
+        {
+            method: "GET",
+        },
+    );
 
-    if (!response.ok) {
-        await parseErrorResponse(response);
-    }
-
-    const data = (await response.json()) as Record<string, unknown>;
     return normalizeCourse(data);
 }
 
 export async function createCourse(payload: CoursePayload): Promise<Course> {
-    const response = await fetch(`${COURSES_ENDPOINT}/`, {
-        method: "POST",
-        headers: buildAuthHeaders(),
-        body: buildCourseFormData(payload),
-    });
+    const data = await apiRequest<Record<string, unknown>>(
+        `${COURSES_ENDPOINT}/`,
+        {
+            method: "POST",
+            body: buildCourseFormData(payload),
+        },
+    );
 
-    if (!response.ok) {
-        await parseErrorResponse(response);
-    }
-
-    const data = (await response.json()) as Record<string, unknown>;
     return normalizeCourse(data);
 }
 
@@ -399,55 +498,112 @@ export async function updateCourse(
     courseId: number,
     payload: Partial<CoursePayload>,
 ): Promise<Course> {
-    const response = await fetch(`${COURSES_ENDPOINT}/${courseId}`, {
-        method: "PUT",
-        headers: buildAuthHeaders(),
-        body: buildCourseFormData(payload),
-    });
+    const data = await apiRequest<Record<string, unknown>>(
+        courseEndpoint(courseId),
+        {
+            method: "PUT",
+            body: buildCourseFormData(payload),
+        },
+    );
 
-    if (!response.ok) {
-        await parseErrorResponse(response);
-    }
-
-    const data = (await response.json()) as Record<string, unknown>;
     return normalizeCourse(data);
 }
 
 export async function deleteCourse(courseId: number): Promise<string> {
-    const response = await fetch(`${COURSES_ENDPOINT}/${courseId}`, {
+    const data = await apiRequest<string | unknown>(courseEndpoint(courseId), {
         method: "DELETE",
-        headers: buildAuthHeaders(),
     });
 
-    if (!response.ok) {
-        await parseErrorResponse(response);
-    }
-
-    const data = await response.json().catch(() => "");
-    return typeof data === "string" ? data : "Curso eliminado correctamente";
+    return typeof data === "string" ? data : "Curso eliminado correctamente.";
 }
 
 export async function getCoursesBySubcategory(
     subcategoryId: number,
 ): Promise<Course[]> {
-    const response = await fetch(
-        `${COURSES_ENDPOINT}/subcategory/${subcategoryId}`,
+    const data = await apiRequest<unknown>(
+        coursesBySubcategoryEndpoint(subcategoryId),
         {
             method: "GET",
-            headers: buildAuthHeaders(),
-            cache: "no-store",
         },
     );
-
-    if (!response.ok) {
-        await parseErrorResponse(response);
-    }
-
-    const data = (await response.json()) as unknown;
 
     if (!Array.isArray(data)) {
         return [];
     }
 
     return data.map((item) => normalizeCourse(item as Record<string, unknown>));
+}
+
+import {
+    API_URL,
+    getJsonHeaders,
+    handleApiResponse,
+    validateId,
+} from "./api-client.service";
+
+const ENROLLMENTS_ENDPOINT = `${API_URL}/api/v1/enrollments`;
+
+export type EstudianteCurso = {
+    id: number;
+    userId: number;
+    enrollmentId: number;
+    firstname: string;
+    lastname: string;
+    email: string;
+    idnumber: string;
+};
+
+type EnrollmentApi = {
+    id?: number;
+    user_id?: number;
+    student_id?: number;
+    user?: {
+        id?: number;
+        firstname?: string;
+        lastname?: string;
+        email?: string;
+        idnumber?: string;
+        id_number?: string;
+    };
+    student?: {
+        id?: number;
+        firstname?: string;
+        lastname?: string;
+        email?: string;
+        idnumber?: string;
+        id_number?: string;
+    };
+};
+
+function adaptarEstudianteCurso(item: EnrollmentApi): EstudianteCurso {
+    const usuario = item.user ?? item.student ?? {};
+
+    return {
+        id: Number(usuario.id ?? item.user_id ?? item.student_id ?? item.id ?? 0),
+        userId: Number(usuario.id ?? item.user_id ?? item.student_id ?? 0),
+        enrollmentId: Number(item.id ?? 0),
+        firstname: usuario.firstname ?? "",
+        lastname: usuario.lastname ?? "",
+        email: usuario.email ?? "",
+        idnumber: usuario.idnumber ?? usuario.id_number ?? "",
+    };
+}
+
+export async function obtenerEstudiantesPorCurso(
+    cursoId: number,
+): Promise<EstudianteCurso[]> {
+    const cursoIdValido = validateId(cursoId, "ID de curso");
+
+    const response = await fetch(
+        `${ENROLLMENTS_ENDPOINT}/course/${cursoIdValido}`,
+        {
+            method: "GET",
+            headers: getJsonHeaders(),
+            cache: "no-store",
+        },
+    );
+
+    const data = await handleApiResponse<EnrollmentApi[]>(response);
+
+    return Array.isArray(data) ? data.map(adaptarEstudianteCurso) : [];
 }

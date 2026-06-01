@@ -1,30 +1,30 @@
-const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
-    "http://213.165.74.184:9000";
+const API_URL = (
+    process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000"
+).replace(/\/+$/, "");
 
-const BLOCKS_PROGRESS_ENDPOINT = `${API_BASE_URL}/api/v1/blocks-progress/progress`;
+const BLOCKS_PROGRESS_ENDPOINT = `${API_URL}/api/v1/blocks-progress/progress`;
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
+
+export type CreateBlockProgressPayload = {
+    enrollment_id: number;
+    lesson_block_id: number;
+    is_completed?: boolean;
+    started_at?: string | Date | null;
+    completed_at?: string | Date | null;
+};
+
+export type UpdateBlockProgressPayload = {
+    is_completed?: boolean;
+    attempts?: number;
+    started_at?: string | Date | null;
+    completed_at?: string | Date | null;
+};
 
 export type BlockProgress = {
     id: number;
     enrollment_id: number;
     lesson_block_id: number;
-    is_completed: boolean;
-    attempts?: number;
-    started_at?: string | null;
-    completed_at?: string | null;
-};
-
-export type CreateBlockProgressPayload = {
-    enrollment_id: number;
-    lesson_block_id: number;
-    is_completed: boolean;
-    started_at?: string | null;
-    completed_at?: string | null;
-};
-
-export type UpdateBlockProgressPayload = {
     is_completed: boolean;
     attempts?: number;
     started_at?: string | null;
@@ -157,6 +157,8 @@ function getJsonHeaders(): HeadersInit {
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
+    const rawText = await response.text();
+
     if (!response.ok) {
         if (response.status === 401) {
             clearAuthSession();
@@ -164,57 +166,101 @@ async function handleResponse<T>(response: Response): Promise<T> {
             throw new Error("Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
         }
 
-        let message = "Ocurrió un error al procesar el progreso.";
+        let errorMessage = `Error ${response.status}: ${response.statusText}`;
 
-        try {
-            const rawText = await response.text();
-
-            if (!rawText) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-
+        if (rawText) {
             try {
                 const errorData = JSON.parse(rawText) as BackendValidationError;
 
                 if (typeof errorData.detail === "string") {
-                    message = errorData.detail;
+                    errorMessage = errorData.detail;
                 } else if (Array.isArray(errorData.detail)) {
-                    message =
+                    errorMessage =
                         errorData.detail
-                            .map((item) => item.msg)
+                            .map((item) => {
+                                const field = Array.isArray(item.loc)
+                                    ? item.loc.join(".")
+                                    : "";
+
+                                return field ? `${field}: ${item.msg}` : item.msg;
+                            })
                             .filter(Boolean)
-                            .join(", ") || message;
+                            .join(", ") || "Error de validación en la solicitud.";
                 } else if (typeof errorData.message === "string") {
-                    message = errorData.message;
+                    errorMessage = errorData.message;
                 } else {
-                    message = rawText;
+                    errorMessage = rawText;
                 }
             } catch {
-                message = rawText;
+                errorMessage = rawText;
             }
-        } catch {
-            message = `Error ${response.status}: ${response.statusText}`;
         }
 
-        throw new Error(message);
+        throw new Error(errorMessage);
+    }
+
+    if (!rawText) {
+        return undefined as T;
     }
 
     const contentType = response.headers.get("content-type") || "";
 
     if (contentType.includes("application/json")) {
-        return response.json() as Promise<T>;
+        return JSON.parse(rawText) as T;
     }
 
-    return response.text() as Promise<T>;
+    return rawText as T;
+}
+
+function validateId(value: number, label: string): number {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        throw new Error(`${label} no válido.`);
+    }
+
+    return numericValue;
+}
+
+function formatDateValue(value: string | Date | null | undefined) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+
+    return value;
+}
+
+function buildCreateProgressPayload(payload: CreateBlockProgressPayload) {
+    return {
+        enrollment_id: payload.enrollment_id,
+        lesson_block_id: payload.lesson_block_id,
+        is_completed: payload.is_completed ?? false,
+        started_at: formatDateValue(payload.started_at),
+        completed_at: formatDateValue(payload.completed_at),
+    };
+}
+
+function buildUpdateProgressPayload(payload: UpdateBlockProgressPayload) {
+    return {
+        is_completed: payload.is_completed,
+        attempts: payload.attempts,
+        started_at: formatDateValue(payload.started_at),
+        completed_at: formatDateValue(payload.completed_at),
+    };
 }
 
 export async function createBlockProgress(
     payload: CreateBlockProgressPayload,
 ): Promise<BlockProgress> {
+    validateId(payload.enrollment_id, "ID de matrícula");
+    validateId(payload.lesson_block_id, "ID del bloque");
+
     const response = await fetch(BLOCKS_PROGRESS_ENDPOINT, {
         method: "POST",
         headers: getJsonHeaders(),
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildCreateProgressPayload(payload)),
     });
 
     return handleResponse<BlockProgress>(response);
@@ -224,14 +270,12 @@ export async function updateBlockProgress(
     progressId: number,
     payload: UpdateBlockProgressPayload,
 ): Promise<BlockProgress> {
-    if (!Number.isFinite(progressId) || progressId <= 0) {
-        throw new Error("No se pudo identificar el progreso del bloque.");
-    }
+    const validProgressId = validateId(progressId, "ID del progreso");
 
-    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${progressId}`, {
+    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${validProgressId}`, {
         method: "PUT",
         headers: getJsonHeaders(),
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildUpdateProgressPayload(payload)),
     });
 
     return handleResponse<BlockProgress>(response);
@@ -240,11 +284,9 @@ export async function updateBlockProgress(
 export async function getBlockProgress(
     progressId: number,
 ): Promise<BlockProgress> {
-    if (!Number.isFinite(progressId) || progressId <= 0) {
-        throw new Error("No se pudo identificar el progreso del bloque.");
-    }
+    const validProgressId = validateId(progressId, "ID del progreso");
 
-    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${progressId}`, {
+    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${validProgressId}`, {
         method: "GET",
         headers: getJsonHeaders(),
         cache: "no-store",
@@ -254,11 +296,9 @@ export async function getBlockProgress(
 }
 
 export async function deleteBlockProgress(progressId: number): Promise<string> {
-    if (!Number.isFinite(progressId) || progressId <= 0) {
-        throw new Error("No se pudo identificar el progreso del bloque.");
-    }
+    const validProgressId = validateId(progressId, "ID del progreso");
 
-    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${progressId}`, {
+    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${validProgressId}`, {
         method: "DELETE",
         headers: getJsonHeaders(),
     });
@@ -269,12 +309,10 @@ export async function deleteBlockProgress(progressId: number): Promise<string> {
 export async function getProgressByEnrollment(
     enrollmentId: number,
 ): Promise<BlockProgress[]> {
-    if (!Number.isFinite(enrollmentId) || enrollmentId <= 0) {
-        throw new Error("No se pudo identificar la matrícula para consultar el progreso.");
-    }
+    const validEnrollmentId = validateId(enrollmentId, "ID de matrícula");
 
     const response = await fetch(
-        `${BLOCKS_PROGRESS_ENDPOINT}/enrollment/${enrollmentId}`,
+        `${BLOCKS_PROGRESS_ENDPOINT}/enrollment/${validEnrollmentId}`,
         {
             method: "GET",
             headers: getJsonHeaders(),
@@ -291,23 +329,52 @@ export async function completeBlockProgress(
     enrollmentId: number,
     lessonBlockId: number,
 ): Promise<string> {
-    if (!Number.isFinite(enrollmentId) || enrollmentId <= 0) {
-        throw new Error("No se pudo identificar la matrícula.");
-    }
+    const validEnrollmentId = validateId(enrollmentId, "ID de matrícula");
+    const validLessonBlockId = validateId(lessonBlockId, "ID del bloque");
 
-    if (!Number.isFinite(lessonBlockId) || lessonBlockId <= 0) {
-        throw new Error("No se pudo identificar el bloque de la lección.");
-    }
-
-    const url = new URL(`${BLOCKS_PROGRESS_ENDPOINT}/complete`);
-
-    url.searchParams.set("enrollment_id", String(enrollmentId));
-    url.searchParams.set("lesson_block_id", String(lessonBlockId));
-
-    const response = await fetch(url.toString(), {
-        method: "POST",
-        headers: getJsonHeaders(),
+    const query = new URLSearchParams({
+        enrollment_id: String(validEnrollmentId),
+        lesson_block_id: String(validLessonBlockId),
     });
 
+    const response = await fetch(
+        `${BLOCKS_PROGRESS_ENDPOINT}/complete?${query.toString()}`,
+        {
+            method: "POST",
+            headers: getJsonHeaders(),
+        },
+    );
+
     return handleResponse<string>(response);
+}
+
+export async function markBlockAsStarted(params: {
+    enrollment_id: number;
+    lesson_block_id: number;
+}): Promise<BlockProgress> {
+    return createBlockProgress({
+        enrollment_id: params.enrollment_id,
+        lesson_block_id: params.lesson_block_id,
+        is_completed: false,
+        started_at: new Date(),
+        completed_at: null,
+    });
+}
+
+export async function markBlockAsCompleted(params: {
+    enrollment_id: number;
+    lesson_block_id: number;
+}): Promise<string> {
+    return completeBlockProgress(params.enrollment_id, params.lesson_block_id);
+}
+
+export function findProgressByBlock(
+    progresses: BlockProgress[],
+    lessonBlockId: number,
+): BlockProgress | null {
+    return (
+        progresses.find(
+            (progress) => Number(progress.lesson_block_id) === Number(lessonBlockId),
+        ) ?? null
+    );
 }

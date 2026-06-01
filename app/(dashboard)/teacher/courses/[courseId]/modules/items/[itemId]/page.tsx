@@ -1,4 +1,4 @@
-import { LessonItemEditorPage } from "@/components/teacher/lesson-item-editor";
+import { LessonItemEditorPage } from "@/components/teacher/lesson-item";
 
 export default async function TeacherLessonItemEditorRoutePage({
     params,

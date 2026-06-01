@@ -6,7 +6,7 @@
 
   --card: #ffffff;
   --border: #dbe3ef;
-
+    
   --primary: #003d8f;
   --primary-foreground: #ffffff;
 
@@ -29,7 +29,8 @@
 
   --gradient-primary: linear-gradient(135deg, #003d8f 0%, #2563eb 55%, #1e40af 100%);
   --gradient-soft: linear-gradient(135deg, #e9efff 0%, #f5f7fb 55%, #ffffff 100%);
-  --gradient-card: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  --gradient-card: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);   
+  --gradient-admin: linear-gradient(135deg, #111a4d 0%, #17235f 58%, #f97316 100%);
 }
 
 * {

@@ -57,6 +57,7 @@ type CourseFormState = {
     total_students: string;
     category_id: string;
     subcategory_id: string;
+    is_mdt: boolean;
 };
 
 type ApiCourseFields = {
@@ -75,6 +76,7 @@ type ApiCourseFields = {
     currency?: string;
     rating?: number | string;
     total_students?: number;
+    is_mdt?: boolean;
 };
 
 const EMPTY_IMAGE =
@@ -104,6 +106,7 @@ const initialFormState: CourseFormState = {
     total_students: "0",
     category_id: "",
     subcategory_id: "",
+    is_mdt: false,
 };
 
 function parseNumberInput(value: string, fallback = 0): number {
@@ -191,6 +194,10 @@ function getCourseIsFree(course: Course): boolean {
     return asApiCourse(course).is_free ?? false;
 }
 
+function getCourseIsMdt(course: Course): boolean {
+    return asApiCourse(course).is_mdt ?? false;
+}
+
 function getCourseSubcategoryId(course: Course): number | null {
     const raw = asApiCourse(course).subcategory_id;
 
@@ -261,6 +268,7 @@ function buildFormFromCourse(course: Course): CourseFormState {
         total_students: String(getCourseTotalStudents(course)),
         category_id: "",
         subcategory_id: String(getCourseSubcategoryId(course) ?? ""),
+        is_mdt: getCourseIsMdt(course),
     };
 }
 
@@ -273,11 +281,11 @@ function getPublishedBadgeClass(course: Course) {
 }
 
 function SwitchCard({
-    checked,
+    checked = false,
     label,
     onChange,
 }: {
-    checked: boolean;
+    checked?: boolean;
     label: string;
     onChange: (value: boolean) => void;
 }) {
@@ -285,7 +293,7 @@ function SwitchCard({
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50/40">
             <input
                 type="checkbox"
-                checked={checked}
+                checked={Boolean(checked)}
                 onChange={(event) => onChange(event.target.checked)}
                 className="h-4 w-4 rounded border-slate-300"
             />
@@ -301,7 +309,9 @@ export function CoursesAdminPanel() {
     const [form, setForm] = useState<CourseFormState>(initialFormState);
     const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
 
-    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(
+        null,
+    );
     const [previewImageUrl, setPreviewImageUrl] = useState("");
 
     const [isLoading, setIsLoading] = useState(true);
@@ -406,7 +416,10 @@ export function CoursesAdminPanel() {
                 }
 
                 if (showSuccess) {
-                    showNotice("success", "Lista de cursos actualizada correctamente.");
+                    showNotice(
+                        "success",
+                        "Lista de cursos actualizada correctamente.",
+                    );
                 }
             } finally {
                 setCategoriesLoading(false);
@@ -478,10 +491,13 @@ export function CoursesAdminPanel() {
                 ? categoryMap.get(subcategory.category_id)
                 : null;
 
+            const mdtLabel = getCourseIsMdt(course) ? "mdt" : "normal";
+
             return (
                 getCourseName(course).toLowerCase().includes(term) ||
                 getCourseDescription(course).toLowerCase().includes(term) ||
                 getCourseLevel(course).toLowerCase().includes(term) ||
+                mdtLabel.includes(term) ||
                 String(courseSubcategoryId ?? "").includes(term) ||
                 (subcategory?.name ?? "").toLowerCase().includes(term) ||
                 (category?.name ?? "").toLowerCase().includes(term)
@@ -547,11 +563,16 @@ export function CoursesAdminPanel() {
             getCourseOpenEnrollment(course),
         ).length;
 
+        const mdtCourses = courses.filter((course) =>
+            getCourseIsMdt(course),
+        ).length;
+
         return {
             total: courses.length,
             published: publishedCourses,
             free: freeCourses,
             openEnrollment: openEnrollmentCourses,
+            mdt: mdtCourses,
         };
     }, [courses]);
 
@@ -642,9 +663,7 @@ export function CoursesAdminPanel() {
             setUsers(Array.isArray(usersData) ? usersData : []);
             setAssignedTeacherUserIds(
                 new Set(
-                    teacherEnrollments.map(
-                        (enrollment) => enrollment.user.id,
-                    ),
+                    teacherEnrollments.map((enrollment) => enrollment.user.id),
                 ),
             );
         } catch (error) {
@@ -761,7 +780,9 @@ export function CoursesAdminPanel() {
     }
 
     async function handleDelete(courseId: number) {
-        const confirmed = window.confirm("¿Seguro que deseas eliminar este curso?");
+        const confirmed = window.confirm(
+            "¿Seguro que deseas eliminar este curso?",
+        );
 
         if (!confirmed) return;
 
@@ -822,6 +843,7 @@ export function CoursesAdminPanel() {
                 duration_hours: parseNumberInput(form.duration_hours, 0),
                 total_lessons: parseNumberInput(form.total_lessons, 0),
                 subcategory_id: subcategoryId,
+                is_mdt: form.is_mdt,
                 image: selectedImageFile ?? undefined,
                 discount_price: form.is_free
                     ? 0
@@ -829,7 +851,10 @@ export function CoursesAdminPanel() {
             };
 
             if (editingCourseId) {
-                const updatedCourse = await updateCourse(editingCourseId, payload);
+                const updatedCourse = await updateCourse(
+                    editingCourseId,
+                    payload,
+                );
 
                 setCourses((current) =>
                     current.map((item) =>
@@ -909,10 +934,10 @@ export function CoursesAdminPanel() {
 
                             <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
                                 <p className="text-xs font-bold uppercase tracking-wide text-white/75">
-                                    Matrícula abierta
+                                    MDT
                                 </p>
                                 <p className="mt-2 text-3xl font-bold">
-                                    {isLoading ? "..." : stats.openEnrollment}
+                                    {isLoading ? "..." : stats.mdt}
                                 </p>
                             </div>
                         </div>
@@ -922,8 +947,8 @@ export function CoursesAdminPanel() {
                 {notice ? (
                     <div
                         className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${notice.type === "success"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-red-200 bg-red-50 text-red-700"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-red-200 bg-red-50 text-red-700"
                             }`}
                     >
                         {notice.text}
@@ -938,8 +963,8 @@ export function CoursesAdminPanel() {
                             </h3>
 
                             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                                Busca por nombre, descripción, nivel, categoría
-                                o subcategoría.
+                                Busca por nombre, descripción, nivel, categoría,
+                                subcategoría o MDT.
                             </p>
                         </div>
 
@@ -970,7 +995,7 @@ export function CoursesAdminPanel() {
                                 setSearch(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            placeholder="Buscar por nombre, nivel, categoría o subcategoría"
+                            placeholder="Buscar por nombre, nivel, categoría, subcategoría o MDT"
                             className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 lg:max-w-[460px]"
                         />
                     </div>
@@ -1080,7 +1105,8 @@ export function CoursesAdminPanel() {
                                                                 )}
                                                             </p>
                                                             <p className="mt-0.5 text-xs font-medium text-slate-500">
-                                                                Curso #{course.id}
+                                                                Curso #
+                                                                {course.id}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1138,6 +1164,18 @@ export function CoursesAdminPanel() {
                                                                 ? "Publicado"
                                                                 : "Borrador"}
                                                         </span>
+
+                                                        {getCourseIsMdt(
+                                                            course,
+                                                        ) ? (
+                                                            <span className="inline-flex w-fit rounded-full bg-purple-100 px-3 py-1 text-xs font-bold text-purple-700">
+                                                                MDT
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                                                                Normal
+                                                            </span>
+                                                        )}
 
                                                         {getCourseIsFree(
                                                             course,
@@ -1417,8 +1455,8 @@ export function CoursesAdminPanel() {
                                                                         <td className="px-5 py-4 text-center">
                                                                             <span
                                                                                 className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${isTeacher
-                                                                                        ? "bg-blue-100 text-blue-700"
-                                                                                        : "bg-slate-100 text-slate-700"
+                                                                                    ? "bg-blue-100 text-blue-700"
+                                                                                    : "bg-slate-100 text-slate-700"
                                                                                     }`}
                                                                             >
                                                                                 {isTeacher
@@ -1440,8 +1478,8 @@ export function CoursesAdminPanel() {
                                                                                     )
                                                                                 }
                                                                                 className={`rounded-xl px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-70 ${isTeacher
-                                                                                        ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                                                                                        : "bg-[#172861] text-white hover:bg-[#0B163F]"
+                                                                                    ? "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                                                                                    : "bg-[#172861] text-white hover:bg-[#0B163F]"
                                                                                     }`}
                                                                             >
                                                                                 {isAssigning
@@ -1844,38 +1882,29 @@ export function CoursesAdminPanel() {
                                             </div>
                                         </div>
 
-                                        <div className="grid gap-3 md:grid-cols-3">
+                                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                                             <SwitchCard
-                                                checked={form.is_free}
+                                                checked={Boolean(form.is_free)}
                                                 label="Curso gratuito"
-                                                onChange={(value) =>
-                                                    updateForm(
-                                                        "is_free",
-                                                        value,
-                                                    )
-                                                }
+                                                onChange={(value) => updateForm("is_free", value)}
                                             />
 
                                             <SwitchCard
-                                                checked={form.is_published}
+                                                checked={Boolean(form.is_published)}
                                                 label="Publicado"
-                                                onChange={(value) =>
-                                                    updateForm(
-                                                        "is_published",
-                                                        value,
-                                                    )
-                                                }
+                                                onChange={(value) => updateForm("is_published", value)}
                                             />
 
                                             <SwitchCard
-                                                checked={form.open_enrollment}
+                                                checked={Boolean(form.open_enrollment)}
                                                 label="Matrícula abierta"
-                                                onChange={(value) =>
-                                                    updateForm(
-                                                        "open_enrollment",
-                                                        value,
-                                                    )
-                                                }
+                                                onChange={(value) => updateForm("open_enrollment", value)}
+                                            />
+
+                                            <SwitchCard
+                                                checked={Boolean(form.is_mdt)}
+                                                label="Curso MDT"
+                                                onChange={(value) => updateForm("is_mdt", value)}
                                             />
                                         </div>
                                     </div>
@@ -1898,6 +1927,12 @@ export function CoursesAdminPanel() {
                                                         <span className="rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white backdrop-blur-md">
                                                             {form.level}
                                                         </span>
+
+                                                        {form.is_mdt ? (
+                                                            <span className="rounded-full bg-purple-300 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
+                                                                MDT
+                                                            </span>
+                                                        ) : null}
 
                                                         {form.is_published ? (
                                                             <span className="rounded-full bg-emerald-400 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-950 shadow-sm">
@@ -1943,82 +1978,95 @@ export function CoursesAdminPanel() {
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-4 bg-white p-5">
-                                                <div>
+                                            <div className="space-y-4 overflow-hidden bg-white p-5">
+                                                <div className="min-w-0">
                                                     <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
                                                         Descripción
                                                     </p>
 
-                                                    <p className="mt-3 min-h-[72px] text-sm leading-6 text-slate-600">
+                                                    <p className="mt-3 min-h-[72px] break-words whitespace-pre-wrap text-sm leading-6 text-slate-600">
                                                         {form.description ||
                                                             "Aquí se mostrará una vista previa breve de la descripción del curso."}
                                                     </p>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                    <div className="min-w-0 rounded-2xl border border-orange-100 bg-orange-50 p-4">
                                                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-orange-500">
                                                             Precio
                                                         </p>
-                                                        <p className="mt-2 text-2xl font-extrabold text-slate-900">
+
+                                                        <p className="mt-2 break-words text-2xl font-extrabold text-slate-900">
                                                             {form.is_free
                                                                 ? "Gratis"
                                                                 : formatMoney(
-                                                                    parseNumberInput(
-                                                                        form.price,
-                                                                        0,
-                                                                    ),
+                                                                    parseNumberInput(form.price, 0),
                                                                     form.currency,
                                                                 )}
                                                         </p>
                                                     </div>
 
-                                                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                                                    <div className="min-w-0 rounded-2xl border border-blue-100 bg-blue-50 p-4">
                                                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-500">
                                                             Duración
                                                         </p>
-                                                        <p className="mt-2 text-2xl font-extrabold text-slate-900">
-                                                            {parseNumberInput(
-                                                                form.duration_hours,
-                                                                0,
-                                                            )}{" "}
-                                                            h
+
+                                                        <p className="mt-2 break-words text-2xl font-extrabold text-slate-900">
+                                                            {parseNumberInput(form.duration_hours, 0)} h
                                                         </p>
                                                     </div>
 
-                                                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                                                    <div className="min-w-0 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                                                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-500">
                                                             Categoría
                                                         </p>
-                                                        <p className="mt-2 line-clamp-1 text-sm font-bold text-slate-900">
+
+                                                        <p className="mt-2 break-words text-sm font-bold text-slate-900">
                                                             {form.category_id
                                                                 ? categories.find(
                                                                     (item) =>
-                                                                        String(
-                                                                            item.id,
-                                                                        ) ===
-                                                                        form.category_id,
-                                                                )?.name ??
-                                                                "Sin categoría"
+                                                                        String(item.id) === form.category_id,
+                                                                )?.name ?? "Sin categoría"
                                                                 : "Sin categoría"}
                                                         </p>
                                                     </div>
 
-                                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
                                                             Subcategoría
                                                         </p>
-                                                        <p className="mt-2 line-clamp-1 text-sm font-bold text-slate-900">
+
+                                                        <p className="mt-2 break-words text-sm font-bold text-slate-900">
                                                             {form.subcategory_id
                                                                 ? subcategories.find(
                                                                     (item) =>
-                                                                        String(
-                                                                            item.id,
-                                                                        ) ===
-                                                                        form.subcategory_id,
-                                                                )?.name ??
-                                                                "Sin subcategoría"
+                                                                        String(item.id) === form.subcategory_id,
+                                                                )?.name ?? "Sin subcategoría"
                                                                 : "Sin subcategoría"}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="min-w-0 rounded-2xl border border-purple-100 bg-purple-50 p-4">
+                                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-purple-500">
+                                                            Tipo
+                                                        </p>
+
+                                                        <p className="mt-2 break-words text-sm font-bold text-slate-900">
+                                                            {form.is_mdt
+                                                                ? "Curso MDT"
+                                                                : "Curso normal"}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                                            Matrícula
+                                                        </p>
+
+                                                        <p className="mt-2 break-words text-sm font-bold text-slate-900">
+                                                            {form.open_enrollment
+                                                                ? "Abierta"
+                                                                : "Cerrada"}
                                                         </p>
                                                     </div>
                                                 </div>

@@ -1,27 +1,56 @@
 export interface Subcategory {
     id: number;
     name: string;
+    is_mdt: boolean;
     category_id: number;
+    category?: {
+        id: number;
+        name: string;
+        is_mdt: boolean;
+    } | null;
 }
 
 export interface SubcategoryPayload {
     name: string;
+    is_mdt: boolean;
     category_id: number;
+}
+
+class ApiError extends Error {
+    status: number;
+
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+    }
 }
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
 
+const AUTH_STORAGE_KEY = "lmsbasicg_auth";
+
 const SUBCATEGORIES_ENDPOINT = `${API_BASE_URL}/api/v1/subcategories/subcategories`;
 const SUBCATEGORIES_BY_CATEGORY_ENDPOINT = `${API_BASE_URL}/api/v1/subcategories/categories`;
 
-const AUTH_STORAGE_KEY = "lmsbasicg_auth";
+const subcategoryEndpoint = (subcategoryId: number) =>
+    `${SUBCATEGORIES_ENDPOINT}/${subcategoryId}`;
+
+const subcategoriesByCategoryEndpoint = (categoryId: number) =>
+    `${SUBCATEGORIES_BY_CATEGORY_ENDPOINT}/${categoryId}/subcategories`;
 
 function clearAuthSession() {
     if (typeof window === "undefined") return;
 
     localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function cleanToken(value: unknown): string {
+    if (typeof value !== "string") return "";
+
+    return value.trim().replace(/^Bearer\s+/i, "");
 }
 
 function decodeJwtPayload(token: string): { exp?: number } | null {
@@ -62,7 +91,7 @@ function getAuthToken(): string | null {
     try {
         const parsed = JSON.parse(rawSession);
 
-        const token =
+        const token = cleanToken(
             parsed?.accessToken ??
             parsed?.token ??
             parsed?.access_token ??
@@ -71,9 +100,10 @@ function getAuthToken(): string | null {
             parsed?.data?.access_token ??
             parsed?.session?.accessToken ??
             parsed?.session?.token ??
-            parsed?.session?.access_token;
+            parsed?.session?.access_token,
+        );
 
-        if (typeof token !== "string" || !token.trim()) {
+        if (!token) {
             clearAuthSession();
             return null;
         }
@@ -85,21 +115,28 @@ function getAuthToken(): string | null {
 
         return token;
     } catch {
-        if (isTokenExpired(rawSession)) {
+        const token = cleanToken(rawSession);
+
+        if (!token) {
             clearAuthSession();
             return null;
         }
 
-        return rawSession;
+        if (isTokenExpired(token)) {
+            clearAuthSession();
+            return null;
+        }
+
+        return token;
     }
 }
 
-function buildAuthHeaders(includeContentType = false): HeadersInit {
+function buildHeaders(hasBody = false): HeadersInit {
     const headers: Record<string, string> = {
         Accept: "application/json",
     };
 
-    if (includeContentType) {
+    if (hasBody) {
         headers["Content-Type"] = "application/json";
     }
 
@@ -121,22 +158,36 @@ function normalizeSubcategoryErrorMessage(message: string): string {
         return "Ya existe una subcategoría con ese nombre.";
     }
 
+    if (/not found|no encontrada|does not exist/i.test(message)) {
+        return "La subcategoría no existe o ya fue eliminada.";
+    }
+
+    if (/category_id|foreign key|violates foreign key/i.test(message)) {
+        return "La categoría seleccionada no existe o no es válida.";
+    }
+
     return message || "Ocurrió un error en la solicitud.";
 }
 
 async function parseErrorResponse(response: Response): Promise<never> {
-    if (response.status === 401) {
-        clearAuthSession();
-
-        throw new Error("Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
-    }
-
     let rawText = "";
 
     try {
         rawText = await response.text();
     } catch {
-        throw new Error("No se pudo procesar la respuesta del servidor.");
+        throw new ApiError(
+            "No se pudo procesar la respuesta del servidor.",
+            response.status,
+        );
+    }
+
+    if (response.status === 401) {
+        clearAuthSession();
+
+        throw new ApiError(
+            "Tu sesión expiró o no es válida. Inicia sesión nuevamente.",
+            response.status,
+        );
     }
 
     let message = "Ocurrió un error en la solicitud.";
@@ -153,7 +204,9 @@ async function parseErrorResponse(response: Response): Promise<never> {
             message = data.detail;
         } else if (typeof data?.message === "string") {
             message = data.message;
-        } else if (typeof rawText === "string" && rawText.trim()) {
+        } else if (typeof data?.error === "string") {
+            message = data.error;
+        } else if (rawText.trim()) {
             message = rawText;
         }
     } catch {
@@ -162,92 +215,112 @@ async function parseErrorResponse(response: Response): Promise<never> {
         }
     }
 
-    throw new Error(normalizeSubcategoryErrorMessage(message));
+    throw new ApiError(
+        normalizeSubcategoryErrorMessage(message),
+        response.status,
+    );
 }
 
-async function parseResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-        return parseErrorResponse(response);
+async function readResponse<T>(response: Response): Promise<T> {
+    const rawText = await response.text();
+
+    if (!rawText) {
+        return undefined as T;
     }
 
-    const contentType = response.headers.get("content-type") || "";
-
-    if (contentType.includes("application/json")) {
-        return response.json() as Promise<T>;
+    try {
+        return JSON.parse(rawText) as T;
+    } catch {
+        return rawText as T;
     }
-
-    return response.text() as Promise<T>;
 }
 
-export async function getAllSubcategories(): Promise<Subcategory[]> {
-    const response = await fetch(SUBCATEGORIES_ENDPOINT, {
-        method: "GET",
-        headers: buildAuthHeaders(),
+async function apiRequest<T>(
+    endpoint: string,
+    options: RequestInit = {},
+): Promise<T> {
+    const hasBody = Boolean(options.body);
+
+    const response = await fetch(endpoint, {
+        ...options,
+        headers: {
+            ...buildHeaders(hasBody),
+            ...(options.headers || {}),
+        },
         cache: "no-store",
     });
 
-    return parseResponse<Subcategory[]>(response);
+    if (!response.ok) {
+        await parseErrorResponse(response);
+    }
+
+    return readResponse<T>(response);
+}
+
+function buildSubcategoryPayload(payload: SubcategoryPayload) {
+    return {
+        name: payload.name.trim(),
+        is_mdt: Boolean(payload.is_mdt),
+        category_id: Number(payload.category_id),
+    };
+}
+
+export async function getAllSubcategories(): Promise<Subcategory[]> {
+    const data = await apiRequest<Subcategory[]>(SUBCATEGORIES_ENDPOINT, {
+        method: "GET",
+    });
+
+    return Array.isArray(data) ? data : [];
+}
+
+export async function getSubcategories(): Promise<Subcategory[]> {
+    return getAllSubcategories();
 }
 
 export async function getSubcategoryById(
     subcategoryId: number,
 ): Promise<Subcategory> {
-    const response = await fetch(`${SUBCATEGORIES_ENDPOINT}/${subcategoryId}`, {
+    return apiRequest<Subcategory>(subcategoryEndpoint(subcategoryId), {
         method: "GET",
-        headers: buildAuthHeaders(),
-        cache: "no-store",
     });
-
-    return parseResponse<Subcategory>(response);
 }
 
 export async function getSubcategoriesByCategory(
     categoryId: number,
 ): Promise<Subcategory[]> {
-    const response = await fetch(
-        `${SUBCATEGORIES_BY_CATEGORY_ENDPOINT}/${categoryId}/subcategories`,
+    const data = await apiRequest<Subcategory[]>(
+        subcategoriesByCategoryEndpoint(categoryId),
         {
             method: "GET",
-            headers: buildAuthHeaders(),
-            cache: "no-store",
         },
     );
 
-    return parseResponse<Subcategory[]>(response);
+    return Array.isArray(data) ? data : [];
 }
 
 export async function createSubcategory(
     payload: SubcategoryPayload,
 ): Promise<Subcategory> {
-    const response = await fetch(SUBCATEGORIES_ENDPOINT, {
+    return apiRequest<Subcategory>(SUBCATEGORIES_ENDPOINT, {
         method: "POST",
-        headers: buildAuthHeaders(true),
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildSubcategoryPayload(payload)),
     });
-
-    return parseResponse<Subcategory>(response);
 }
 
 export async function updateSubcategory(
     subcategoryId: number,
     payload: SubcategoryPayload,
 ): Promise<Subcategory> {
-    const response = await fetch(`${SUBCATEGORIES_ENDPOINT}/${subcategoryId}`, {
+    return apiRequest<Subcategory>(subcategoryEndpoint(subcategoryId), {
         method: "PUT",
-        headers: buildAuthHeaders(true),
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildSubcategoryPayload(payload)),
     });
-
-    return parseResponse<Subcategory>(response);
 }
 
 export async function deleteSubcategory(
     subcategoryId: number,
 ): Promise<string> {
-    const response = await fetch(`${SUBCATEGORIES_ENDPOINT}/${subcategoryId}`, {
+    return apiRequest<string>(subcategoryEndpoint(subcategoryId), {
         method: "DELETE",
-        headers: buildAuthHeaders(),
     });
-
-    return parseResponse<string>(response);
 }

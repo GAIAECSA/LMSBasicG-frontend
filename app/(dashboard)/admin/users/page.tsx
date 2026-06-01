@@ -17,8 +17,14 @@ import {
     type UpdateUserPayload,
     type User,
 } from "@/services/users.service";
+import {
+    getActivePrivacyPolicy,
+    type PrivacyPolicy,
+} from "@/services/privacy-policy.service";
 
 const ROWS_PER_PAGE = 7;
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000";
 
 const roleLabels = [
     { id: 2, label: "VISITANTE" },
@@ -29,8 +35,25 @@ const roleLabels = [
 
 const modalRoleOptions = [{ id: 2, label: "VISITANTE" }];
 
+type UserWithIdnumber = User & {
+    idnumber?: string | null;
+};
+
+type RegisterUserPayloadWithIdnumber = RegisterUserPayload & {
+    idnumber: string;
+    privacy_policy_id?: number;
+    privacyPolicyId?: number;
+    privacy_policy_accepted?: boolean;
+    privacyPolicyAccepted?: boolean;
+};
+
+type UpdateUserPayloadWithIdnumber = UpdateUserPayload & {
+    idnumber: string;
+};
+
 interface UserFormState {
     username: string;
+    idnumber: string;
     password: string;
     firstname: string;
     lastname: string;
@@ -38,10 +61,12 @@ interface UserFormState {
     phone_number: string;
     departament: string;
     role_id: number;
+    accepted_privacy_policy: boolean;
 }
 
 const emptyForm: UserFormState = {
     username: "",
+    idnumber: "",
     password: "",
     firstname: "",
     lastname: "",
@@ -49,6 +74,7 @@ const emptyForm: UserFormState = {
     phone_number: "",
     departament: "",
     role_id: 2,
+    accepted_privacy_policy: false,
 };
 
 function getRoleLabel(roleId: number) {
@@ -71,8 +97,39 @@ function getRoleBadgeClass(roleId: number) {
     return "bg-orange-100 text-orange-700";
 }
 
+
+function normalizeResourceUrl(url: string) {
+    if (!url) return "";
+
+    if (
+        url.startsWith("http://") ||
+        url.startsWith("https://") ||
+        url.startsWith("data:")
+    ) {
+        return url;
+    }
+
+    if (url.startsWith("/")) {
+        return `${API_URL}${url}`;
+    }
+
+    return `${API_URL}/${url}`;
+}
+
+function formatPolicyDate(value?: string | null) {
+    if (!value) return "Sin fecha";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return value;
+
+    return new Intl.DateTimeFormat("es-EC", {
+        dateStyle: "medium",
+    }).format(date);
+}
+
 export default function UsersPage() {
-    const [users, setUsers] = useState<User[]>([]);
+    const [users, setUsers] = useState<UserWithIdnumber[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,8 +142,28 @@ export default function UsersPage() {
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [editingUser, setEditingUser] = useState<UserWithIdnumber | null>(
+        null,
+    );
     const [form, setForm] = useState<UserFormState>(emptyForm);
+
+    const [privacyPolicy, setPrivacyPolicy] = useState<PrivacyPolicy | null>(
+        null,
+    );
+    const [privacyLoading, setPrivacyLoading] = useState(true);
+    const [privacyError, setPrivacyError] = useState("");
+
+    const privacyPolicyUrl = useMemo(
+        () =>
+            privacyPolicy?.file_url
+                ? normalizeResourceUrl(privacyPolicy.file_url)
+                : "",
+        [privacyPolicy],
+    );
+
+    const privacyPolicyIsRequired = Boolean(
+        privacyPolicy?.is_active && privacyPolicy?.mandatory,
+    );
 
     const loadUsers = useCallback(async (showRefresh = false) => {
         try {
@@ -113,15 +190,34 @@ export default function UsersPage() {
         }
     }, []);
 
+    const loadPrivacyPolicy = useCallback(async () => {
+        try {
+            setPrivacyLoading(true);
+            setPrivacyError("");
+
+            const activePolicy = await getActivePrivacyPolicy();
+
+            setPrivacyPolicy(activePolicy);
+        } catch {
+            setPrivacyPolicy(null);
+            setPrivacyError(
+                "No se pudo cargar la política de privacidad activa.",
+            );
+        } finally {
+            setPrivacyLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
             void loadUsers();
+            void loadPrivacyPolicy();
         }, 0);
 
         return () => {
             window.clearTimeout(timeoutId);
         };
-    }, [loadUsers]);
+    }, [loadUsers, loadPrivacyPolicy]);
 
     const filteredUsers = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
@@ -137,6 +233,7 @@ export default function UsersPage() {
             return (
                 fullName.includes(query) ||
                 (user.username || "").toLowerCase().includes(query) ||
+                (user.idnumber || "").toLowerCase().includes(query) ||
                 (user.email || "").toLowerCase().includes(query) ||
                 roleName.includes(query) ||
                 (user.phone_number || "").toLowerCase().includes(query) ||
@@ -176,10 +273,11 @@ export default function UsersPage() {
         setIsModalOpen(true);
     };
 
-    const openEditModal = (user: User) => {
+    const openEditModal = (user: UserWithIdnumber) => {
         setEditingUser(user);
         setForm({
             username: user.username || "",
+            idnumber: user.idnumber || "",
             password: "",
             firstname: user.firstname || "",
             lastname: user.lastname || "",
@@ -187,6 +285,7 @@ export default function UsersPage() {
             phone_number: user.phone_number || "",
             departament: user.departament || "",
             role_id: user.role_id,
+            accepted_privacy_policy: true,
         });
         setErrorMessage("");
         setSuccessMessage("");
@@ -205,17 +304,36 @@ export default function UsersPage() {
     const handleInputChange = (
         event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
     ) => {
-        const { name, value } = event.target;
+        const { name, value, type } = event.target;
+        const checked =
+            type === "checkbox"
+                ? (event.target as HTMLInputElement).checked
+                : false;
 
         setForm((currentForm) => ({
             ...currentForm,
-            [name]: name === "role_id" ? Number(value) : value,
+            [name]:
+                type === "checkbox"
+                    ? checked
+                    : name === "role_id"
+                        ? Number(value)
+                        : name === "idnumber"
+                            ? value.replace(/\D/g, "").slice(0, 10)
+                            : value,
         }));
     };
 
     const validateForm = () => {
         if (!form.username.trim()) {
             return "El nombre de usuario es obligatorio.";
+        }
+
+        if (!form.idnumber.trim()) {
+            return "La cédula es obligatoria.";
+        }
+
+        if (form.idnumber.trim().length !== 10) {
+            return "La cédula debe tener 10 dígitos.";
         }
 
         if (!editingUser && !form.password.trim()) {
@@ -232,6 +350,14 @@ export default function UsersPage() {
 
         if (!form.email.trim()) {
             return "El correo electrónico es obligatorio.";
+        }
+
+        if (!editingUser && privacyLoading) {
+            return "Espera mientras se carga la política de privacidad.";
+        }
+
+        if (!editingUser && privacyPolicyIsRequired && !form.accepted_privacy_policy) {
+            return "El usuario debe aceptar la política de privacidad para ser registrado manualmente.";
         }
 
         return "";
@@ -253,8 +379,9 @@ export default function UsersPage() {
             setSuccessMessage("");
 
             if (editingUser) {
-                const payload: UpdateUserPayload = {
+                const payload: UpdateUserPayloadWithIdnumber = {
                     username: form.username.trim(),
+                    idnumber: form.idnumber.trim(),
                     firstname: form.firstname.trim(),
                     lastname: form.lastname.trim(),
                     email: form.email.trim(),
@@ -269,8 +396,9 @@ export default function UsersPage() {
                 await updateUser(editingUser.id, payload);
                 setSuccessMessage("Usuario actualizado correctamente.");
             } else {
-                const payload: RegisterUserPayload = {
+                const payload: RegisterUserPayloadWithIdnumber = {
                     username: form.username.trim(),
+                    idnumber: form.idnumber.trim(),
                     password: form.password.trim(),
                     firstname: form.firstname.trim(),
                     lastname: form.lastname.trim(),
@@ -279,6 +407,13 @@ export default function UsersPage() {
                     departament: form.departament.trim() || null,
                     role_id: Number(form.role_id),
                 };
+
+                if (privacyPolicy && form.accepted_privacy_policy) {
+                    payload.privacy_policy_id = privacyPolicy.id;
+                    payload.privacyPolicyId = privacyPolicy.id;
+                    payload.privacy_policy_accepted = true;
+                    payload.privacyPolicyAccepted = true;
+                }
 
                 await registerUser(payload);
                 setSuccessMessage("Usuario creado correctamente.");
@@ -301,7 +436,7 @@ export default function UsersPage() {
         }
     };
 
-    const handleDelete = async (user: User) => {
+    const handleDelete = async (user: UserWithIdnumber) => {
         const confirmed = window.confirm(
             `¿Seguro que deseas eliminar al usuario ${user.firstname} ${user.lastname}?`,
         );
@@ -408,7 +543,7 @@ export default function UsersPage() {
                         </h3>
 
                         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                            Busca por nombre, usuario, correo, teléfono,
+                            Busca por nombre, usuario, cédula, correo, teléfono,
                             departamento, rol o ID.
                         </p>
                     </div>
@@ -441,7 +576,7 @@ export default function UsersPage() {
                             setSearchTerm(event.target.value);
                             setCurrentPage(1);
                         }}
-                        placeholder="Buscar usuario, nombre, correo, rol o ID"
+                        placeholder="Buscar usuario, cédula, nombre, correo, rol o ID"
                         className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 lg:max-w-[440px]"
                     />
                 </div>
@@ -454,6 +589,9 @@ export default function UsersPage() {
                             <tr>
                                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                     Usuario
+                                </th>
+                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                    Cédula
                                 </th>
                                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                     Correo
@@ -477,7 +615,7 @@ export default function UsersPage() {
                             {isLoading ? (
                                 <tr>
                                     <td
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="px-5 py-12 text-center text-sm font-semibold text-slate-500"
                                     >
                                         Cargando usuarios...
@@ -486,7 +624,7 @@ export default function UsersPage() {
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="px-5 py-12 text-center"
                                     >
                                         <p className="text-sm font-bold text-slate-800">
@@ -522,6 +660,10 @@ export default function UsersPage() {
                                                     </p>
                                                 </div>
                                             </div>
+                                        </td>
+
+                                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                                            {user.idnumber || "Sin cédula"}
                                         </td>
 
                                         <td className="px-5 py-4 text-sm font-semibold text-slate-700">
@@ -675,6 +817,21 @@ export default function UsersPage() {
 
                                 <div>
                                     <label className="mb-1 block text-sm font-bold text-slate-700">
+                                        Cédula
+                                    </label>
+                                    <input
+                                        name="idnumber"
+                                        value={form.idnumber}
+                                        onChange={handleInputChange}
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        placeholder="Ej: 0999999999"
+                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-1 block text-sm font-bold text-slate-700">
                                         Contraseña
                                     </label>
                                     <input
@@ -793,6 +950,65 @@ export default function UsersPage() {
                                 </div>
                             </div>
 
+                            {!editingUser ? (
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    {privacyLoading ? (
+                                        <p className="text-sm font-semibold text-slate-500">
+                                            Cargando política de privacidad...
+                                        </p>
+                                    ) : privacyPolicy ? (
+                                        <label className="flex cursor-pointer items-start gap-3">
+                                            <input
+                                                name="accepted_privacy_policy"
+                                                type="checkbox"
+                                                checked={form.accepted_privacy_policy}
+                                                onChange={handleInputChange}
+                                                className="mt-1 h-4 w-4 accent-[#172861]"
+                                            />
+
+                                            <span className="text-sm leading-6 text-slate-600">
+                                                Confirmo que el usuario acepta la{" "}
+                                                <span className="font-bold text-slate-900">
+                                                    {privacyPolicy.title}
+                                                </span>{" "}
+                                                versión{" "}
+                                                <span className="font-bold">
+                                                    {privacyPolicy.version}
+                                                </span>
+                                                , vigente desde{" "}
+                                                {formatPolicyDate(
+                                                    privacyPolicy.effective_date,
+                                                )}
+                                                .{" "}
+                                                {privacyPolicyUrl ? (
+                                                    <a
+                                                        href={privacyPolicyUrl}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="font-bold text-[#172861] underline-offset-4 hover:underline"
+                                                        onClick={(event) =>
+                                                            event.stopPropagation()
+                                                        }
+                                                    >
+                                                        Ver documento
+                                                    </a>
+                                                ) : null}
+                                                {privacyPolicy.mandatory ? (
+                                                    <span className="ml-1 font-bold text-red-600">
+                                                        Obligatoria.
+                                                    </span>
+                                                ) : null}
+                                            </span>
+                                        </label>
+                                    ) : (
+                                        <p className="text-sm font-semibold text-slate-500">
+                                            {privacyError ||
+                                                "No existe una política de privacidad activa."}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : null}
+
                             {errorMessage ? (
                                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
                                     {errorMessage}
@@ -811,7 +1027,7 @@ export default function UsersPage() {
 
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || (!editingUser && privacyLoading)}
                                     className="rounded-2xl bg-[#172861] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {isSubmitting

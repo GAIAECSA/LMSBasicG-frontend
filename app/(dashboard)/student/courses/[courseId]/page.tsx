@@ -1,4 +1,4 @@
-import { StudentMoocCourseView } from "@/components/student/student-mooc-course-view";
+import { StudentMoocCourseView } from "@/components/student/room";
 
 type StudentCoursePageProps = {
     params: Promise<{

@@ -1,22 +1,18 @@
-const API_URL = (
-    process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000"
-).replace(/\/+$/, "");
+import {
+    API_URL,
+    getJsonHeaders,
+    getMultipartHeaders,
+    handleApiResponse,
+    validateId,
+} from "./api-client.service";
 
-const LESSONS_ENDPOINT = `${API_URL}/api/v1/lessons`;
-const LESSON_BLOCKS_ENDPOINT = `${API_URL}/api/v1/lesson-blocks`;
+const LESSONS_ENDPOINT = `${API_URL}/api/v1/lessons/lessons`;
+const LESSONS_BY_MODULE_ENDPOINT = `${API_URL}/api/v1/lessons/modules`;
 
-const AUTH_STORAGE_KEY = "lmsbasicg_auth";
+const LESSON_BLOCKS_ENDPOINT = `${API_URL}/api/v1/lesson-blocks/lesson-blocks`;
+const LESSON_BLOCKS_BY_LESSON_ENDPOINT = `${API_URL}/api/v1/lesson-blocks/lesson`;
 
-export type LessonPayload = {
-    name: string;
-    order: number;
-    module_id: number;
-};
-
-export type UpdateLessonPayload = {
-    name: string;
-    order: number;
-};
+const LESSON_BLOCK_TYPES_ENDPOINT = `${API_URL}/api/v1/lesson-block-types/lesson-block-types`;
 
 export type Lesson = {
     id: number;
@@ -25,378 +21,686 @@ export type Lesson = {
     module_id: number;
 };
 
-export type LessonCompletionType = "VER" | "RESPONDER" | "SUBIR" | "VIDEO";
-
-export type LessonBlockContent = Record<string, unknown>;
-
-export type LessonBlockPayload = {
-    lesson_id: number;
-    block_type_id: number;
-    completion_type: LessonCompletionType;
+export type LessonPayload = {
+    name: string;
     order: number;
-    is_required: boolean;
-    is_active: boolean;
-    content: LessonBlockContent;
-
-    completion_value?: number;
-    deleted?: boolean;
-    file?: File | null;
+    module_id: number;
 };
 
-export type LessonBlockTypeResume = {
+export type LessonBlockType = {
     id: number;
     key: string;
+    name?: string | null;
+    description?: string | null;
+    icon?: string | null;
+    content_type?: string | null;
+    config?: Record<string, unknown> | null;
+    is_active?: boolean | null;
 };
+
+export type LessonBlockContent = Record<string, unknown> | string | null;
 
 export type LessonBlock = {
     id: number;
     content: LessonBlockContent;
-    is_required: boolean;
-    completion_type: LessonCompletionType;
+    counts_toward_grade: boolean;
+    completion_type: string;
     completion_value: number;
     order: number;
+    default: boolean;
     lesson_id: number;
-    block_type_id?: number;
+    block_type_id: number;
+    date_available?: string | null;
     is_active: boolean;
-    deleted?: boolean;
-    lesson_block_type?: LessonBlockTypeResume;
-    created_at?: string;
+    deleted?: boolean | null;
+    created_at?: string | null;
     updated_at?: string | null;
+    lesson_block_type?: {
+        id?: number;
+        key?: string;
+        name?: string | null;
+    } | null;
 };
 
-type BackendValidationError = {
-    detail?: string | Array<{ loc?: unknown[]; msg?: string; type?: string }>;
-    message?: string;
+export type LessonBlockPayload = {
+    lesson_id: number | string;
+    block_type_id: number | string;
+    completion_type: string;
+    completion_value?: number | string | null;
+    order?: number | string | null;
+    default?: boolean | string | number | null;
+    counts_toward_grade?: boolean | string | number | null;
+    date_available?: string | null;
+    is_active?: boolean | string | number | null;
+    content?: unknown;
+    file?: File | Blob | null;
 };
 
-function clearAuthSession() {
-    if (typeof window === "undefined") return;
+export type UpdateLessonBlockPayload = Partial<LessonBlockPayload>;
 
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+export type LessonCalendarActivity = {
+    id: string;
+    lesson_id: number;
+    lesson_block_id: number;
+    title: string;
+    type_key: string;
+    date_available: string;
+    counts_toward_grade: boolean;
+    url: string;
+    course_id?: number | null;
+    raw?: LessonBlock;
+};
+
+type AnyRecord = Record<string, unknown>;
+
+function cleanText(value: unknown): string {
+    if (typeof value !== "string" && typeof value !== "number") return "";
+
+    return String(value).trim();
 }
 
-function decodeJwtPayload(token: string): { exp?: number } | null {
-    try {
-        const payload = token.split(".")[1];
+function normalizeId(value: unknown, label: string): number {
+    const numericValue = Number(value);
 
-        if (!payload) return null;
-
-        const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
-        const paddedPayload = normalizedPayload.padEnd(
-            normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
-            "=",
-        );
-
-        return JSON.parse(window.atob(paddedPayload)) as { exp?: number };
-    } catch {
-        return null;
-    }
+    return validateId(numericValue, label);
 }
 
-function isTokenExpired(token: string): boolean {
-    const payload = decodeJwtPayload(token);
+function readBoolean(value: unknown, fallback = false): boolean {
+    if (typeof value === "boolean") return value;
 
-    if (!payload?.exp) return false;
+    if (typeof value === "number") return value === 1;
 
-    const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+    if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
 
-    return payload.exp <= currentTimeInSeconds;
-}
-
-function cleanToken(value: unknown): string | null {
-    if (typeof value !== "string") return null;
-
-    const token = value.trim().replace(/^Bearer\s+/i, "");
-
-    return token || null;
-}
-
-function getAuthToken(): string | null {
-    if (typeof window === "undefined") return null;
-
-    const rawSession = localStorage.getItem(AUTH_STORAGE_KEY);
-
-    if (!rawSession) return null;
-
-    try {
-        const parsedSession = JSON.parse(rawSession) as {
-            accessToken?: string;
-            token?: string;
-            access_token?: string;
-            data?: {
-                accessToken?: string;
-                token?: string;
-                access_token?: string;
-            };
-            session?: {
-                accessToken?: string;
-                token?: string;
-                access_token?: string;
-            };
-        };
-
-        const token = cleanToken(
-            parsedSession.accessToken ??
-            parsedSession.token ??
-            parsedSession.access_token ??
-            parsedSession.data?.accessToken ??
-            parsedSession.data?.token ??
-            parsedSession.data?.access_token ??
-            parsedSession.session?.accessToken ??
-            parsedSession.session?.token ??
-            parsedSession.session?.access_token,
-        );
-
-        if (!token) {
-            clearAuthSession();
-            return null;
+        if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
+            return true;
         }
 
-        if (isTokenExpired(token)) {
-            clearAuthSession();
-            return null;
+        if (["false", "0", "no"].includes(normalized)) {
+            return false;
         }
-
-        return token;
-    } catch {
-        const token = cleanToken(rawSession);
-
-        if (!token) {
-            clearAuthSession();
-            return null;
-        }
-
-        if (isTokenExpired(token)) {
-            clearAuthSession();
-            return null;
-        }
-
-        return token;
-    }
-}
-
-function getJsonHeaders(): HeadersInit {
-    const token = getAuthToken();
-
-    if (!token) {
-        throw new Error("No se encontró un token válido. Inicia sesión nuevamente.");
     }
 
-    const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-    };
+    return fallback;
+}
+
+function readNumber(value: unknown, fallback = 0): number {
+    const numericValue = Number(value);
+
+    return Number.isFinite(numericValue) ? numericValue : fallback;
+}
+
+function readString(value: unknown, fallback = ""): string {
+    if (typeof value === "string" && value.trim()) {
+        return value.trim();
+    }
+
+    if (typeof value === "number") {
+        return String(value);
+    }
+
+    return fallback;
+}
+
+/**
+ * IMPORTANTE:
+ * Cuando se usa FormData, NO se debe enviar manualmente:
+ * Content-Type: multipart/form-data
+ *
+ * El navegador agrega automáticamente el boundary.
+ */
+function getSafeMultipartHeaders(): HeadersInit {
+    const headers = new Headers(getMultipartHeaders());
+
+    headers.delete("Content-Type");
+    headers.delete("content-type");
 
     return headers;
 }
 
-function getFormDataHeaders(): HeadersInit {
-    const token = getAuthToken();
+function debugFormData(formData: FormData, label: string) {
+    if (process.env.NODE_ENV === "production") return;
 
-    if (!token) {
-        throw new Error("No se encontró un token válido. Inicia sesión nuevamente.");
+    for (const [key, value] of formData.entries()) {
+        console.log(label, key, value);
     }
-
-    const headers: Record<string, string> = {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-    };
-
-    return headers;
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
-    if (!response.ok) {
-        if (response.status === 401) {
-            clearAuthSession();
+function parseContentForFormData(content: unknown): unknown {
+    if (content === undefined || content === null) return undefined;
 
-            throw new Error("Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
-        }
+    if (typeof content === "string") {
+        const cleanContent = content.trim();
 
-        let errorMessage = "Ocurrió un error al procesar la solicitud.";
+        if (!cleanContent) return undefined;
 
         try {
-            const rawText = await response.text();
-
-            if (!rawText) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-
-            try {
-                const errorData = JSON.parse(rawText) as BackendValidationError;
-
-                if (typeof errorData.detail === "string") {
-                    errorMessage = errorData.detail;
-                } else if (Array.isArray(errorData.detail)) {
-                    errorMessage =
-                        errorData.detail
-                            .map((item) => item.msg)
-                            .filter(Boolean)
-                            .join(", ") || "Error de validación en la solicitud.";
-                } else if (typeof errorData.message === "string") {
-                    errorMessage = errorData.message;
-                } else {
-                    errorMessage = rawText;
-                }
-            } catch {
-                errorMessage = rawText;
-            }
+            return JSON.parse(cleanContent);
         } catch {
-            errorMessage = `Error ${response.status}: ${response.statusText}`;
+            return cleanContent;
         }
-
-        throw new Error(errorMessage);
     }
 
-    const contentType = response.headers.get("content-type") || "";
+    return content;
+}
 
-    if (contentType.includes("application/json")) {
-        return response.json() as Promise<T>;
+function appendFormValue(
+    formData: FormData,
+    key: string,
+    value: unknown,
+): void {
+    if (value === undefined || value === null) return;
+
+    if (typeof value === "boolean") {
+        formData.append(key, value ? "true" : "false");
+        return;
     }
 
-    return response.text() as Promise<T>;
+    if (typeof value === "number") {
+        formData.append(key, String(value));
+        return;
+    }
+
+    if (typeof value === "string") {
+        if (value.trim() === "") return;
+
+        formData.append(key, value);
+        return;
+    }
+
+    formData.append(key, JSON.stringify(value));
+}
+
+function appendFile(formData: FormData, file?: File | Blob | null): void {
+    if (!file) return;
+
+    const isFile = typeof File !== "undefined" && file instanceof File;
+    const isBlob = typeof Blob !== "undefined" && file instanceof Blob;
+
+    if (!isFile && !isBlob) {
+        throw new Error("El archivo seleccionado no es válido.");
+    }
+
+    formData.append("file", file);
+}
+
+function normalizeDateForApi(value: unknown): string | null {
+    if (value === undefined || value === null) return null;
+
+    const text = String(value).trim();
+
+    if (!text) return null;
+
+    const date = new Date(text);
+
+    if (Number.isNaN(date.getTime())) {
+        return text;
+    }
+
+    return date.toISOString();
 }
 
 function buildLessonBlockFormData(payload: LessonBlockPayload): FormData {
-    const data = new FormData();
+    const formData = new FormData();
 
-    data.append("lesson_id", String(payload.lesson_id));
-    data.append("block_type_id", String(payload.block_type_id));
-    data.append("completion_type", payload.completion_type);
-    data.append("order", String(payload.order));
-    data.append("is_required", String(payload.is_required));
-    data.append("is_active", String(payload.is_active));
+    appendFormValue(
+        formData,
+        "lesson_id",
+        normalizeId(payload.lesson_id, "ID de lección"),
+    );
 
-    if (
-        payload.completion_value !== undefined &&
-        payload.completion_value !== null
-    ) {
-        data.append("completion_value", String(payload.completion_value));
+    appendFormValue(
+        formData,
+        "block_type_id",
+        normalizeId(payload.block_type_id, "ID de tipo de bloque"),
+    );
+
+    const completionType = cleanText(payload.completion_type);
+
+    if (!completionType) {
+        throw new Error("El tipo de finalización es obligatorio.");
     }
 
-    if (payload.deleted !== undefined) {
-        data.append("deleted", String(payload.deleted));
+    appendFormValue(formData, "completion_type", completionType);
+
+    appendFormValue(
+        formData,
+        "completion_value",
+        readNumber(payload.completion_value, 0),
+    );
+
+    appendFormValue(formData, "order", readNumber(payload.order, 1));
+
+    appendFormValue(formData, "default", readBoolean(payload.default, true));
+
+    appendFormValue(
+        formData,
+        "counts_toward_grade",
+        readBoolean(payload.counts_toward_grade, false),
+    );
+
+    const dateAvailable = normalizeDateForApi(payload.date_available);
+
+    if (dateAvailable) {
+        appendFormValue(formData, "date_available", dateAvailable);
     }
 
-    if (payload.content !== undefined) {
-        data.append("content", JSON.stringify(payload.content));
+    appendFormValue(formData, "is_active", readBoolean(payload.is_active, true));
+
+    const content = parseContentForFormData(payload.content);
+
+    if (content !== undefined) {
+        formData.append(
+            "content",
+            typeof content === "string" ? content : JSON.stringify(content),
+        );
     }
 
-    if (typeof File !== "undefined" && payload.file instanceof File) {
-        data.append("file", payload.file);
-    }
+    appendFile(formData, payload.file);
 
-    return data;
+    return formData;
 }
 
-/* ======================================================
-   LESSONS
-   ====================================================== */
+function buildLessonBlockSafeFormData(
+    currentBlock: LessonBlock,
+    payload: UpdateLessonBlockPayload,
+): FormData {
+    const formData = new FormData();
+
+    const lessonId = readNumber(payload.lesson_id, currentBlock.lesson_id);
+
+    const blockTypeId = readNumber(
+        payload.block_type_id,
+        currentBlock.block_type_id,
+    );
+
+    const completionType = readString(
+        payload.completion_type,
+        currentBlock.completion_type || "VER",
+    );
+
+    const completionValue = readNumber(
+        payload.completion_value,
+        readNumber(currentBlock.completion_value, 0),
+    );
+
+    const order = readNumber(payload.order, readNumber(currentBlock.order, 1));
+
+    const isDefault = readBoolean(
+        payload.default,
+        readBoolean(currentBlock.default, true),
+    );
+
+    const countsTowardGrade = readBoolean(
+        payload.counts_toward_grade,
+        readBoolean(currentBlock.counts_toward_grade, false),
+    );
+
+    const isActive = readBoolean(
+        payload.is_active,
+        readBoolean(currentBlock.is_active, true),
+    );
+
+    const dateAvailable = normalizeDateForApi(
+        payload.date_available !== undefined
+            ? payload.date_available
+            : currentBlock.date_available,
+    );
+
+    const content =
+        parseContentForFormData(payload.content) ??
+        parseContentForFormData(currentBlock.content) ??
+        {};
+
+    formData.append("lesson_id", String(lessonId));
+    formData.append("block_type_id", String(blockTypeId));
+    formData.append("completion_type", completionType);
+    formData.append("completion_value", String(completionValue));
+    formData.append("order", String(order));
+    formData.append("default", String(isDefault));
+    formData.append("counts_toward_grade", String(countsTowardGrade));
+    formData.append("is_active", String(isActive));
+
+    if (dateAvailable) {
+        formData.append("date_available", dateAvailable);
+    }
+
+    formData.append(
+        "content",
+        typeof content === "string" ? content : JSON.stringify(content),
+    );
+
+    appendFile(formData, payload.file);
+
+    return formData;
+}
+
+function isActiveLessonBlock(block: LessonBlock): boolean {
+    return block.deleted !== true;
+}
+
+function getContentRecord(content: unknown): AnyRecord {
+    if (!content) return {};
+
+    if (typeof content === "object" && !Array.isArray(content)) {
+        return content as AnyRecord;
+    }
+
+    if (typeof content === "string") {
+        try {
+            const parsed = JSON.parse(content) as unknown;
+
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                return parsed as AnyRecord;
+            }
+        } catch {
+            return {};
+        }
+    }
+
+    return {};
+}
+
+function normalizeText(value: unknown): string {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function getContentText(content: unknown, keys: string[]): string {
+    const contentRecord = getContentRecord(content);
+
+    for (const key of keys) {
+        const value = contentRecord[key];
+
+        if (typeof value === "string" && value.trim()) {
+            return value.trim();
+        }
+
+        if (typeof value === "number") {
+            return String(value);
+        }
+    }
+
+    return "";
+}
+
+function getLessonBlockTitle(block: LessonBlock): string {
+    const contentTitle = getContentText(block.content, [
+        "title",
+        "name",
+        "text",
+        "description",
+        "label",
+    ]);
+
+    if (contentTitle) return contentTitle;
+
+    return `Bloque ${block.id}`;
+}
+
+function getLessonCalendarTypeKey(block: LessonBlock): string {
+    const content = getContentRecord(block.content);
+
+    const contentType = normalizeText(
+        getContentText(content, [
+            "itemType",
+            "type",
+            "blockType",
+            "content_type",
+        ]),
+    );
+
+    const fallbackKey = normalizeText(block.lesson_block_type?.key);
+
+    const blockTypeId =
+        Number(content.block_type_id) ||
+        Number(block.block_type_id) ||
+        Number(block.lesson_block_type?.id) ||
+        0;
+
+    const key = contentType || fallbackKey;
+
+    if (blockTypeId === 1 || key.includes("video")) return "video";
+
+    if (blockTypeId === 2 || key.includes("quiz") || key.includes("prueba")) {
+        return "quiz";
+    }
+
+    if (blockTypeId === 3 || key.includes("text") || key.includes("texto")) {
+        return "text";
+    }
+
+    if (blockTypeId === 4 || key.includes("image") || key.includes("imagen")) {
+        return "image";
+    }
+
+    if (blockTypeId === 5 || key.includes("pdf") || key.includes("document")) {
+        return "resource";
+    }
+
+    if (
+        blockTypeId === 6 ||
+        key.includes("homework") ||
+        key.includes("tarea")
+    ) {
+        return "homework";
+    }
+
+    if (
+        blockTypeId === 7 ||
+        key.includes("survey") ||
+        key.includes("encuesta")
+    ) {
+        return "survey";
+    }
+
+    if (blockTypeId === 8 || key.includes("forum") || key.includes("foro")) {
+        return "forum";
+    }
+
+    return "resource";
+}
+
+function mapLessonBlockToCalendarActivity(
+    block: LessonBlock,
+    courseId?: number,
+): LessonCalendarActivity | null {
+    const dateAvailable = cleanText(block.date_available);
+
+    if (!dateAvailable) return null;
+
+    const isActive = readBoolean(block.is_active, true);
+
+    if (!isActive || block.deleted === true) return null;
+
+    const countsTowardGrade = readBoolean(block.counts_toward_grade, false);
+
+    return {
+        id: `${block.lesson_id}-${block.id}`,
+        lesson_id: Number(block.lesson_id),
+        lesson_block_id: Number(block.id),
+        title: getLessonBlockTitle(block),
+        type_key: getLessonCalendarTypeKey(block),
+        date_available: dateAvailable,
+        counts_toward_grade: countsTowardGrade,
+        url: courseId
+            ? `/student/courses/${courseId}?tab=content&block=${block.id}`
+            : "/student/calendar",
+        course_id: courseId ?? null,
+        raw: block,
+    };
+}
+
+/* =========================================================
+   LECCIONES
+========================================================= */
 
 export async function createLesson(payload: LessonPayload): Promise<Lesson> {
-    const response = await fetch(`${LESSONS_ENDPOINT}/lessons`, {
+    const cleanName = cleanText(payload.name);
+
+    if (!cleanName) {
+        throw new Error("El nombre de la lección es obligatorio.");
+    }
+
+    const response = await fetch(LESSONS_ENDPOINT, {
         method: "POST",
         headers: getJsonHeaders(),
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+            name: cleanName,
+            order: Number(payload.order) || 1,
+            module_id: normalizeId(payload.module_id, "ID de módulo"),
+        }),
     });
 
-    return handleResponse<Lesson>(response);
+    return handleApiResponse<Lesson>(response);
 }
 
 export async function updateLesson(
     lessonId: number,
-    payload: UpdateLessonPayload,
+    payload: LessonPayload,
 ): Promise<Lesson> {
-    const response = await fetch(`${LESSONS_ENDPOINT}/lessons/${lessonId}`, {
+    const validLessonId = normalizeId(lessonId, "ID de lección");
+    const cleanName = cleanText(payload.name);
+
+    if (!cleanName) {
+        throw new Error("El nombre de la lección es obligatorio.");
+    }
+
+    const response = await fetch(`${LESSONS_ENDPOINT}/${validLessonId}`, {
         method: "PUT",
         headers: getJsonHeaders(),
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+            name: cleanName,
+            order: Number(payload.order) || 1,
+            module_id: normalizeId(payload.module_id, "ID de módulo"),
+        }),
     });
 
-    return handleResponse<Lesson>(response);
+    return handleApiResponse<Lesson>(response);
 }
 
 export async function deleteLesson(lessonId: number): Promise<string> {
-    const response = await fetch(`${LESSONS_ENDPOINT}/lessons/${lessonId}`, {
+    const validLessonId = normalizeId(lessonId, "ID de lección");
+
+    const response = await fetch(`${LESSONS_ENDPOINT}/${validLessonId}`, {
         method: "DELETE",
         headers: getJsonHeaders(),
     });
 
-    return handleResponse<string>(response);
+    return handleApiResponse<string>(response);
 }
 
 export async function getLesson(lessonId: number): Promise<Lesson> {
-    const response = await fetch(`${LESSONS_ENDPOINT}/lessons/${lessonId}`, {
+    const validLessonId = normalizeId(lessonId, "ID de lección");
+
+    const response = await fetch(`${LESSONS_ENDPOINT}/${validLessonId}`, {
         method: "GET",
         headers: getJsonHeaders(),
         cache: "no-store",
     });
 
-    return handleResponse<Lesson>(response);
+    return handleApiResponse<Lesson>(response);
 }
 
-export async function getLessonsByModule(moduleId: number): Promise<Lesson[]> {
-    const response = await fetch(`${LESSONS_ENDPOINT}/modules/${moduleId}/lessons`, {
-        method: "GET",
-        headers: getJsonHeaders(),
-        cache: "no-store",
-    });
+export async function getLessonsByModule(
+    moduleId: number,
+): Promise<Lesson[]> {
+    const validModuleId = normalizeId(moduleId, "ID de módulo");
 
-    const data = await handleResponse<Lesson[]>(response);
+    const response = await fetch(
+        `${LESSONS_BY_MODULE_ENDPOINT}/${validModuleId}/lessons`,
+        {
+            method: "GET",
+            headers: getJsonHeaders(),
+            cache: "no-store",
+        },
+    );
+
+    const data = await handleApiResponse<Lesson[]>(response);
 
     return Array.isArray(data) ? data : [];
 }
 
-/* ======================================================
-   LESSON BLOCKS
-   ====================================================== */
+/* =========================================================
+   BLOQUES DE LECCIÓN
+========================================================= */
 
 export async function createLessonBlock(
     payload: LessonBlockPayload,
 ): Promise<LessonBlock> {
-    const response = await fetch(`${LESSON_BLOCKS_ENDPOINT}/lesson-blocks`, {
+    const formData = buildLessonBlockFormData(payload);
+
+    debugFormData(formData, "CREATE LESSON BLOCK FORMDATA:");
+
+    const response = await fetch(LESSON_BLOCKS_ENDPOINT, {
         method: "POST",
-        headers: getFormDataHeaders(),
-        body: buildLessonBlockFormData(payload),
+        headers: getSafeMultipartHeaders(),
+        body: formData,
     });
 
-    return handleResponse<LessonBlock>(response);
+    return handleApiResponse<LessonBlock>(response);
 }
 
 export async function updateLessonBlock(
     lessonBlockId: number,
-    payload: LessonBlockPayload,
+    payload: UpdateLessonBlockPayload,
 ): Promise<LessonBlock> {
+    const validLessonBlockId = normalizeId(
+        lessonBlockId,
+        "ID de bloque de lección",
+    );
+
+    const currentBlock = await getLessonBlock(validLessonBlockId);
+
+    const formData = buildLessonBlockSafeFormData(currentBlock, payload);
+
+    debugFormData(formData, "UPDATE LESSON BLOCK FORMDATA:");
+
     const response = await fetch(
-        `${LESSON_BLOCKS_ENDPOINT}/lesson-blocks/${lessonBlockId}`,
+        `${LESSON_BLOCKS_ENDPOINT}/${validLessonBlockId}`,
         {
             method: "PUT",
-            headers: getFormDataHeaders(),
-            body: buildLessonBlockFormData(payload),
+            headers: getSafeMultipartHeaders(),
+            body: formData,
         },
     );
 
-    return handleResponse<LessonBlock>(response);
+    return handleApiResponse<LessonBlock>(response);
 }
 
-export async function deleteLessonBlock(lessonBlockId: number): Promise<string> {
+export async function deleteLessonBlock(
+    lessonBlockId: number,
+): Promise<string> {
+    const validLessonBlockId = normalizeId(
+        lessonBlockId,
+        "ID de bloque de lección",
+    );
+
     const response = await fetch(
-        `${LESSON_BLOCKS_ENDPOINT}/lesson-blocks/${lessonBlockId}`,
+        `${LESSON_BLOCKS_ENDPOINT}/${validLessonBlockId}`,
         {
             method: "DELETE",
             headers: getJsonHeaders(),
         },
     );
 
-    return handleResponse<string>(response);
+    return handleApiResponse<string>(response);
 }
 
 export async function getLessonBlock(
     lessonBlockId: number,
 ): Promise<LessonBlock> {
+    const validLessonBlockId = normalizeId(
+        lessonBlockId,
+        "ID de bloque de lección",
+    );
+
     const response = await fetch(
-        `${LESSON_BLOCKS_ENDPOINT}/lesson-blocks/${lessonBlockId}`,
+        `${LESSON_BLOCKS_ENDPOINT}/${validLessonBlockId}`,
         {
             method: "GET",
             headers: getJsonHeaders(),
@@ -404,14 +708,16 @@ export async function getLessonBlock(
         },
     );
 
-    return handleResponse<LessonBlock>(response);
+    return handleApiResponse<LessonBlock>(response);
 }
 
 export async function getLessonBlocksByLesson(
     lessonId: number,
 ): Promise<LessonBlock[]> {
+    const validLessonId = normalizeId(lessonId, "ID de lección");
+
     const response = await fetch(
-        `${LESSON_BLOCKS_ENDPOINT}/lesson/${lessonId}/lesson-blocks`,
+        `${LESSON_BLOCKS_BY_LESSON_ENDPOINT}/${validLessonId}/lesson-blocks`,
         {
             method: "GET",
             headers: getJsonHeaders(),
@@ -419,7 +725,156 @@ export async function getLessonBlocksByLesson(
         },
     );
 
-    const data = await handleResponse<LessonBlock[]>(response);
+    const data = await handleApiResponse<LessonBlock[]>(response);
+
+    return Array.isArray(data) ? data.filter(isActiveLessonBlock) : [];
+}
+
+/* =========================================================
+   ACTIVIDADES DE CALENDARIO / NOTIFICACIONES
+========================================================= */
+
+export async function getLessonCalendarActivitiesByLesson(
+    lessonId: number,
+    courseId?: number,
+): Promise<LessonCalendarActivity[]> {
+    const blocks = await getLessonBlocksByLesson(lessonId);
+
+    return blocks
+        .map((block) => mapLessonBlockToCalendarActivity(block, courseId))
+        .filter(
+            (activity): activity is LessonCalendarActivity =>
+                activity !== null,
+        );
+}
+
+export async function getLessonCalendarActivitiesByLessons(
+    lessonIds: number[],
+    courseId?: number,
+): Promise<LessonCalendarActivity[]> {
+    const validLessonIds = Array.from(
+        new Set(
+            lessonIds
+                .map((lessonId) => Number(lessonId))
+                .filter((lessonId) => Number.isFinite(lessonId) && lessonId > 0),
+        ),
+    );
+
+    if (validLessonIds.length === 0) return [];
+
+    const activities = (
+        await Promise.all(
+            validLessonIds.map((lessonId) =>
+                getLessonCalendarActivitiesByLesson(lessonId, courseId),
+            ),
+        )
+    ).flat();
+
+    return activities.sort(
+        (a, b) =>
+            new Date(a.date_available).getTime() -
+            new Date(b.date_available).getTime(),
+    );
+}
+
+/* =========================================================
+   TIPOS DE BLOQUES
+========================================================= */
+
+export async function getLessonBlockType(
+    lessonBlockTypeId: number,
+): Promise<LessonBlockType> {
+    const validLessonBlockTypeId = normalizeId(
+        lessonBlockTypeId,
+        "ID de tipo de bloque",
+    );
+
+    const response = await fetch(
+        `${LESSON_BLOCK_TYPES_ENDPOINT}/${validLessonBlockTypeId}`,
+        {
+            method: "GET",
+            headers: getJsonHeaders(),
+            cache: "no-store",
+        },
+    );
+
+    return handleApiResponse<LessonBlockType>(response);
+}
+
+export async function getAllLessonBlockTypes(): Promise<LessonBlockType[]> {
+    const response = await fetch(LESSON_BLOCK_TYPES_ENDPOINT, {
+        method: "GET",
+        headers: getJsonHeaders(),
+        cache: "no-store",
+    });
+
+    const data = await handleApiResponse<LessonBlockType[]>(response);
 
     return Array.isArray(data) ? data : [];
 }
+
+export async function getDefaultLessonBlocksByCourseAndType(
+    courseId: number | string,
+    blockTypeId: number | string,
+): Promise<LessonBlock[]> {
+    const validCourseId = normalizeId(courseId, "ID de curso");
+
+    const validBlockTypeId = normalizeId(
+        blockTypeId,
+        "ID de tipo de bloque",
+    );
+
+    const params = new URLSearchParams({
+        course_id: String(validCourseId),
+        block_type_id: String(validBlockTypeId),
+    });
+
+    const response = await fetch(
+        `${LESSON_BLOCKS_ENDPOINT}/default/?${params.toString()}`,
+        {
+            method: "GET",
+            headers: getJsonHeaders(),
+            cache: "no-store",
+        },
+    );
+
+    const data = await handleApiResponse<LessonBlock[]>(response);
+
+    return Array.isArray(data) ? data.filter(isActiveLessonBlock) : [];
+}
+
+/**
+ * Alias de compatibilidad.
+ * Ahora el backend exige course_id, por eso se debe enviar también.
+ */
+export async function getDefaultLessonBlocksByType(
+    blockTypeId: number | string,
+    courseId?: number | string,
+): Promise<LessonBlock[]> {
+    if (
+        courseId === undefined ||
+        courseId === null ||
+        String(courseId).trim() === ""
+    ) {
+        throw new Error(
+            "El ID del curso es obligatorio para cargar bloques por defecto.",
+        );
+    }
+
+    return getDefaultLessonBlocksByCourseAndType(courseId, blockTypeId);
+}
+
+/* =========================================================
+   ALIASES DE COMPATIBILIDAD
+========================================================= */
+
+export const getLessonById = getLesson;
+export const getLessonBlockById = getLessonBlock;
+export const getLessonBlocks = getLessonBlocksByLesson;
+export const getLessons = getLessonsByModule;
+
+export const getCalendarActivitiesByLesson =
+    getLessonCalendarActivitiesByLesson;
+
+export const getCalendarActivitiesByLessons =
+    getLessonCalendarActivitiesByLessons;

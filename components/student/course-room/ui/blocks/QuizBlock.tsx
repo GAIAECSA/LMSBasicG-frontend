@@ -1,0 +1,18 @@
+import { ClipboardList, Loader2 } from "lucide-react";
+import type { CourseRoomHook } from "../../hook";
+import { MAX_QUIZ_ATTEMPTS } from "../../constants";
+import { getQuizAttemptsCount, getQuizResponseForBlock, normalizeQuizQuestions } from "../../quiz";
+import { getContentValue } from "../../utils";
+
+type QuizBlockProps = { room: CourseRoomHook };
+
+export function QuizBlock({ room }: QuizBlockProps) {
+    if (!room.selectedBlock) return null;
+    const questions = normalizeQuizQuestions(room.selectedContent.questions);
+    const stored = getQuizResponseForBlock(room.quizResponses, room.selectedBlock.id);
+    const usedAttempts = getQuizAttemptsCount(stored);
+    const remainingAttempts = Math.max(0, MAX_QUIZ_ATTEMPTS - usedAttempts);
+    const isQuizCompleted = room.completedBlocks.includes(room.selectedBlock.id);
+    const isQuizLimitReached = usedAttempts >= MAX_QUIZ_ATTEMPTS;
+    return <div className="space-y-5"><div className="rounded-2xl border border-amber-100 bg-amber-50 p-4"><p className="text-sm font-bold text-amber-800">Mínimo requerido: {room.selectedBlock.completion_value} puntos</p><p className="mt-1 text-sm leading-6 text-amber-700">{getContentValue(room.selectedContent, "instructions") || "Responde todas las preguntas para finalizar la evaluación."}</p></div><div className="rounded-2xl border border-blue-100 bg-blue-50 p-4"><p className="text-sm font-bold text-blue-800">Intentos usados: {usedAttempts} de {MAX_QUIZ_ATTEMPTS}</p><p className="mt-1 text-sm leading-6 text-blue-700">{isQuizCompleted ? "Esta evaluación ya fue aprobada." : isQuizLimitReached ? "Ya no tienes intentos disponibles para esta evaluación." : `Te quedan ${remainingAttempts} intento(s).`}</p></div>{questions.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">Esta evaluación todavía no tiene preguntas cargadas.</div> : questions.map((question, questionIndex) => <div key={question.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"><h3 className="text-base font-black text-slate-950">{questionIndex + 1}. {question.question}</h3><div className="mt-4 space-y-3">{question.options.map((option, optionIndex) => <label key={`${question.id}-${optionIndex}`} className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${room.quizAnswers[question.id] === optionIndex ? "border-blue-500 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"}`}><input type="radio" name={`question-${question.id}`} checked={room.quizAnswers[question.id] === optionIndex} onChange={() => room.handleQuizAnswer(question.id, optionIndex)} className="h-4 w-4 accent-blue-700" />{option}</label>)}</div></div>)}{room.quizResult ? <div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${room.quizResult.startsWith("Evaluación aprobada") ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{room.quizResult}</div> : null}<button type="button" onClick={() => void room.handleSubmitQuiz()} disabled={room.quizSaving || isQuizCompleted || isQuizLimitReached} className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-bold text-[var(--primary-foreground)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60">{room.quizSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}{room.quizSaving ? "Guardando respuestas..." : isQuizCompleted ? "Evaluación aprobada" : isQuizLimitReached ? "Sin intentos disponibles" : "Finalizar evaluación"}</button></div>;
+}

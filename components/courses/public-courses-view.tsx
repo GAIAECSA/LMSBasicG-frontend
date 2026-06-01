@@ -11,9 +11,9 @@ const API_BASE_URL =
     "http://213.165.74.184:9000";
 
 const EMPTY_IMAGE =
-    "https://placehold.co/1200x700/e5e7eb/64748b?text=GaiaTech";
+    "https://placehold.co/1200x720/eaf2ff/1d4ed8?text=ATHENA";
 
-const HEADER_LOGO = "/images/logo.jpg";
+const HEADER_LOGO = "/images/athena.png";
 
 type ApiCourseFields = Course & {
     name?: string;
@@ -80,6 +80,14 @@ function formatMoney(value: number, currency = "USD") {
     }
 }
 
+function normalizeText(value: string): string {
+    return value
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+}
+
 function getCourseName(course: Course): string {
     return asApiCourse(course).name ?? "";
 }
@@ -93,7 +101,7 @@ function getCourseImageUrl(course: Course): string {
 }
 
 function getCourseLevel(course: Course): string {
-    return asApiCourse(course).level ?? "PRINCIPIANTE";
+    return asApiCourse(course).level ?? "INTERMEDIO";
 }
 
 function getCoursePrice(course: Course): number {
@@ -141,11 +149,180 @@ function getMainPriceLabel(course: Course): string {
     return formatMoney(getCoursePrice(course), getCourseCurrency(course));
 }
 
+function scrollToSection(sectionId: string) {
+    const section = document.getElementById(sectionId);
+
+    if (!section) return;
+
+    section.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+    });
+}
+
+function SearchIcon() {
+    return (
+        <svg
+            className="h-5 w-5 text-slate-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+        >
+            <path
+                d="M10.8 18.1a7.3 7.3 0 1 1 0-14.6 7.3 7.3 0 0 1 0 14.6Z"
+                stroke="currentColor"
+                strokeWidth="2"
+            />
+            <path
+                d="m16.2 16.2 4.3 4.3"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
+function ArrowIcon() {
+    return (
+        <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+        >
+            <path
+                d="M5 12h14"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+            />
+            <path
+                d="m13 6 6 6-6 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+function UserIcon() {
+    return (
+        <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+        >
+            <path
+                d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+                stroke="currentColor"
+                strokeWidth="2"
+            />
+            <path
+                d="M4 20a8 8 0 0 1 16 0"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
+function BookIcon() {
+    return (
+        <svg
+            className="h-11 w-11 text-blue-700"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+        >
+            <path
+                d="M4 6.5 12 3l8 3.5-8 3.5-8-3.5Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinejoin="round"
+            />
+            <path
+                d="M4 10.5 12 14l8-3.5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+            <path
+                d="M4 14.5 12 18l8-3.5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
+function GlobeIcon() {
+    return (
+        <svg
+            className="h-11 w-11 text-blue-700"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+        >
+            <path
+                d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"
+                stroke="currentColor"
+                strokeWidth="2"
+            />
+            <path
+                d="M3 12h18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+            />
+            <path
+                d="M12 3c2.2 2.4 3.4 5.4 3.4 9S14.2 18.6 12 21c-2.2-2.4-3.4-5.4-3.4-9S9.8 5.4 12 3Z"
+                stroke="currentColor"
+                strokeWidth="2"
+            />
+        </svg>
+    );
+}
+
+function ShieldIcon() {
+    return (
+        <svg
+            className="h-11 w-11 text-blue-700"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+        >
+            <path
+                d="M12 3 20 6v6.1c0 4.7-3.3 7.6-8 8.9-4.7-1.3-8-4.2-8-8.9V6l8-3Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinejoin="round"
+            />
+            <path
+                d="m8.5 12 2.2 2.2 4.8-5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
+
 export function PublicCoursesView() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState("");
     const [activeCourseIndex, setActiveCourseIndex] = useState(0);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedLevel, setSelectedLevel] = useState("TODOS");
 
     useEffect(() => {
         let mounted = true;
@@ -190,13 +367,40 @@ export function PublicCoursesView() {
         );
     }, [courses]);
 
+    const courseLevels = useMemo(() => {
+        const levels = publicCourses
+            .map((course) => getCourseLevel(course))
+            .filter(Boolean);
+
+        return Array.from(new Set(levels));
+    }, [publicCourses]);
+
+    const visibleCourses = useMemo(() => {
+        const normalizedSearch = normalizeText(searchTerm);
+
+        return publicCourses.filter((course) => {
+            const name = normalizeText(getCourseName(course));
+            const description = normalizeText(getCourseDescription(course));
+            const level = getCourseLevel(course);
+
+            const matchesSearch =
+                !normalizedSearch ||
+                name.includes(normalizedSearch) ||
+                description.includes(normalizedSearch);
+
+            const matchesLevel =
+                selectedLevel === "TODOS" || level === selectedLevel;
+
+            return matchesSearch && matchesLevel;
+        });
+    }, [publicCourses, searchTerm, selectedLevel]);
 
     useEffect(() => {
         if (publicCourses.length <= 1) return;
 
         const interval = window.setInterval(() => {
             setActiveCourseIndex((current) => (current + 1) % publicCourses.length);
-        }, 4200);
+        }, 4500);
 
         return () => {
             window.clearInterval(interval);
@@ -209,360 +413,430 @@ export function PublicCoursesView() {
     const featuredCourse =
         publicCourses.length > 0 ? publicCourses[activeCoursePosition] : null;
 
-    function goToPreviousCourse() {
-        if (publicCourses.length === 0) return;
-
-        setActiveCourseIndex((current) => {
-            const currentPosition = current % publicCourses.length;
-            return currentPosition === 0
-                ? publicCourses.length - 1
-                : currentPosition - 1;
-        });
-    }
-
-    function goToNextCourse() {
-        if (publicCourses.length === 0) return;
-
-        setActiveCourseIndex((current) => {
-            const currentPosition = current % publicCourses.length;
-            return (currentPosition + 1) % publicCourses.length;
-        });
-    }
-
     return (
-        <section className="min-h-screen bg-[radial-gradient(circle_at_top,_#eff6ff_0%,_#f8fafc_38%,_#eef2ff_68%,_#e2e8f0_100%)]">
-            <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur">
-                <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-8 lg:px-12">
-                    <Link href="/login" className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                            <img
-                                src={HEADER_LOGO}
-                                alt="Logo GaiaTech"
-                                className="h-full w-full object-contain"
-                            />
-                        </div>
+        <>
+            <style jsx global>{`
+                @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap");
 
-                        <div>
-                            <p className="text-base font-black leading-tight text-slate-950">
-                                GaiaTech
-                            </p>
-                            <p className="text-xs font-medium text-slate-500">
-                                Cursos en línea
-                            </p>
-                        </div>
-                    </Link>
+                html {
+                    scroll-behavior: smooth;
+                }
 
-                    <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
-                        <a href="#cursos" className="transition hover:text-blue-600">
-                            Cursos
-                        </a>
-                        <a href="#informacion" className="transition hover:text-blue-600">
-                            Información
-                        </a>
-                    </nav>
+                .athena-public-page {
+                    font-family: "Roboto", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                }
+            `}</style>
 
-                    <Link
-                        href="/login"
-                        className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
-                    >
-                        Iniciar sesión
-                    </Link>
+            <section
+                id="inicio"
+                className="athena-public-page min-h-screen overflow-x-hidden bg-[#f7fbff] text-slate-950"
+            >
+                <div className="pointer-events-none fixed inset-0 -z-10">
+                    <div className="absolute left-[-140px] top-[170px] h-[430px] w-[430px] rounded-full bg-blue-100/80 blur-3xl" />
+                    <div className="absolute right-[-170px] top-[160px] h-[540px] w-[540px] rounded-full bg-indigo-100/80 blur-3xl" />
+                    <div className="absolute bottom-[-180px] left-1/3 h-[420px] w-[420px] rounded-full bg-sky-100/70 blur-3xl" />
                 </div>
-            </header>
 
-            <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-8 lg:px-12">
-                <section
-                    id="informacion"
-                    className="overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/90 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur"
-                >
-                    <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
-                        <div className="px-6 py-8 md:px-10 md:py-12">
-                            <div className="mb-6 flex items-center gap-4">
+                <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
+                    <div className="mx-auto flex h-[82px] max-w-[1360px] items-center justify-between px-5 md:px-8 xl:px-0">
+                        <button
+                            type="button"
+                            onClick={() => scrollToSection("inicio")}
+                            className="flex items-center gap-3"
+                        >
+                            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                                <img
+                                    src={HEADER_LOGO}
+                                    alt="Logo ATHENA"
+                                    className="h-full w-full object-contain"
+                                />
+                            </div>
+
+                            <div className="text-left">
+                                <p className="text-2xl font-black leading-none tracking-tight text-slate-950">
+                                    ATHENA
+                                </p>
+                            </div>
+                        </button>
+
+                        <nav className="hidden items-center gap-11 text-sm font-black text-slate-700 lg:flex">
+                            <button
+                                type="button"
+                                onClick={() => scrollToSection("cursos")}
+                                className="transition hover:text-blue-700"
+                            >
+                                Cursos
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => scrollToSection("rutas")}
+                                className="transition hover:text-blue-700"
+                            >
+                                Rutas de aprendizaje
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => scrollToSection("inicio")}
+                                className="transition hover:text-blue-700"
+                            >
+                                Sobre ATHENA
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => scrollToSection("informacion")}
+                                className="transition hover:text-blue-700"
+                            >
+                                Información
+                            </button>
+                        </nav>
+
+                        <Link
+                            href="/login"
+                            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 text-sm font-black !text-white shadow-[0_14px_34px_rgba(29,78,216,0.28)] transition hover:-translate-y-0.5 hover:bg-blue-800"
+                        >
+                            Iniciar sesión
+                            <ArrowIcon />
+                        </Link>
+                    </div>
+                </header>
+
+                <main className="mx-auto max-w-[1360px] px-5 pb-16 pt-8 md:px-8 xl:px-0">
+                    <section
+                        id="informacion"
+                        className="scroll-mt-28 grid min-h-[440px] items-center gap-10 py-5 lg:grid-cols-[0.78fr_1.22fr]"
+                    >
+                        <div className="relative">
+                            <div className="mb-6 inline-flex rounded-full bg-blue-100 px-5 py-2 text-xs font-black uppercase tracking-[0.26em] text-blue-700">
+                                Sistema virtual de aprendizaje
+                            </div>
+
+                            <h1 className="max-w-[620px] text-[54px] font-black leading-[0.95] tracking-[-0.04em] text-slate-950 md:text-[70px]">
+                                Aprende con{" "}
+                                <span className="block text-blue-700">ATHENA</span>
+                            </h1>
+
+                            <p className="mt-7 max-w-[610px] text-[15px] font-medium leading-7 text-slate-600 md:text-[16px]">
+                                Explora nuestro catálogo de cursos diseñados para ayudarte a adquirir
+                                nuevas habilidades y crecer profesionalmente.
+                            </p>
+
+                            <div className="mt-8 flex flex-wrap gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => scrollToSection("cursos")}
+                                    className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-blue-700 px-7 text-sm font-black !text-white shadow-[0_16px_35px_rgba(29,78,216,0.25)] transition hover:-translate-y-0.5 hover:bg-blue-800"
+                                >
+                                    Explorar cursos
+                                    <ArrowIcon />
+                                </button>
+
+                                <Link
+                                    href="/login"
+                                    className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-7 text-sm font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-700"
+                                >
+                                    Crear cuenta
+                                    <UserIcon />
+                                </Link>
+                            </div>
+
+                            <div className="mt-8 flex items-center gap-4">
+                                <div className="flex -space-x-3">
+                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#bcdcff]" />
+                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#a9dcff]" />
+                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#b7c7ff]" />
+                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#dce4ee]" />
+                                </div>
 
                                 <div>
-                                    <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-                                        Catálogo de cursos
-                                    </span>
-
-                                    <p className="mt-2 text-sm font-semibold text-slate-500">
-                                        Formación online para nuevos aprendizajes
+                                    <p className="text-sm font-black text-slate-950">
+                                        +2,500 estudiantes
+                                    </p>
+                                    <p className="text-sm font-medium text-slate-500">
+                                        ya están aprendiendo con ATHENA
                                     </p>
                                 </div>
                             </div>
-
-                            <h1 className="max-w-3xl text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
-                                Cursos GaiaTech
-                            </h1>
-
-                            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 md:text-base">
-                                Explora nuestros cursos disponibles y encuentra la mejor
-                                opción para fortalecer tus conocimientos. Para ver más
-                                información o matricularte, inicia sesión en la plataforma.
-                            </p>
-
-                            <div className="mt-6 space-y-3 text-sm text-slate-700 md:text-base">
-                                <div className="flex items-start gap-3">
-                                    <span className="mt-0.5 text-lg font-bold text-blue-600">
-                                        ✓
-                                    </span>
-                                    <p>Accede a cursos con contenido práctico y actual.</p>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <span className="mt-0.5 text-lg font-bold text-blue-600">
-                                        ✓
-                                    </span>
-                                    <p>Aprende a tu ritmo con una experiencia sencilla.</p>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <span className="mt-0.5 text-lg font-bold text-blue-600">
-                                        ✓
-                                    </span>
-                                    <p>Descubre cursos publicados con matrícula abierta.</p>
-                                </div>
-                            </div>
-
-                            <div className="mt-8 flex flex-wrap gap-3">
-                                <Link
-                                    href="/login"
-                                    className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
-                                >
-                                    Iniciar sesión
-                                </Link>
-
-                                <Link
-                                    href="/login"
-                                    className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-                                >
-                                    Ver cursos
-                                </Link>
-                            </div>
                         </div>
 
-                        <div className="relative h-[420px] overflow-hidden border-t border-slate-200 bg-slate-100 lg:h-[520px] lg:border-l lg:border-t-0">
-                            {featuredCourse ? (
-                                <>
-                                    <img
-                                        src={resolveImageUrl(getCourseImageUrl(featuredCourse))}
-                                        alt={getCourseName(featuredCourse)}
-                                        className="absolute inset-0 h-full w-full object-cover"
-                                    />
+                        <div className="relative lg:flex lg:justify-end">
+                            <div className="absolute -right-14 top-10 hidden h-[340px] w-[340px] rounded-full bg-blue-200/40 blur-3xl lg:block" />
 
-                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
-
-                                    <div className="absolute left-5 top-5 flex flex-wrap gap-2">
-                                        <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-800 shadow">
-                                            {getCourseLevel(featuredCourse)}
-                                        </span>
-
-                                        {hasDiscount(featuredCourse) ? (
-                                            <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow">
-                                                En oferta
-                                            </span>
-                                        ) : null}
-                                    </div>
-
-                                    {publicCourses.length > 1 ? (
-                                        <div className="absolute right-5 top-5 flex gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={goToPreviousCourse}
-                                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-lg font-black text-slate-800 shadow transition hover:bg-white"
-                                                aria-label="Curso anterior"
-                                            >
-                                                ‹
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={goToNextCourse}
-                                                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-lg font-black text-slate-800 shadow transition hover:bg-white"
-                                                aria-label="Curso siguiente"
-                                            >
-                                                ›
-                                            </button>
-                                        </div>
-                                    ) : null}
-
-                                    <div className="absolute inset-x-0 bottom-0 p-5">
-                                        <div className="min-h-[190px] rounded-[24px] border border-white/20 bg-white/10 p-4 backdrop-blur-md">
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-white/80">
-                                                Curso destacado
-                                            </p>
-
-                                            <h2 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white">
-                                                {getCourseName(featuredCourse)}
-                                            </h2>
-
-                                            <p className="mt-2 h-[44px] overflow-hidden text-sm leading-5 text-white/85">
-                                                <span className="line-clamp-2 block break-words">
-                                                    {getCourseDescription(featuredCourse) ||
-                                                        "Curso disponible en la plataforma."}
-                                                </span>
-                                            </p>
-
-                                            <div className="mt-4 flex items-center justify-between gap-3">
-                                                <div className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-slate-950 shadow">
-                                                    {getMainPriceLabel(featuredCourse)}
-                                                </div>
-
-                                                <Link
-                                                    href="/login"
-                                                    className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700"
-                                                >
-                                                    Acceder
-                                                </Link>
-                                            </div>
-
-                                            {publicCourses.length > 1 ? (
-                                                <div className="mt-4 flex items-center gap-2">
-                                                    {publicCourses.map((course, index) => (
-                                                        <button
-                                                            key={course.id}
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setActiveCourseIndex(index)
-                                                            }
-                                                            className={`h-2 rounded-full transition-all ${index === activeCoursePosition
-                                                                ? "w-8 bg-white"
-                                                                : "w-2 bg-white/45 hover:bg-white/70"
-                                                                }`}
-                                                            aria-label={`Mostrar curso ${index + 1
-                                                                }`}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex h-full min-h-[390px] items-center justify-center bg-gradient-to-br from-blue-100 via-white to-slate-100 p-8">
-                                    <div className="max-w-sm rounded-[28px] border border-slate-200 bg-white p-6 text-center shadow-sm">
-                                        <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
-                                            <img
-                                                src={HEADER_LOGO}
-                                                alt="Logo GaiaTech"
-                                                className="h-full w-full object-contain"
-                                            />
-                                        </div>
-
-                                        <h3 className="mt-4 text-xl font-black text-slate-900">
-                                            Cursos GaiaTech
-                                        </h3>
-
-                                        <p className="mt-3 text-sm leading-6 text-slate-600">
-                                            Explora la oferta académica disponible e inicia
-                                            sesión para ver más detalles.
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                <section className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-sm">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                            Cursos disponibles
-                        </p>
-                        <p className="mt-2 text-3xl font-black text-slate-950">
-                            {publicCourses.length}
-                        </p>
-                    </div>
-
-                    <div className="rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-sm">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                            Modalidad
-                        </p>
-                        <p className="mt-2 text-lg font-black text-slate-950">
-                            Acceso en línea
-                        </p>
-                    </div>
-
-                    <div className="rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-sm">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                            Requisito
-                        </p>
-                        <p className="mt-2 text-lg font-black text-slate-950">
-                            Inicio de sesión
-                        </p>
-                    </div>
-                </section>
-
-                {loading ? (
-                    <div className="rounded-[28px] border border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-500 shadow-sm">
-                        Cargando cursos...
-                    </div>
-                ) : errorMessage ? (
-                    <div className="rounded-[28px] border border-red-200 bg-red-50 p-6 text-sm font-medium text-red-700 shadow-sm">
-                        {errorMessage}
-                    </div>
-                ) : publicCourses.length === 0 ? (
-                    <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-                        <p className="text-base font-bold text-slate-800">
-                            No hay cursos públicos disponibles por ahora
-                        </p>
-
-                        <p className="mt-2 text-sm text-slate-500">
-                            Vuelve más tarde para revisar nuevos cursos publicados.
-                        </p>
-                    </div>
-                ) : (
-                    <section id="cursos" className="space-y-6">
-                        <div className="flex flex-col gap-3">
-                            <h2 className="text-3xl font-black tracking-tight text-slate-950">
-                                Cursos disponibles
-                            </h2>
-
-                        </div>
-                        <div className="grid justify-center gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                            {publicCourses.map((course) => (
-                                <article
-                                    key={course.id}
-                                    className="group flex h-[430px] w-full max-w-[360px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.14)]">
-                                    <div className="relative h-[215px] shrink-0 overflow-hidden bg-slate-100">
+                            <div className="relative w-full max-w-[790px] overflow-hidden rounded-[34px] border-[8px] border-white bg-white shadow-[0_30px_90px_rgba(15,23,42,0.15)]">
+                                {featuredCourse ? (
+                                    <div className="relative h-[380px] overflow-hidden rounded-[25px] bg-slate-100">
                                         <img
-                                            src={resolveImageUrl(getCourseImageUrl(course))}
-                                            alt={getCourseName(course)}
-                                            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                                            src={resolveImageUrl(getCourseImageUrl(featuredCourse))}
+                                            alt={getCourseName(featuredCourse)}
+                                            className="absolute inset-0 h-full w-full object-cover"
+                                            onError={(event) => {
+                                                event.currentTarget.src = EMPTY_IMAGE;
+                                            }}
                                         />
 
-                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent" />
+                                        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/25 via-slate-950/5 to-white/20" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
 
-                                        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-                                            <span className="rounded-full bg-white/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-800 shadow">
-                                                {getCourseLevel(course)}
+                                        <div className="absolute left-5 top-5 flex flex-wrap gap-3">
+                                            <span className="rounded-full bg-white px-5 py-2 text-xs font-black uppercase text-slate-800 shadow-sm">
+                                                {getCourseLevel(featuredCourse)}
                                             </span>
 
-                                            {hasDiscount(course) ? (
-                                                <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow">
+                                            {hasDiscount(featuredCourse) ? (
+                                                <span className="rounded-full bg-orange-500 px-5 py-2 text-xs font-black uppercase text-white shadow-sm">
                                                     En oferta
                                                 </span>
                                             ) : null}
+
+                                            {getCourseDurationHours(featuredCourse) > 0 ? (
+                                                <span className="rounded-full bg-blue-700 px-5 py-2 text-xs font-black uppercase text-white shadow-sm">
+                                                    {getCourseDurationHours(featuredCourse)} horas
+                                                </span>
+                                            ) : null}
                                         </div>
 
-                                        <div className="absolute inset-x-0 bottom-0 p-4">
-                                            <div className="flex items-end justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-                                                        Curso
-                                                    </p>
+                                        <button
+                                            type="button"
+                                            className="absolute right-5 top-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/95 text-blue-700 shadow-sm"
+                                            aria-label="Guardar curso"
+                                        >
+                                            ♡
+                                        </button>
 
-                                                    <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white drop-shadow-sm">
-                                                        {getCourseName(course)}
-                                                    </h3>
+                                        <div className="absolute bottom-4 left-5 w-[465px] max-w-[calc(100%-40px)]">
+                                            <div className="flex h-[200px] flex-col overflow-hidden rounded-[24px] border border-white/60 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.20)] backdrop-blur-xl">
+                                                <span className="w-fit rounded-full bg-blue-50 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">
+                                                    Curso destacado
+                                                </span>
+
+                                                <h2 className="mt-2 line-clamp-1 text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-slate-950">
+                                                    {getCourseName(featuredCourse)}
+                                                </h2>
+
+                                                <p className="mt-2 line-clamp-2 h-[38px] max-w-[430px] text-[11px] font-medium leading-[18px] text-slate-600">
+                                                    {getCourseDescription(featuredCourse) ||
+                                                        "Curso disponible en la plataforma ATHENA."}
+                                                </p>
+
+                                                <div className="mt-auto flex items-end justify-between gap-3">
+                                                    <div className="rounded-2xl bg-white px-4 py-2 shadow-sm">
+                                                        <p className="text-[10px] font-black uppercase text-slate-400">
+                                                            Inversión
+                                                        </p>
+                                                        <p className="mt-0.5 text-base font-black text-slate-950">
+                                                            {getMainPriceLabel(featuredCourse)}
+                                                        </p>
+                                                    </div>
+
+                                                    <Link
+                                                        href="/login"
+                                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-black !text-white shadow-sm transition hover:bg-blue-800"
+                                                    >
+                                                        Ver detalles
+                                                        <ArrowIcon />
+                                                    </Link>
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex h-[420px] items-center justify-center rounded-[25px] bg-gradient-to-br from-blue-50 to-white p-8">
+                                        <div className="max-w-sm text-center">
+                                            <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
+                                                <img
+                                                    src={HEADER_LOGO}
+                                                    alt="Logo ATHENA"
+                                                    className="h-full w-full object-contain"
+                                                />
+                                            </div>
 
-                                                <div className="shrink-0 rounded-2xl bg-white px-3 py-2 text-right shadow-lg">
-                                                    <p className="text-sm font-black text-slate-950">
+                                            <h3 className="mt-5 text-2xl font-black text-slate-950">
+                                                Catálogo ATHENA
+                                            </h3>
+
+                                            <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
+                                                Aquí se mostrarán los cursos publicados con matrícula
+                                                abierta.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section
+                        id="rutas"
+                        className="scroll-mt-28 mt-8 grid gap-5 md:grid-cols-3"
+                    >
+                        <div className="flex min-h-[92px] items-center gap-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+                            <BookIcon />
+                            <div>
+                                <p className="text-lg font-black text-slate-950">
+                                    {publicCourses.length}+ Cursos disponibles
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-500">
+                                    Contenido actualizado y de calidad
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex min-h-[92px] items-center gap-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+                            <GlobeIcon />
+                            <div>
+                                <p className="text-lg font-black text-slate-950">
+                                    Modalidad 100% Online
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-500">
+                                    Acceso en línea 24/7 desde cualquier lugar
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex min-h-[92px] items-center gap-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+                            <ShieldIcon />
+                            <div>
+                                <p className="text-lg font-black text-slate-950">
+                                    Requisitos mínimos
+                                </p>
+                                <p className="mt-1 text-sm font-medium text-slate-500">
+                                    Solo necesitas interés por aprender
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="cursos" className="scroll-mt-28 mt-10">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-[0.26em] text-blue-700">
+                                    Oferta disponible
+                                </p>
+                                <h2 className="mt-3 text-[34px] font-black tracking-[-0.03em] text-slate-950">
+                                    Cursos disponibles
+                                </h2>
+                                <p className="mt-2 text-sm font-medium text-slate-500">
+                                    Busca un curso por nombre o descripción y filtra por nivel.
+                                </p>
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-[1fr_220px] lg:w-[620px]">
+                                <div className="relative">
+                                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
+                                        <SearchIcon />
+                                    </div>
+
+                                    <input
+                                        value={searchTerm}
+                                        onChange={(event) => setSearchTerm(event.target.value)}
+                                        placeholder="Buscar curso..."
+                                        className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-medium text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                                    />
+                                </div>
+
+                                <select
+                                    value={selectedLevel}
+                                    onChange={(event) => setSelectedLevel(event.target.value)}
+                                    className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                                >
+                                    <option value="TODOS">Todos los niveles</option>
+                                    {courseLevels.map((level) => (
+                                        <option key={level} value={level}>
+                                            {level}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {loading ? (
+                            <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-10 text-center text-sm font-black text-slate-500 shadow-sm">
+                                Cargando cursos...
+                            </div>
+                        ) : errorMessage ? (
+                            <div className="mt-8 rounded-[28px] border border-red-200 bg-red-50 p-6 text-sm font-black text-red-700 shadow-sm">
+                                {errorMessage}
+                            </div>
+                        ) : publicCourses.length === 0 ? (
+                            <div className="mt-8 rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                                <p className="text-base font-black text-slate-800">
+                                    No hay cursos públicos disponibles por ahora
+                                </p>
+
+                                <p className="mt-2 text-sm font-medium text-slate-500">
+                                    Vuelve más tarde para revisar nuevos cursos publicados.
+                                </p>
+                            </div>
+                        ) : visibleCourses.length === 0 ? (
+                            <div className="mt-8 rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                                <p className="text-base font-black text-slate-800">
+                                    No se encontraron cursos
+                                </p>
+
+                                <p className="mt-2 text-sm font-medium text-slate-500">
+                                    Intenta con otro nombre o selecciona otro nivel.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                                {visibleCourses.map((course) => (
+                                    <article
+                                        key={course.id}
+                                        className="group overflow-hidden rounded-[22px] border border-slate-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_70px_rgba(15,23,42,0.14)]"
+                                    >
+                                        <div className="relative h-[145px] overflow-hidden rounded-[16px] bg-slate-100">
+                                            <img
+                                                src={resolveImageUrl(getCourseImageUrl(course))}
+                                                alt={getCourseName(course)}
+                                                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                                                onError={(event) => {
+                                                    event.currentTarget.src = EMPTY_IMAGE;
+                                                }}
+                                            />
+
+                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 to-transparent" />
+
+                                            <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1.5">
+                                                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase text-slate-800 shadow-sm">
+                                                    {getCourseLevel(course)}
+                                                </span>
+
+                                                {hasDiscount(course) ? (
+                                                    <span className="rounded-full bg-orange-500 px-2.5 py-1 text-[10px] font-black uppercase text-white shadow-sm">
+                                                        Oferta
+                                                    </span>
+                                                ) : null}
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/95 text-blue-700 shadow-sm"
+                                                aria-label="Guardar curso"
+                                            >
+                                                ♡
+                                            </button>
+                                        </div>
+
+                                        <div className="p-3">
+                                            <h3 className="line-clamp-2 min-h-[44px] text-lg font-black leading-tight tracking-[-0.02em] text-slate-950">
+                                                {getCourseName(course)}
+                                            </h3>
+
+                                            <p className="mt-2 line-clamp-3 min-h-[63px] text-[13px] font-medium leading-5 text-slate-500">
+                                                {getCourseDescription(course) ||
+                                                    "Curso disponible en ATHENA para fortalecer tus conocimientos."}
+                                            </p>
+
+                                            <div className="mt-4 flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-base font-black text-slate-950">
                                                         {getMainPriceLabel(course)}
                                                     </p>
 
                                                     {hasDiscount(course) ? (
-                                                        <p className="text-xs font-semibold text-slate-400 line-through">
+                                                        <p className="text-xs font-bold text-slate-400 line-through">
                                                             {formatMoney(
                                                                 getCoursePrice(course),
                                                                 getCourseCurrency(course),
@@ -570,46 +844,22 @@ export function PublicCoursesView() {
                                                         </p>
                                                     ) : null}
                                                 </div>
+
+                                                <Link
+                                                    href="/login"
+                                                    className="inline-flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-white px-4 text-xs font-black text-blue-700 transition hover:bg-blue-700 hover:text-white"
+                                                >
+                                                    Ver curso
+                                                </Link>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div className="flex flex-1 flex-col p-5">
-                                        <p
-                                            className="h-[78px] break-words text-sm leading-6 text-slate-600"
-                                            style={{
-                                                display: "-webkit-box",
-                                                WebkitLineClamp: 3,
-                                                WebkitBoxOrient: "vertical",
-                                                overflow: "hidden",
-                                            }}
-                                        >
-                                            {getCourseDescription(course) ||
-                                                "Curso disponible en la plataforma para fortalecer tus conocimientos."}
-                                        </p>
-
-                                        <div className="mt-4 grid grid-cols-2 gap-3">
-                                            <Link
-                                                href="/login"
-                                                className="flex h-12 items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-3 text-center text-sm font-bold text-blue-700 transition hover:bg-blue-100"
-                                            >
-                                                Ver curso
-                                            </Link>
-
-                                            <Link
-                                                href="/login"
-                                                className="flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
-                                            >
-                                                Matricularme
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                        )}
                     </section>
-                )}
-            </main>
-        </section>
+                </main>
+            </section>
+        </>
     );
 }

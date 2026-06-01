@@ -40,6 +40,33 @@ export interface UpdateEnrollmentPayload {
     image?: File | null;
 }
 
+export interface MassiveEnrollmentUserPayload {
+    username: string;
+    password: string;
+    firstname: string;
+    lastname: string;
+    idnumber: string;
+    email: string;
+    phone_number: string;
+    departament: string;
+}
+
+export interface CreateMassiveEnrollmentPayload {
+    course_id: number;
+    users: MassiveEnrollmentUserPayload[];
+}
+
+export interface MassiveEnrollmentResponseItem {
+    [key: string]: unknown;
+}
+
+export interface MassiveEnrollmentResponse {
+    created: MassiveEnrollmentResponseItem[];
+    skipped: MassiveEnrollmentResponseItem[];
+    failed: MassiveEnrollmentResponseItem[];
+    summary: Record<string, unknown>;
+}
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
@@ -383,4 +410,164 @@ export async function getEnrollmentByUserAndCourse(
                 enrollment.accepted === true,
         ) ?? null
     );
+}
+
+function normalizeText(value?: string | null): string {
+    return String(value ?? "")
+        .trim()
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isStudentEnrollment(enrollment: Enrollment): boolean {
+    const roleName = normalizeText(enrollment.role?.name);
+
+    return (
+        roleName === "ESTUDIANTE" ||
+        roleName === "STUDENT" ||
+        roleName === "ALUMNO" ||
+        roleName === "ALUMNA"
+    );
+}
+
+function isTeacherEnrollment(enrollment: Enrollment): boolean {
+    const roleName = normalizeText(enrollment.role?.name);
+
+    return (
+        roleName === "PROFESOR" ||
+        roleName === "DOCENTE" ||
+        roleName === "TEACHER"
+    );
+}
+
+function uniqueEnrollments(enrollments: Enrollment[]): Enrollment[] {
+    const map = new Map<number, Enrollment>();
+
+    enrollments.forEach((enrollment) => {
+        map.set(enrollment.id, enrollment);
+    });
+
+    return Array.from(map.values());
+}
+
+export async function getAcceptedStudentEnrollmentsByCourse(
+    courseId: number,
+): Promise<Enrollment[]> {
+    if (!Number.isFinite(courseId) || courseId <= 0) {
+        throw new Error("No se pudo identificar el curso.");
+    }
+
+    const possibleStudentRoleIds = [1, 2, 4, 5];
+
+    const collectedEnrollments: Enrollment[] = [];
+
+    for (const roleId of possibleStudentRoleIds) {
+        try {
+            const enrollments = await getEnrollmentsByCourseAndRole(courseId, roleId);
+            collectedEnrollments.push(...enrollments);
+        } catch {
+            // Si ese role_id no existe o no tiene endpoint válido, se continúa con el siguiente.
+        }
+    }
+
+    const unique = uniqueEnrollments(collectedEnrollments);
+
+    const exactStudents = unique.filter((enrollment) => {
+        const sameCourse = Number(enrollment.course?.id) === Number(courseId);
+        const accepted = enrollment.accepted === true;
+
+        return sameCourse && accepted && isStudentEnrollment(enrollment);
+    });
+
+    if (exactStudents.length > 0) {
+        return exactStudents;
+    }
+
+    return unique.filter((enrollment) => {
+        const sameCourse = Number(enrollment.course?.id) === Number(courseId);
+        const accepted = enrollment.accepted === true;
+        const roleId = Number(enrollment.role?.id ?? enrollment.user?.role_id);
+
+        return sameCourse && accepted && roleId !== 3 && !isTeacherEnrollment(enrollment);
+    });
+}
+
+function normalizeMassiveEnrollmentResponse(
+    data: unknown,
+): MassiveEnrollmentResponse {
+    const item = data as Partial<MassiveEnrollmentResponse>;
+
+    return {
+        created: Array.isArray(item.created) ? item.created : [],
+        skipped: Array.isArray(item.skipped) ? item.skipped : [],
+        failed: Array.isArray(item.failed) ? item.failed : [],
+        summary:
+            item.summary && typeof item.summary === "object"
+                ? (item.summary as Record<string, unknown>)
+                : {},
+    };
+}
+
+function cleanMassiveEnrollmentUser(
+    user: MassiveEnrollmentUserPayload,
+): MassiveEnrollmentUserPayload {
+    return {
+        username: user.username.trim(),
+        password: user.password.trim(),
+        firstname: user.firstname.trim(),
+        lastname: user.lastname.trim(),
+        idnumber: user.idnumber.trim(),
+        email: user.email.trim(),
+        phone_number: user.phone_number.trim(),
+        departament: user.departament.trim(),
+    };
+}
+
+export async function createMassiveEnrollments(
+    payload: CreateMassiveEnrollmentPayload,
+): Promise<MassiveEnrollmentResponse> {
+    if (!Number.isFinite(payload.course_id) || payload.course_id <= 0) {
+        throw new Error("Debes seleccionar un curso válido.");
+    }
+
+    if (!Array.isArray(payload.users) || payload.users.length === 0) {
+        throw new Error("Debes agregar al menos un estudiante.");
+    }
+
+    const users = payload.users.map(cleanMassiveEnrollmentUser);
+
+    const invalidUser = users.find(
+        (user) =>
+            !user.username ||
+            !user.password ||
+            !user.firstname ||
+            !user.lastname ||
+            !user.idnumber ||
+            !user.email,
+    );
+
+    if (invalidUser) {
+        throw new Error(
+            "Todos los estudiantes deben tener usuario, contraseña, nombres, apellidos, cédula y correo.",
+        );
+    }
+
+    const response = await fetch(`${ENROLLMENTS_ENDPOINT}/massive`, {
+        method: "POST",
+        headers: {
+            ...buildAuthHeaders(),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            course_id: payload.course_id,
+            users,
+        }),
+    });
+
+    if (!response.ok) await parseErrorResponse(response);
+
+    const data = await response.json();
+
+    return normalizeMassiveEnrollmentResponse(data);
 }

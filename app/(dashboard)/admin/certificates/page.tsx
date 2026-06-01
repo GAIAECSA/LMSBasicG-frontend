@@ -1,4 +1,4 @@
-import { CertificateTemplateWorkspace } from "@/components/teacher/certificate-template-workspace";
+import { CertificateTemplateWorkspace } from "@/components/teacher/certificate-template";
 
 type AdminCourseCertificatesPageProps = {
     params: Promise<{
