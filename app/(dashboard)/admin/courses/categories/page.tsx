@@ -174,6 +174,7 @@ export default function CourseCategoriesPage() {
             if (editingCategory) {
                 const updated = await updateCategory(editingCategory.id, {
                     name: trimmedName,
+                    is_mdt: editingCategory.is_mdt ?? false,
                 });
 
                 setCategories((current) =>
@@ -186,6 +187,7 @@ export default function CourseCategoriesPage() {
             } else {
                 const created = await createCategory({
                     name: trimmedName,
+                    is_mdt: false,
                 });
 
                 setCategories((current) => [created, ...current]);
@@ -289,8 +291,8 @@ export default function CourseCategoriesPage() {
                 {(error || success) && !isModalOpen ? (
                     <div
                         className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${error
-                                ? "border-red-200 bg-red-50 text-red-700"
-                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
                             }`}
                     >
                         {error || success}
