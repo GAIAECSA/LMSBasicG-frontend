@@ -46,6 +46,7 @@ export const emptyForm: FormState = {
     description: "",
     text: "",
     video_url: "",
+    file_url: "",
     video_provider: "youtube",
     quiz_instructions: "",
     quiz_questions: [],

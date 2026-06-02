@@ -17,11 +17,186 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import {
     getLessonCalendarActivitiesByLessons,
+    getLessonsByModule,
     type LessonCalendarActivity,
 } from "@/services/lessons.service";
+
+import { getModulesByCourse } from "@/services/modules.service";
+
+import {
+    getEnrollmentsByUser,
+    type Enrollment,
+} from "@/services/enrollments.service";
+
 import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
 
-const DEFAULT_LESSON_IDS = [2];
+type AnyRecord = Record<string, unknown>;
+
+function toRecord(value: unknown): AnyRecord | null {
+    if (!value || typeof value !== "object") return null;
+
+    return value as AnyRecord;
+}
+
+function readPositiveNumber(...values: unknown[]): number | null {
+    for (const value of values) {
+        const numericValue = Number(value);
+
+        if (
+            Number.isFinite(numericValue) &&
+            numericValue > 0
+        ) {
+            return numericValue;
+        }
+    }
+
+    return null;
+}
+
+function getEnrollmentCourseId(
+    enrollment: Enrollment,
+): number | null {
+    const record = toRecord(enrollment);
+    const course = toRecord(record?.course);
+
+    return readPositiveNumber(
+        course?.id,
+        record?.course_id,
+        record?.courseId,
+    );
+}
+
+function getEnrollmentRoleId(
+    enrollment: Enrollment,
+): number | null {
+    const record = toRecord(enrollment);
+    const role = toRecord(record?.role);
+
+    return readPositiveNumber(
+        role?.id,
+        record?.role_id,
+        record?.roleId,
+    );
+}
+
+function isApprovedStudentEnrollment(
+    enrollment: Enrollment,
+) {
+    const record = toRecord(enrollment);
+
+    if (!record || record.accepted !== true) {
+        return false;
+    }
+
+    const roleId = getEnrollmentRoleId(enrollment);
+
+    /*
+        role_id = 4 corresponde al estudiante.
+
+        Si el backend no devuelve el rol dentro de la matrícula,
+        permitimos la matrícula aprobada para mantener compatibilidad.
+    */
+    return roleId === null || roleId === 4;
+}
+
+async function getStudentCalendarActivities(
+    userId: number,
+): Promise<LessonCalendarActivity[]> {
+    /*
+        1. Consultar únicamente las matrículas del usuario autenticado.
+    */
+    const enrollments = await getEnrollmentsByUser(userId);
+
+    /*
+        2. Mantener únicamente cursos con matrícula aprobada
+           para el rol de estudiante.
+    */
+    const courseIds = Array.from(
+        new Set(
+            enrollments
+                .filter(isApprovedStudentEnrollment)
+                .map(getEnrollmentCourseId)
+                .filter(
+                    (courseId): courseId is number =>
+                        courseId !== null,
+                ),
+        ),
+    );
+
+    if (courseIds.length === 0) {
+        return [];
+    }
+
+    /*
+        3. Obtener módulos y lecciones de cada curso matriculado.
+        4. Recuperar únicamente las actividades de esas lecciones.
+    */
+    const activitiesByCourse = await Promise.all(
+        courseIds.map(async (courseId) => {
+            const modules = await getModulesByCourse(courseId);
+
+            const lessonsByModule = await Promise.all(
+                modules.map(async (moduleItem) => {
+                    const moduleRecord = toRecord(moduleItem);
+
+                    const moduleId = readPositiveNumber(
+                        moduleRecord?.id,
+                    );
+
+                    if (!moduleId) return [];
+
+                    return getLessonsByModule(moduleId);
+                }),
+            );
+
+            const lessonIds = Array.from(
+                new Set(
+                    lessonsByModule
+                        .flat()
+                        .map((lessonItem) =>
+                            readPositiveNumber(lessonItem.id),
+                        )
+                        .filter(
+                            (lessonId): lessonId is number =>
+                                lessonId !== null,
+                        ),
+                ),
+            );
+
+            if (lessonIds.length === 0) {
+                return [];
+            }
+
+            return getLessonCalendarActivitiesByLessons(
+                lessonIds,
+                courseId,
+            );
+        }),
+    );
+
+    /*
+        Evita duplicados si una actividad llega repetida.
+    */
+    const activitiesByBlockId = new Map<
+        number,
+        LessonCalendarActivity
+    >();
+
+    activitiesByCourse
+        .flat()
+        .forEach((activity) => {
+            activitiesByBlockId.set(
+                activity.lesson_block_id,
+                activity,
+            );
+        });
+
+    return Array.from(activitiesByBlockId.values()).sort(
+        (firstActivity, secondActivity) =>
+            new Date(firstActivity.date_available).getTime() -
+            new Date(secondActivity.date_available).getTime(),
+    );
+}
 
 const WEEK_DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -316,6 +491,12 @@ function PageTopBar({
 export default function StudentCalendarPage() {
     const { user } = useAuth();
 
+    const studentUserId = useMemo(() => {
+        const userRecord = toRecord(user);
+
+        return readPositiveNumber(userRecord?.id);
+    }, [user]);
+
     const displayName = getUserFullName(user);
     const initials = getInitials(displayName);
 
@@ -392,8 +573,14 @@ export default function StudentCalendarPage() {
 
             const currentTimestamp = Date.now();
 
+            if (!studentUserId) {
+                throw new Error(
+                    "No se pudo identificar al estudiante autenticado.",
+                );
+            }
+
             const data =
-                await getLessonCalendarActivitiesByLessons(DEFAULT_LESSON_IDS);
+                await getStudentCalendarActivities(studentUserId);
 
             const firstActivityTimestamp =
                 data.length > 0
@@ -416,7 +603,7 @@ export default function StudentCalendarPage() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [studentUserId]);
 
     const refreshCalendar = useCallback(async () => {
         try {
@@ -425,8 +612,14 @@ export default function StudentCalendarPage() {
 
             const currentTimestamp = Date.now();
 
+            if (!studentUserId) {
+                throw new Error(
+                    "No se pudo identificar al estudiante autenticado.",
+                );
+            }
+
             const data =
-                await getLessonCalendarActivitiesByLessons(DEFAULT_LESSON_IDS);
+                await getStudentCalendarActivities(studentUserId);
 
             setNowTimestamp(currentTimestamp);
             setActivities(data);
@@ -448,7 +641,11 @@ export default function StudentCalendarPage() {
         } finally {
             setIsRefreshing(false);
         }
-    }, [currentMonthKey, selectedDayKey]);
+    }, [
+        currentMonthKey,
+        selectedDayKey,
+        studentUserId,
+    ]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -751,7 +948,7 @@ export default function StudentCalendarPage() {
                                                 {activity.url !== "#" ? (
                                                     <Link
                                                         href={activity.url}
-                                                        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[var(--primary)] px-4 text-sm font-black text-[var(--primary-foreground)] transition hover:opacity-95"
+                                                        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-2xl bg-[var(--primary)] px-4 text-sm font-black !text-white transition hover:opacity-95"
                                                     >
                                                         Ver actividad
                                                     </Link>

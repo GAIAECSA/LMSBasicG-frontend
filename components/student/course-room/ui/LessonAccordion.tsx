@@ -4,7 +4,11 @@ import type { LessonView } from "../types";
 import { BlockButton } from "./BlockButton";
 import { getLessonItemType } from "../utils";
 
-type LessonAccordionProps = { lessonItem: LessonView; lessonIndex: number; room: CourseRoomHook };
+type LessonAccordionProps = {
+    lessonItem: LessonView;
+    lessonIndex: number;
+    room: CourseRoomHook;
+};
 
 export function LessonAccordion({
     lessonItem,
@@ -53,8 +57,12 @@ export function LessonAccordion({
                                 selectedBlockId={
                                     room.selectedBlock?.id ?? null
                                 }
-                                completedBlocks={room.completedBlocks}
-                                onSelect={room.handleSelectBlock}
+                                completedBlocks={
+                                    room.completedBlocks
+                                }
+                                onSelect={
+                                    room.handleSelectBlock
+                                }
                             />
                         ))
                     )}
@@ -63,3 +71,5 @@ export function LessonAccordion({
         </div>
     );
 }
+
+export default LessonAccordion;

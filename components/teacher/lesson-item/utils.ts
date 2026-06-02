@@ -717,6 +717,7 @@ function buildContentByType(
     if (itemType === "image" || itemType === "pdf") {
         return {
             ...baseContent,
+            description: getSafeText(formRecord.description),
             file_url:
                 getSafeText(formRecord.file_url) ||
                 getExistingFileUrl(content),

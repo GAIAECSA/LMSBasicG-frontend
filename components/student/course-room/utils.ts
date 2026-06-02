@@ -42,10 +42,24 @@ export function normalizeList<T>(value: unknown): T[] {
     return [];
 }
 
-export function getBlockContent(block: LessonBlock | null | undefined): Record<string, unknown> {
-    return block?.content && typeof block.content === "object"
-        ? (block.content as Record<string, unknown>)
-        : {};
+export function getBlockContent(
+    block: LessonBlock | null | undefined,
+): Record<string, unknown> {
+    const rawContent: unknown = block?.content;
+
+    if (
+        rawContent &&
+        typeof rawContent === "object" &&
+        !Array.isArray(rawContent)
+    ) {
+        return rawContent as Record<string, unknown>;
+    }
+
+    if (typeof rawContent === "string" && rawContent.trim()) {
+        return parseJsonSafe<Record<string, unknown>>(rawContent, {});
+    }
+
+    return {};
 }
 
 export function getContentValue(content: Record<string, unknown> | null | undefined, key: string) {
@@ -160,28 +174,118 @@ export function getBlockDescription(block: LessonBlock | null) {
     return getContentValue(content, "description") || getContentValue(content, "descripcion") || getRootValue(block, "description") || getRootValue(block, "descripcion");
 }
 
+const LESSON_ITEM_TYPE_BY_BLOCK_ID: Record<number, LessonItemType> = {
+    1: "video",
+    2: "quiz",
+    3: "text",
+    4: "image",
+    5: "pdf",
+    6: "homework",
+    7: "survey",
+    8: "forum",
+};
+
 export function getLessonItemType(block: LessonBlock): LessonItemType {
     const content = getBlockContent(block);
     const optionalBlock = block as LessonBlockWithOptionalType;
+
+    /*
+        El block_type_id oficial del backend tiene prioridad.
+        Esto evita confundir un texto con una tarea.
+    */
+    const rawBlockTypeId =
+        optionalBlock.block_type_id ??
+        getContentNumber(content, "block_type_id") ??
+        optionalBlock.lesson_block_type?.id;
+
+    const blockTypeId = Number(rawBlockTypeId);
+
+    if (
+        Number.isFinite(blockTypeId) &&
+        LESSON_ITEM_TYPE_BY_BLOCK_ID[blockTypeId]
+    ) {
+        return LESSON_ITEM_TYPE_BY_BLOCK_ID[blockTypeId];
+    }
+
+    /*
+        Los textos descriptivos se utilizan únicamente como respaldo
+        cuando el backend no envía block_type_id.
+    */
     const contentType =
         getContentValue(content, "itemType").toLowerCase() ||
         getContentValue(content, "type").toLowerCase() ||
         getContentValue(content, "blockType").toLowerCase() ||
         getContentValue(content, "kind").toLowerCase();
-    const key = optionalBlock.lesson_block_type?.key?.toLowerCase() ?? "";
-    const typeText = `${contentType} ${key}`;
-    const blockTypeId = getContentNumber(content, "block_type_id") ?? optionalBlock.block_type_id ?? optionalBlock.lesson_block_type?.id;
 
-    if (typeText.includes("homework") || typeText.includes("tarea") || typeText.includes("assignment")) return "homework";
-    if (typeText.includes("survey") || typeText.includes("encuesta") || typeText.includes("cuestionario")) return "survey";
-    if (typeText.includes("forum") || typeText.includes("foro") || typeText.includes("discussion") || typeText.includes("discusion") || typeText.includes("discusión")) return "forum";
-    if (blockTypeId === 1 || contentType.includes("video") || key.includes("video")) return "video";
-    if (blockTypeId === 2 || contentType.includes("quiz") || contentType.includes("prueba") || contentType.includes("evaluacion") || key.includes("quiz") || key.includes("prueba") || key.includes("evaluacion")) return "quiz";
-    if (blockTypeId === 3 || contentType.includes("homework") || contentType.includes("tarea") || key.includes("homework") || key.includes("tarea")) return "homework";
-    if (blockTypeId === 6 || contentType.includes("survey") || contentType.includes("encuesta") || key.includes("survey") || key.includes("encuesta")) return "survey";
-    if (blockTypeId === 7 || blockTypeId === 8 || contentType.includes("forum") || contentType.includes("foro") || key.includes("forum") || key.includes("foro")) return "forum";
-    if (blockTypeId === 4 || contentType.includes("image") || contentType.includes("imagen") || contentType.includes("foto") || key.includes("image") || key.includes("imagen") || key.includes("foto")) return "image";
-    if (blockTypeId === 5 || contentType.includes("pdf") || contentType.includes("document") || contentType.includes("documento") || key.includes("pdf") || key.includes("document") || key.includes("documento")) return "pdf";
+    const key =
+        optionalBlock.lesson_block_type?.key?.toLowerCase() ?? "";
+
+    const typeText = `${contentType} ${key}`;
+
+    if (
+        typeText.includes("video")
+    ) {
+        return "video";
+    }
+
+    if (
+        typeText.includes("quiz") ||
+        typeText.includes("prueba") ||
+        typeText.includes("evaluacion") ||
+        typeText.includes("evaluación")
+    ) {
+        return "quiz";
+    }
+
+    if (
+        typeText.includes("text") ||
+        typeText.includes("texto")
+    ) {
+        return "text";
+    }
+
+    if (
+        typeText.includes("image") ||
+        typeText.includes("imagen") ||
+        typeText.includes("foto")
+    ) {
+        return "image";
+    }
+
+    if (
+        typeText.includes("pdf") ||
+        typeText.includes("document") ||
+        typeText.includes("documento")
+    ) {
+        return "pdf";
+    }
+
+    if (
+        typeText.includes("homework") ||
+        typeText.includes("tarea") ||
+        typeText.includes("assignment")
+    ) {
+        return "homework";
+    }
+
+    if (
+        typeText.includes("survey") ||
+        typeText.includes("encuesta") ||
+        typeText.includes("cuestionario")
+    ) {
+        return "survey";
+    }
+
+    if (
+        typeText.includes("forum") ||
+        typeText.includes("foro") ||
+        typeText.includes("discussion") ||
+        typeText.includes("discusion") ||
+        typeText.includes("discusión")
+    ) {
+        return "forum";
+    }
+
     return "text";
 }
 
@@ -197,6 +301,52 @@ export function getItemLabel(type: LessonItemType) {
         text: "Texto",
     };
     return labels[type];
+}
+
+type LessonBlockWithAvailability = LessonBlock & {
+    date_available?: string | null;
+};
+
+export function getBlockAvailableDate(
+    block: LessonBlock,
+): Date | null {
+    const dateAvailable = (
+        block as LessonBlockWithAvailability
+    ).date_available;
+
+    if (!dateAvailable) return null;
+
+    const parsedDate = new Date(dateAvailable);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+    }
+
+    return parsedDate;
+}
+
+export function isBlockAvailable(
+    block: LessonBlock,
+    currentDate = new Date(),
+) {
+    const availableDate = getBlockAvailableDate(block);
+
+    if (!availableDate) return true;
+
+    return availableDate.getTime() <= currentDate.getTime();
+}
+
+export function getBlockAvailableDateLabel(
+    block: LessonBlock,
+) {
+    const availableDate = getBlockAvailableDate(block);
+
+    if (!availableDate) return "";
+
+    return new Intl.DateTimeFormat("es-EC", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(availableDate);
 }
 
 export function getVideoUrlFromBlock(block: LessonBlock | null) {
@@ -386,7 +536,7 @@ export function getStudentResponseText(response: unknown): string {
 
         item.message,
         parsedResponse.message,
-        
+
         item.answer,
         parsedResponse.answer,
 

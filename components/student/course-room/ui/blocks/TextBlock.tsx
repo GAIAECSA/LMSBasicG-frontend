@@ -59,11 +59,11 @@ export function TextBlock({ room }: TextBlockProps) {
 
     return (
         <div className="min-w-0 space-y-4 sm:space-y-5">
-            {description ? (
+            {/*  {description ? (
                 <div className="min-w-0 break-words whitespace-pre-wrap rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
                     {description}
                 </div>
-            ) : null}
+            ) : null} */}
 
             <div className="prose prose-slate min-w-0 max-w-none overflow-hidden rounded-[22px] border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-700 shadow-sm sm:rounded-[24px] sm:p-6">
                 {body ? (

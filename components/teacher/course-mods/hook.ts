@@ -107,11 +107,6 @@ function shouldShowInCourseModules(block: unknown) {
 
     const content = getContentRecord(record.content);
 
-    const isActive = readBoolean(
-        record.is_active ?? record.isActive ?? content.is_active ?? content.isActive,
-        false,
-    );
-
     const isDefault = readBoolean(
         record.default ??
         record.is_default ??
@@ -133,19 +128,20 @@ function shouldShowInCourseModules(block: unknown) {
     );
 
     /*
-        Regla para mostrar en la vista de Módulos:
+        Esta vista debe mostrar los bloques normales activos e inactivos.
 
-        Se muestra:
-        is_active = true
+        Se muestran:
         default = true
         is_required = false
 
-        Se oculta:
-        is_required = true
+        Se mantienen ocultos únicamente los bloques especiales MDT:
         default = false
-        is_active = false
+        o is_required = true
+
+        is_active solo se usa para mostrar la etiqueta:
+        ACTIVO o INACTIVO.
     */
-    return isActive && isDefault && !isRequired;
+    return isDefault && !isRequired;
 }
 
 export function useCourseMods({

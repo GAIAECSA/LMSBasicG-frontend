@@ -22,10 +22,3 @@ docker run -d \
   --env-file "$(pwd)/.env.local" \
   -p 9003:9001 \
   lmsbasicg-frontend-demo-sva
-
-
-docker run -d \
-  --name lmsbasicg-frontend-demo-sva \
-  --restart unless-stopped \
-  -p 9003:9001 \
-  lmsbasicg-frontend-demo-sva

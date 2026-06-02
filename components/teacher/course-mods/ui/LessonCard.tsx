@@ -44,17 +44,23 @@ function readBoolean(value: unknown, fallback = false) {
 function getContentRecord(value: unknown): AnyRecord {
     if (!value) return {};
 
-    if (typeof value === "object") {
+    if (typeof value === "object" && !Array.isArray(value)) {
         return value as AnyRecord;
     }
 
     if (typeof value === "string") {
         try {
-            const parsed = JSON.parse(value);
+            const parsed = JSON.parse(value) as unknown;
 
-            return parsed && typeof parsed === "object"
-                ? (parsed as AnyRecord)
-                : {};
+            if (
+                parsed &&
+                typeof parsed === "object" &&
+                !Array.isArray(parsed)
+            ) {
+                return parsed as AnyRecord;
+            }
+
+            return {};
         } catch {
             return {};
         }
@@ -63,24 +69,37 @@ function getContentRecord(value: unknown): AnyRecord {
     return {};
 }
 
+/*
+    Se mantienen ocultos únicamente los bloques especiales MDT.
+
+    Importante:
+    NO se filtra por is_active porque esta pantalla debe mostrar
+    tanto los bloques activos como los inactivos.
+*/
 function shouldShowItemInModuleList(item: unknown) {
     const record = toRecord(item);
 
     if (!record) return true;
 
-    const content = getContentRecord(record.content);
-
-    const isActive = readBoolean(
-        record.is_active ?? content.is_active,
-        true,
+    const rawRecord = toRecord(record.raw);
+    const content = getContentRecord(
+        rawRecord?.content ?? record.content,
     );
 
     const isDefault = readBoolean(
-        record.default ?? content.default,
+        rawRecord?.default ??
+        rawRecord?.is_default ??
+        record.default ??
+        record.is_default ??
+        content.default ??
+        content.is_default,
         true,
     );
 
     const isRequired = readBoolean(
+        rawRecord?.is_required ??
+        rawRecord?.required ??
+        rawRecord?.isRequired ??
         record.is_required ??
         record.required ??
         record.isRequired ??
@@ -90,7 +109,7 @@ function shouldShowItemInModuleList(item: unknown) {
         false,
     );
 
-    return isActive && isDefault && !isRequired;
+    return isDefault && !isRequired;
 }
 
 export function LessonCard({
@@ -120,7 +139,9 @@ export function LessonCard({
                     ? "border-blue-500 ring-4 ring-blue-100"
                     : "border-slate-200"
                 }`}
-            onDragStart={(event) => mods.handleDragStart(event, lessonDragState)}
+            onDragStart={(event) =>
+                mods.handleDragStart(event, lessonDragState)
+            }
             onDragEnd={mods.resetDragState}
             onDragOver={(event) => mods.handleDragOver(event, lessonDragState)}
             onDrop={(event) => mods.handleDrop(event, lessonDragState)}
@@ -190,6 +211,7 @@ export function LessonCard({
                             })
                         }
                         className="inline-flex h-9 items-center justify-center rounded-xl bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100"
+                        title="Eliminar lección"
                     >
                         <Trash2 className="h-4 w-4" />
                     </button>
@@ -200,7 +222,7 @@ export function LessonCard({
                 <div className="mt-4 space-y-3">
                     {visibleItems.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                            Esta lección todavía no tiene contenido visible.
+                            Esta lección todavía no tiene contenido.
                         </div>
                     ) : (
                         visibleItems.map((item) => (
@@ -217,3 +239,5 @@ export function LessonCard({
         </div>
     );
 }
+
+export default LessonCard;

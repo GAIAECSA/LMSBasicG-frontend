@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
     ClipboardCheck,
-    Eye,
     Pencil,
     Trash2,
 } from "lucide-react";
@@ -47,17 +46,23 @@ function readBoolean(value: unknown, fallback = false) {
 function getContentRecord(value: unknown): AnyRecord {
     if (!value) return {};
 
-    if (typeof value === "object") {
+    if (typeof value === "object" && !Array.isArray(value)) {
         return value as AnyRecord;
     }
 
     if (typeof value === "string") {
         try {
-            const parsed = JSON.parse(value);
+            const parsed = JSON.parse(value) as unknown;
 
-            return parsed && typeof parsed === "object"
-                ? (parsed as AnyRecord)
-                : {};
+            if (
+                parsed &&
+                typeof parsed === "object" &&
+                !Array.isArray(parsed)
+            ) {
+                return parsed as AnyRecord;
+            }
+
+            return {};
         } catch {
             return {};
         }
@@ -66,21 +71,18 @@ function getContentRecord(value: unknown): AnyRecord {
     return {};
 }
 
+/*
+    Permite mostrar bloques activos e inactivos.
+    Únicamente mantiene ocultos los bloques especiales MDT.
+*/
 function shouldShowItemInModules(item: LessonItemView) {
     const record = toRecord(item);
     const rawRecord = toRecord(item.raw);
 
     if (!record && !rawRecord) return true;
 
-    const content = getContentRecord(rawRecord?.content ?? record?.content);
-
-    const isActive = readBoolean(
-        rawRecord?.is_active ??
-        record?.is_active ??
-        record?.isActive ??
-        content.is_active ??
-        content.isActive,
-        true,
+    const content = getContentRecord(
+        rawRecord?.content ?? record?.content,
     );
 
     const isDefault = readBoolean(
@@ -106,7 +108,25 @@ function shouldShowItemInModules(item: LessonItemView) {
         false,
     );
 
-    return isActive && isDefault && !isRequired;
+    return isDefault && !isRequired;
+}
+
+function getItemIsActive(item: LessonItemView) {
+    const record = toRecord(item);
+    const rawRecord = toRecord(item.raw);
+
+    const content = getContentRecord(
+        rawRecord?.content ?? record?.content,
+    );
+
+    return readBoolean(
+        rawRecord?.is_active ??
+        record?.is_active ??
+        record?.isActive ??
+        content.is_active ??
+        content.isActive,
+        true,
+    );
 }
 
 function isReviewableItem(type: LessonItemView["type"]) {
@@ -136,6 +156,8 @@ export function ItemRow({ mods, lesson, item }: ItemRowProps) {
         return null;
     }
 
+    const itemIsActive = getItemIsActive(item);
+
     const itemDragState: DragState = {
         type: "item",
         id: item.id,
@@ -153,10 +175,12 @@ export function ItemRow({ mods, lesson, item }: ItemRowProps) {
     return (
         <div
             draggable
-            className={`group cursor-grab rounded-2xl border bg-white px-4 py-3 shadow-sm transition active:cursor-grabbing ${itemIsDragging ? "opacity-50" : ""
-                } ${itemIsOver
+            className={`group cursor-grab rounded-2xl border px-4 py-3 shadow-sm transition active:cursor-grabbing ${itemIsActive ? "bg-white" : "bg-amber-50/70"
+                } ${itemIsDragging ? "opacity-50" : ""} ${itemIsOver
                     ? "border-blue-500 ring-4 ring-blue-100"
-                    : "border-slate-200 hover:border-blue-100 hover:shadow-md"
+                    : itemIsActive
+                        ? "border-slate-200 hover:border-blue-100 hover:shadow-md"
+                        : "border-amber-200 hover:border-amber-300 hover:shadow-md"
                 }`}
             onDragStart={(event) => mods.handleDragStart(event, itemDragState)}
             onDragEnd={mods.resetDragState}
@@ -191,6 +215,15 @@ export function ItemRow({ mods, lesson, item }: ItemRowProps) {
                             >
                                 {getItemLabel(item.type)}
                             </span>
+
+                            <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${itemIsActive
+                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                    : "bg-amber-100 text-amber-800 ring-1 ring-amber-200"
+                                    }`}
+                            >
+                                {itemIsActive ? "Activo" : "Inactivo"}
+                            </span>
                         </div>
 
                         <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -200,30 +233,19 @@ export function ItemRow({ mods, lesson, item }: ItemRowProps) {
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
-                    <Link
-                        href={reviewHref}
-                        className={`inline-flex h-10 items-center justify-center gap-2 rounded-2xl px-4 text-xs font-black shadow-sm transition ${reviewable
-                                ? "bg-[#172861] !text-white hover:bg-[#0f1d48]"
-                                : "bg-white !text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
-                            }`}
-                        title={getReviewLabel(item.type)}
-                    >
-                        {reviewable ? (
-                            <ClipboardCheck
-                                className={`h-4 w-4 ${reviewable ? "text-white" : "text-slate-700"
-                                    }`}
-                            />
-                        ) : (
-                            <Eye className="h-4 w-4 text-slate-700" />
-                        )}
-
-                        <span
-                            className={`${reviewable ? "text-white" : "text-slate-700"
-                                }`}
+                    {reviewable ? (
+                        <Link
+                            href={reviewHref}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-xs font-black !text-white shadow-sm transition hover:bg-[#0f1d48]"
+                            title={getReviewLabel(item.type)}
                         >
-                            {getReviewLabel(item.type)}
-                        </span>
-                    </Link>
+                            <ClipboardCheck className="h-4 w-4 text-white" />
+
+                            <span className="text-white">
+                                {getReviewLabel(item.type)}
+                            </span>
+                        </Link>
+                    ) : null}
 
                     <button
                         type="button"

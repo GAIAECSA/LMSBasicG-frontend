@@ -2,12 +2,10 @@
 
 import type { LessonItemEditorPageProps } from "./types";
 import { useLessonItem } from "./hook";
-import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
 import { Toolbar } from "./ui/Toolbar";
 import { Header } from "./ui/Header";
 import { Alerts } from "./ui/Alerts";
-import { GeneralSection } from "./ui/GeneralSection";
 import { TextSection } from "./ui/TextSection";
 import { FileSection } from "./ui/FileSection";
 import { VideoSection } from "./ui/VideoSection";
@@ -25,6 +23,24 @@ export function LessonItemEditorPage({
     const reviewHref = `${item.backHref}/items/${itemId}/review`;
     const formId = "lesson-item-editor-form";
 
+    /*
+        Para las imágenes, el botón de guardado se muestra
+        dentro de FileSection, debajo del archivo seleccionado.
+    */
+    const saveInsideContentSection = [
+        "text",
+        "image",
+        "pdf",
+        "video",
+    ].includes(item.itemType);
+
+    const isInformativeContent = [
+        "text",
+        "image",
+        "pdf",
+        "video",
+    ].includes(item.itemType);
+
     if (item.loading) {
         return (
             <section className="space-y-6">
@@ -32,7 +48,7 @@ export function LessonItemEditorPage({
                     backHref={item.backHref}
                     reviewHref={reviewHref}
                     itemType={item.itemType}
-                    formId={formId}
+                    formId={saveInsideContentSection ? undefined : formId}
                     saving={item.saving}
                 />
             </section>
@@ -58,6 +74,8 @@ export function LessonItemEditorPage({
                 backHref={item.backHref}
                 reviewHref={reviewHref}
                 itemType={item.itemType}
+                formId={saveInsideContentSection ? undefined : formId}
+                saving={item.saving}
             />
 
             <Header
@@ -73,10 +91,13 @@ export function LessonItemEditorPage({
             <form
                 id={formId}
                 onSubmit={item.handleSubmit}
-                className="grid gap-6 xl:grid-cols-[1fr_330px]"
+                className={
+                    isInformativeContent
+                        ? "grid gap-6"
+                        : "grid gap-6 xl:grid-cols-[1fr_330px]"
+                }
             >
                 <div className="space-y-6">
-{/*                     <GeneralSection item={item} /> */}
                     <TextSection item={item} />
                     <FileSection item={item} />
                     <VideoSection item={item} />
@@ -85,11 +106,13 @@ export function LessonItemEditorPage({
                     <ForumSection item={item} />
                 </div>
 
-                <SidePanel
-                    item={item}
-                    block={item.block}
-                    reviewHref={reviewHref}
-                />
+                {!isInformativeContent ? (
+                    <SidePanel
+                        item={item}
+                        block={item.block}
+                        reviewHref={reviewHref}
+                    />
+                ) : null}
             </form>
         </section>
     );

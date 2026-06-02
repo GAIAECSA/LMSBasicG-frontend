@@ -42,6 +42,7 @@ export type FormState = {
     text: string;
     video_url: string;
     video_provider: string;
+    file_url: string;
     quiz_instructions: string;
     quiz_questions: QuizQuestion[];
     survey_instructions: string;
