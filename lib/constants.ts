@@ -127,10 +127,6 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     label: "Certificados",
                     href: "/teacher/certificates",
                 },
-                {
-                    label: "Certificados MDT",
-                    href: "/teacher/mdt-certificados",
-                },
             ],
         },
     ],
@@ -198,6 +194,7 @@ export function getAdminCourseIdFromPathname(pathname: string): string | null {
 export function getSidebarItemsByRoute(
     userRole: UserRole | undefined,
     pathname: string,
+    isTeacherMdtCourse = false,
 ): SidebarItem[] {
     const effectiveRole = getEffectiveRoleByPathname(userRole, pathname);
 
@@ -252,19 +249,23 @@ export function getSidebarItemsByRoute(
                     label: "Asistencia Estudiante",
                     href: `/teacher/courses/${courseId}/attendance`,
                 },
-                {
-                    label: "Certificados MDT",
-                    href: `/teacher/courses/${courseId}/mdt-certificados`,
-                },
-                {
-                    label: "Archivos MDT",
-                    href: `/teacher/courses/${courseId}/mdt-required-files`,
-                }
+                ...(isTeacherMdtCourse
+                    ? [
+                        {
+                            label: "Certificados MDT",
+                            href: `/teacher/courses/${courseId}/mdt-certificados`,
+                        },
+                        {
+                            label: "Archivos MDT",
+                            href: `/teacher/courses/${courseId}/mdt-required-files`,
+                        },
+                    ]
+                    : []),
             ],
         },
-/*         {
-            label: "Reportes",
-            href: `/teacher/courses/${courseId}/reports`,
-        } */
+        /*         {
+                    label: "Reportes",
+                    href: `/teacher/courses/${courseId}/reports`,
+                } */
     ];
 }

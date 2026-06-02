@@ -43,7 +43,7 @@ export function ForumTab({ room }: ForumTabProps) {
 
     if (forumBlocks.length === 0) {
         return (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+            <div className="min-w-0 rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-center shadow-sm sm:p-8">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
                     <MessageSquareText className="h-7 w-7" />
                 </div>
@@ -61,14 +61,14 @@ export function ForumTab({ room }: ForumTabProps) {
     }
 
     return (
-        <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <aside className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
+            <aside className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="mb-4 flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
                         <MessageSquareText className="h-5 w-5" />
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                         <h2 className="text-base font-black text-slate-900">
                             Foros
                         </h2>
@@ -80,7 +80,7 @@ export function ForumTab({ room }: ForumTabProps) {
                     </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 xl:block xl:space-y-2 xl:overflow-visible xl:pb-0">
                     {forumBlocks.map((block) => {
                         const active = selectedForumBlock?.id === block.id;
                         const responseCount =
@@ -91,7 +91,7 @@ export function ForumTab({ room }: ForumTabProps) {
                                 key={block.id}
                                 type="button"
                                 onClick={() => handleSelectForum(block)}
-                                className={`w-full rounded-2xl border px-4 py-3 text-left transition ${active
+                                className={`min-w-[230px] flex-1 rounded-2xl border px-4 py-3 text-left transition xl:min-w-0 xl:w-full ${active
                                         ? "border-blue-200 bg-blue-50 text-blue-900"
                                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                                     }`}
@@ -110,7 +110,7 @@ export function ForumTab({ room }: ForumTabProps) {
                 </div>
             </aside>
 
-            <section className="min-w-0">
+            <section className="min-w-0 overflow-hidden">
                 {selectedForumBlock ? (
                     <ForumBlock
                         room={room}

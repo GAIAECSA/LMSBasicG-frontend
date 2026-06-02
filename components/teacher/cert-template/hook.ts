@@ -34,6 +34,9 @@ import {
 } from "./utils";
 import { generateCertificatePdf } from "./pdf";
 
+const BACKGROUND_REQUIRED_MESSAGE =
+    "Primero sube una imagen de fondo para comenzar a diseñar el certificado.";
+
 export function useCertTemplate({
     courseId,
 }: CertificateTemplateWorkspaceProps) {
@@ -98,6 +101,10 @@ export function useCertTemplate({
         ) as CertificateFieldWithFormat | undefined) ?? null;
 
     const qrConfig = normalizeQrConfig(template?.qrConfig);
+
+    const hasBackgroundImage = Boolean(
+        String(template?.backgroundImage ?? "").trim(),
+    );
 
     const backHref = isAdminRoute
         ? routeCourseId > 0
@@ -213,12 +220,24 @@ export function useCertTemplate({
         setError("");
     }
 
+    function showBackgroundRequiredError() {
+        setNotice("");
+        setError(BACKGROUND_REQUIRED_MESSAGE);
+    }
+
+    function canEditCertificate() {
+        if (hasBackgroundImage) return true;
+
+        showBackgroundRequiredError();
+        return false;
+    }
+
     function updateTemplate(nextTemplate: CertificateTemplate) {
         setTemplate(nextTemplate);
     }
 
     function updateQrConfig(changes: Partial<CertificateQrConfig>) {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         const nextQrConfig = normalizeQrConfig({
             ...template.qrConfig,
@@ -235,7 +254,7 @@ export function useCertTemplate({
         fieldId: string,
         changes: Partial<CertificateFieldWithFormat>,
     ) {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         updateTemplate({
             ...template,
@@ -258,6 +277,10 @@ export function useCertTemplate({
         if (!file || !template) return;
 
         try {
+            if (!file.type.startsWith("image/")) {
+                throw new Error("Selecciona un archivo de imagen válido.");
+            }
+
             const dataUrl = await readFileAsDataUrl(file);
 
             setBackgroundImageFile(file);
@@ -267,10 +290,18 @@ export function useCertTemplate({
                 backgroundImage: dataUrl,
             });
 
-            setNotice("Imagen de fondo cargada correctamente.");
+            setIsAddFieldsOpen(true);
+            setNotice(
+                "Imagen de fondo cargada correctamente. Ya puedes diseñar el certificado.",
+            );
             setError("");
-        } catch {
-            setError("No se pudo cargar la imagen de fondo.");
+        } catch (err) {
+            setNotice("");
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "No se pudo cargar la imagen de fondo.",
+            );
         } finally {
             event.target.value = "";
         }
@@ -284,7 +315,16 @@ export function useCertTemplate({
 
         if (!file || !template) return;
 
+        if (!canEditCertificate()) {
+            event.target.value = "";
+            return;
+        }
+
         try {
+            if (!file.type.startsWith("image/")) {
+                throw new Error("Selecciona un archivo de imagen válido.");
+            }
+
             const dataUrl = await readFileAsDataUrl(file);
 
             setSignatureFiles((current) => ({
@@ -299,15 +339,20 @@ export function useCertTemplate({
 
             setNotice("Firma cargada correctamente.");
             setError("");
-        } catch {
-            setError("No se pudo cargar la firma.");
+        } catch (err) {
+            setNotice("");
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "No se pudo cargar la firma.",
+            );
         } finally {
             event.target.value = "";
         }
     }
 
     function handleAddField(type: CertificateFieldType) {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         const newField: CertificateFieldWithFormat = {
             ...createCertificateField(type),
@@ -321,13 +366,12 @@ export function useCertTemplate({
         });
 
         setSelectedFieldId(newField.id);
-        setIsAddFieldsOpen(false);
         setNotice("Campo agregado correctamente.");
         setError("");
     }
 
     function handleDeleteField(fieldId: string) {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         const nextFields = template.fields.filter(
             (field: CertificateField) => field.id !== fieldId,
@@ -357,7 +401,7 @@ export function useCertTemplate({
         fieldId: string,
         nextType: CertificateFieldType,
     ) {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         const currentField = template.fields.find(
             (field: CertificateField) => field.id === fieldId,
@@ -398,6 +442,8 @@ export function useCertTemplate({
         event.preventDefault();
         event.stopPropagation();
 
+        if (!canEditCertificate()) return;
+
         setSelectedFieldId(fieldId);
         setDraggingFieldId(fieldId);
         setIsDraggingQr(false);
@@ -409,6 +455,8 @@ export function useCertTemplate({
         event.preventDefault();
         event.stopPropagation();
 
+        if (!canEditCertificate()) return;
+
         setSelectedFieldId(null);
         setDraggingFieldId(null);
         setIsDraggingQr(true);
@@ -417,7 +465,7 @@ export function useCertTemplate({
     }
 
     function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-        if (!certificateRef.current) return;
+        if (!certificateRef.current || !hasBackgroundImage) return;
 
         if (!draggingFieldId && !isDraggingQr) return;
 
@@ -471,7 +519,7 @@ export function useCertTemplate({
     }
 
     async function handleSaveTemplate() {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         try {
             setIsSavingTemplate(true);
@@ -526,9 +574,7 @@ export function useCertTemplate({
                 return nextTemplate.fields[0]?.id ?? null;
             });
 
-            setNotice(
-                "Plantilla guardada correctamente. El QR se envió en qr_config.",
-            );
+            setNotice("Plantilla guardada correctamente.");
         } catch (err) {
             const message =
                 err instanceof Error
@@ -548,7 +594,7 @@ export function useCertTemplate({
     }
 
     async function handleGeneratePdf() {
-        if (!template) return;
+        if (!template || !canEditCertificate()) return;
 
         try {
             setIsGenerating(true);
@@ -560,7 +606,7 @@ export function useCertTemplate({
                 numericCourseId,
             });
 
-            setNotice("Certificado generado correctamente con el QR visible.");
+            setNotice("Certificado generado correctamente.");
         } catch (err) {
             console.error("Error al generar certificado PDF:", err);
 
@@ -575,6 +621,8 @@ export function useCertTemplate({
     }
 
     function toggleAddFields() {
+        if (!canEditCertificate()) return;
+
         setIsAddFieldsOpen((current) => !current);
     }
 
@@ -594,6 +642,7 @@ export function useCertTemplate({
         draggingFieldId,
         isDraggingQr,
         qrConfig,
+        hasBackgroundImage,
 
         notice,
         error,

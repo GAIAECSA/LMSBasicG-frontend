@@ -1,0 +1,7 @@
+﻿name,description,price,discount_price,currency,level,duration_hours,is_free,is_published,open_enrollment,image_file,recommended_use
+Aprende Python para Datos,"Aprende Python aplicado a limpieza, visualización y análisis de datos. Ideal para iniciar en ciencia de datos.",20.0,12.0,USD,INTERMEDIO,2,False,True,True,imagenes_cursos/hero-python-datos.png,Curso destacado / portada principal
+Python desde Cero,Aprende Python desde los conceptos básicos hasta programación avanzada con ejemplos prácticos.,15.0,12.0,USD,INTERMEDIO,8,False,True,True,imagenes_cursos/python-desde-cero.png,Tarjeta de curso
+Diseño UX,"Aprende diseño centrado en el usuario y crea experiencias digitales simples, claras e intuitivas.",22.0,18.0,USD,INTERMEDIO,6,False,True,True,imagenes_cursos/diseno-ux.png,Tarjeta de curso
+Ciberseguridad,"Conoce los fundamentos de seguridad, protección de sistemas, datos y redes digitales.",25.0,19.0,USD,INTERMEDIO,10,False,True,True,imagenes_cursos/ciberseguridad.png,Tarjeta de curso
+Marketing Digital,"Desarrolla estrategias de marketing digital para atraer, convertir y fidelizar clientes.",18.0,15.0,USD,BÁSICO,5,False,True,True,imagenes_cursos/marketing-digital.png,Tarjeta de curso
+Análisis de Datos,Aprende a analizar y visualizar datos para tomar mejores decisiones mediante gráficos y reportes.,21.0,17.0,USD,INTERMEDIO,7,False,True,True,imagenes_cursos/analisis-de-datos.png,Tarjeta de curso

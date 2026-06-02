@@ -75,7 +75,7 @@ export function Header({
                         ) : null}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 sm:w-[320px]">
+                    <div className="grid grid-cols-1 gap-3 sm:w-[320px]">
                         <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
                             <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-100">
                                 Tipo
@@ -86,7 +86,7 @@ export function Header({
                             </p>
                         </div>
 
-                        <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
+                        {/* <div className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-white backdrop-blur-sm">
                             <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-100">
                                 Block type ID
                             </p>
@@ -94,7 +94,7 @@ export function Header({
                             <p className="mt-1 text-2xl font-black">
                                 {BLOCK_TYPE_IDS[itemType]}
                             </p>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>

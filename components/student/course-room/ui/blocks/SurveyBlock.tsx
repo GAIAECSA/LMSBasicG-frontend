@@ -92,9 +92,9 @@ export function SurveyBlock({ room }: SurveyBlockProps) {
     const isCompleted = Boolean(existing);
 
     return (
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
             {description ? (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm font-semibold leading-6 text-blue-800">
+                <div className="min-w-0 break-words whitespace-pre-wrap rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm font-semibold leading-6 text-blue-800 sm:px-5">
                     {description}
                 </div>
             ) : null}
@@ -131,7 +131,7 @@ export function SurveyBlock({ room }: SurveyBlockProps) {
                     {questions.map((question, index) => (
                         <article
                             key={question.id}
-                            className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm"
+                            className="min-w-0 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm sm:rounded-[24px]"
                         >
                             <div className="border-b border-slate-100 px-5 py-4">
                                 <div className="flex items-start gap-3">
@@ -160,7 +160,7 @@ export function SurveyBlock({ room }: SurveyBlockProps) {
 
                             {question.type === "single" &&
                                 question.options.length > 0 ? (
-                                <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5 lg:p-5">
+                                <div className="grid grid-cols-1 gap-3 p-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 xl:p-5">
                                     {question.options.map((option) => {
                                         const meta =
                                             getLikertOptionMeta(option);
@@ -173,7 +173,7 @@ export function SurveyBlock({ room }: SurveyBlockProps) {
                                         return (
                                             <label
                                                 key={`${question.id}-${option}`}
-                                                className={`relative flex min-h-[136px] flex-col items-center justify-center rounded-2xl border px-3 py-4 text-center transition-all duration-200 ${selected
+                                                className={`relative flex min-h-[118px] min-w-0 flex-col items-center justify-center rounded-2xl border px-3 py-4 text-center transition-all duration-200 sm:min-h-[136px] ${selected
                                                         ? meta.selectedClassName
                                                         : isCompleted
                                                             ? "border-slate-200 bg-slate-50 text-slate-400 opacity-70"
@@ -261,7 +261,7 @@ export function SurveyBlock({ room }: SurveyBlockProps) {
             ) : null}
 
             {!existing ? (
-                <div className="flex justify-end">
+                <div className="flex justify-stretch sm:justify-end">
                     <button
                         type="button"
                         onClick={() => void room.handleSubmitSurvey()}
@@ -269,7 +269,7 @@ export function SurveyBlock({ room }: SurveyBlockProps) {
                             room.studentResponseSaving ||
                             questions.length === 0
                         }
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-4 py-3 text-center text-sm font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-5"
                     >
                         {room.studentResponseSaving ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

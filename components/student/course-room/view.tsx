@@ -10,13 +10,13 @@ import { TopActions } from "./ui/TopActions";
 import { ActivitiesTab } from "./ui/tabs/ActivitiesTab";
 import { AttendanceTab } from "./ui/tabs/AttendanceTab";
 import { CertificateTab } from "./ui/tabs/CertificateTab";
-import { MdtCertificateTab } from "./ui/tabs/MdtCertificateTab";
-import { MdtRequiredFilesTab } from "./ui/tabs/MdtRequiredFilesTab";
 import { ContentTab } from "./ui/tabs/ContentTab";
 import { ForumTab } from "./ui/tabs/ForumTab";
-import { SurveyTab } from "./ui/tabs/SurveyTab";
 import { GradesTab } from "./ui/tabs/GradesTab";
+import { MdtCertificateTab } from "./ui/tabs/MdtCertificateTab";
+import { MdtRequiredFilesTab } from "./ui/tabs/MdtRequiredFilesTab";
 import { SummaryTab } from "./ui/tabs/SummaryTab";
+import { SurveyTab } from "./ui/tabs/SurveyTab";
 
 import { useCourseRoom } from "./hook";
 import type { StudentMoocCourseViewProps } from "./types";
@@ -124,25 +124,30 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
     ]);
 
     return (
-        <section className="min-h-screen bg-[var(--background)] px-4 py-5 pt-16 text-[var(--foreground)] sm:px-5 md:px-8 md:pt-6 xl:px-10">
-            <div className="mx-auto w-full max-w-[1500px]">
-                <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <section className="min-h-screen overflow-x-hidden bg-[var(--background)] px-3 py-4 pt-16 text-[var(--foreground)] sm:px-5 sm:py-5 md:px-6 md:pt-6 lg:px-8 xl:px-10">
+            <div className="mx-auto w-full min-w-0 max-w-[1500px]">
+                <div className="mb-4 flex min-w-0 flex-col gap-3 sm:mb-5 lg:flex-row lg:items-center lg:justify-between">
                     <Breadcrumb courseName={room.courseName} />
 
                     <TopActions studentInitials={room.studentInitials} />
                 </div>
 
                 {room.errorMessage ? (
-                    <Alert message={room.errorMessage} />
+                    <div className="mb-4 sm:mb-5">
+                        <Alert message={room.errorMessage} />
+                    </div>
                 ) : null}
 
                 {room.loading ? (
                     <Loading />
                 ) : (
                     <>
-                        <CourseHero room={room} />
+                        <CourseHero
+                            room={room}
+                            isMdtCourse={isMdtCourse}
+                        />
 
-                        <div className="mt-5">
+                        <div className="mt-4 min-w-0 sm:mt-5">
                             <Tabs
                                 activeTab={room.activeTab}
                                 onChange={room.setActiveTab}
@@ -152,7 +157,7 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
                             />
                         </div>
 
-                        <div className="mt-5">
+                        <div className="mt-4 min-w-0 sm:mt-5">
                             {room.activeTab === "summary" ? (
                                 <SummaryTab room={room} />
                             ) : null}

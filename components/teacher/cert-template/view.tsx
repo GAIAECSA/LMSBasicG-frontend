@@ -60,8 +60,12 @@ export function CertificateTemplateWorkspace({
                 <Header
                     isAdminRoute={cert.isAdminRoute}
                     selectedCourseName={cert.selectedCourseName}
-                    fieldsCount={cert.template.fields.length}
-                    qrEnabled={Boolean(cert.qrConfig.enabled)}
+                    fieldsCount={
+                        cert.hasBackgroundImage ? cert.template.fields.length : 0
+                    }
+                    qrEnabled={
+                        cert.hasBackgroundImage && Boolean(cert.qrConfig.enabled)
+                    }
                 />
 
                 <div className="rounded-[2rem] border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5 md:p-6">
@@ -72,6 +76,7 @@ export function CertificateTemplateWorkspace({
                         routeCourseId={cert.routeCourseId}
                         numericCourseId={cert.numericCourseId}
                         courseOptions={cert.courseOptions}
+                        hasBackgroundImage={cert.hasBackgroundImage}
                         isSavingTemplate={cert.isSavingTemplate}
                         isGenerating={cert.isGenerating}
                         onSelectCourse={cert.handleSelectCourse}
@@ -83,35 +88,31 @@ export function CertificateTemplateWorkspace({
 
                 <Alerts error={cert.error} notice={cert.notice} />
 
-                <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
-                    <div className="min-w-0 overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5 md:p-6">
-                        <Canvas
-                            certificateRef={cert.certificateRef}
-                            template={cert.template}
-                            selectedFieldId={cert.selectedFieldId}
-                            isDraggingQr={cert.isDraggingQr}
-                            onPointerMove={cert.handlePointerMove}
-                            onPointerUp={cert.handlePointerUp}
-                            onFieldPointerDown={cert.handlePointerDown}
-                            onQrPointerDown={cert.handleQrPointerDown}
-                        />
-                    </div>
+                <SidePanel
+                    disabled={!cert.hasBackgroundImage}
+                    isAddFieldsOpen={cert.isAddFieldsOpen}
+                    selectedField={cert.selectedField}
+                    qrConfig={cert.qrConfig}
+                    onToggleAddFields={cert.toggleAddFields}
+                    onAddField={cert.handleAddField}
+                    onUpdateQrConfig={cert.updateQrConfig}
+                    onUpdateField={cert.updateField}
+                    onChangeFieldType={cert.handleFieldTypeChange}
+                    onSignatureUpload={cert.handleSignatureUpload}
+                    onDeleteField={cert.handleDeleteField}
+                />
 
-                    <div className="min-w-0 rounded-[2rem] border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5 md:p-6">
-                        <SidePanel
-                            isAddFieldsOpen={cert.isAddFieldsOpen}
-                            selectedField={cert.selectedField}
-                            qrConfig={cert.qrConfig}
-                            onToggleAddFields={cert.toggleAddFields}
-                            onAddField={cert.handleAddField}
-                            onUpdateQrConfig={cert.updateQrConfig}
-                            onUpdateField={cert.updateField}
-                            onChangeFieldType={cert.handleFieldTypeChange}
-                            onSignatureUpload={cert.handleSignatureUpload}
-                            onDeleteField={cert.handleDeleteField}
-                        />
-                    </div>
-                </div>
+                <Canvas
+                    certificateRef={cert.certificateRef}
+                    template={cert.template}
+                    selectedFieldId={cert.selectedFieldId}
+                    isDraggingQr={cert.isDraggingQr}
+                    onBackgroundUpload={cert.handleBackgroundUpload}
+                    onPointerMove={cert.handlePointerMove}
+                    onPointerUp={cert.handlePointerUp}
+                    onFieldPointerDown={cert.handlePointerDown}
+                    onQrPointerDown={cert.handleQrPointerDown}
+                />
             </div>
         </section>
     );

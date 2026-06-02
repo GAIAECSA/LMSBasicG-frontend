@@ -21,10 +21,10 @@ export function SummaryTab({ room }: SummaryTabProps) {
     ];
 
     return (
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="min-w-0 space-y-5">
-                <section className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                    <div className="flex items-start gap-4">
+        <div className="mt-4 grid min-w-0 gap-4 sm:mt-5 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="min-w-0 space-y-4 sm:space-y-5">
+                <section className="overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[24px] sm:p-5">
+                    <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--secondary)] text-[var(--primary)]">
                             <FileText className="h-5 w-5" />
                         </div>
@@ -41,8 +41,8 @@ export function SummaryTab({ room }: SummaryTabProps) {
                     </div>
                 </section>
 
-                <section className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                    <div className="flex items-start gap-4">
+                <section className="overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[24px] sm:p-5">
+                    <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--success-soft)] text-[var(--success)]">
                             <CheckCircle2 className="h-5 w-5" />
                         </div>
@@ -70,8 +70,8 @@ export function SummaryTab({ room }: SummaryTabProps) {
                     </div>
                 </section>
 
-                <section className="overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                    <div className="flex items-start gap-4">
+                <section className="overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[24px] sm:p-5">
+                    <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
                             <ClipboardList className="h-5 w-5" />
                         </div>
@@ -100,7 +100,7 @@ export function SummaryTab({ room }: SummaryTabProps) {
                 </section>
             </div>
 
-            <aside className="space-y-5">
+            <aside className="grid min-w-0 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-1">
                 <ProgressCard room={room} />
                 <UpcomingCard room={room} />
             </aside>

@@ -129,16 +129,20 @@ export function CourseIndex({ room }: CourseIndexProps) {
         .filter((moduleItem) => moduleItem.lessons.length > 0);
 
     return (
-        <aside className="rounded-[26px] border border-[var(--border)] bg-[var(--card)] shadow-sm">
-            <div className="border-b border-[var(--border)] p-5">
-                <h2 className="text-lg font-black text-[var(--foreground)]">
+        <aside className="min-w-0 overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--card)] shadow-sm sm:rounded-[26px]">
+            <div className="border-b border-[var(--border)] p-4 sm:p-5">
+                <h2 className="text-base font-black text-[var(--foreground)] sm:text-lg">
                     Índice del curso
                 </h2>
+
+                <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)] sm:text-sm">
+                    Selecciona un contenido para continuar.
+                </p>
             </div>
 
-            <div className="max-h-[calc(100vh-230px)] overflow-y-auto p-4">
+            <div className="max-h-[420px] overflow-y-auto overscroll-contain p-3 sm:max-h-[520px] sm:p-4 xl:max-h-[calc(100vh-230px)]">
                 {visibleModules.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--muted)] p-5 text-center text-sm font-semibold text-[var(--muted-foreground)]">
+                    <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--muted)] p-4 text-center text-sm font-semibold text-[var(--muted-foreground)] sm:p-5">
                         Este curso todavía no tiene contenidos disponibles.
                     </div>
                 ) : (

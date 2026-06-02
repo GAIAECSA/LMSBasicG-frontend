@@ -386,7 +386,7 @@ export function getStudentResponseText(response: unknown): string {
 
         item.message,
         parsedResponse.message,
-
+        
         item.answer,
         parsedResponse.answer,
 

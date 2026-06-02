@@ -1,9 +1,6 @@
 import type { CourseRoomHook } from "../../hook";
 import { BlockHeader } from "../BlockHeader";
 import { CourseIndex } from "../CourseIndex";
-import { GradeCard } from "../GradeCard";
-import { ProgressCard } from "../ProgressCard";
-import { UpcomingCard } from "../UpcomingCard";
 import { EmptyBlock } from "../blocks/EmptyBlock";
 import { ForumBlock } from "../blocks/ForumBlock";
 import { HomeworkBlock } from "../blocks/HomeworkBlock";
@@ -22,13 +19,13 @@ export function ContentTab({ room }: ContentTabProps) {
     return (
         <div
             id="contenido"
-            className="mt-5 grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)_360px]"
+            className="mt-4 grid min-w-0 gap-4 sm:mt-5 sm:gap-5 xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[330px_minmax(0,1fr)]"
         >
             <div className="min-w-0">
                 <CourseIndex room={room} />
             </div>
 
-            <main className="min-w-0 overflow-hidden rounded-[26px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <main className="min-w-0 overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[26px] sm:p-5 lg:p-6">
                 <div className="min-w-0">
                     <BlockHeader room={room} />
 
@@ -75,12 +72,8 @@ export function ContentTab({ room }: ContentTabProps) {
                     ) : null}
                 </div>
             </main>
-
-            <aside className="min-w-0 space-y-5">
-                <ProgressCard room={room} />
-                <UpcomingCard room={room} />
-                <GradeCard room={room} />
-            </aside>
         </div>
     );
 }
+
+export default ContentTab;

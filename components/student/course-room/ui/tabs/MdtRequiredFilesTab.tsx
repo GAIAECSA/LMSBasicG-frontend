@@ -128,25 +128,34 @@ export function MdtRequiredFilesTab(props: MdtRequiredFilesTabProps) {
     }
 
     return (
-        <MdtRequiredFilesPanel
-            enabled
-            room={props.room}
-            courseId={
-                props.courseId ??
-                readNumberFromRecord(room, [
-                    "numericCourseId",
-                    "currentCourseId",
-                    "courseId",
-                    "course_id",
-                ]) ??
-                readNumberFromRecord(course, ["id", "courseId", "course_id"])
-            }
-            enrollmentId={
-                props.enrollmentId ??
-                readNumberFromRecord(room, ["enrollmentId", "enrollment_id"])
-            }
-            studentIdNumber={getStudentIdNumber(props)}
-        />
+        <div className="mt-4 min-w-0 overflow-hidden sm:mt-5">
+            <MdtRequiredFilesPanel
+                enabled
+                room={props.room}
+                courseId={
+                    props.courseId ??
+                    readNumberFromRecord(room, [
+                        "numericCourseId",
+                        "currentCourseId",
+                        "courseId",
+                        "course_id",
+                    ]) ??
+                    readNumberFromRecord(course, [
+                        "id",
+                        "courseId",
+                        "course_id",
+                    ])
+                }
+                enrollmentId={
+                    props.enrollmentId ??
+                    readNumberFromRecord(room, [
+                        "enrollmentId",
+                        "enrollment_id",
+                    ])
+                }
+                studentIdNumber={getStudentIdNumber(props)}
+            />
+        </div>
     );
 }
 

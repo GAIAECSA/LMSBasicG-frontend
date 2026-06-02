@@ -1,8 +1,9 @@
 import type {
+    ChangeEvent,
     PointerEvent as ReactPointerEvent,
     RefObject,
 } from "react";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, ImagePlus } from "lucide-react";
 import type { CertificateTemplate } from "@/services/certificates.service";
 import { normalizeQrConfig, toCssImageUrl } from "../utils";
 import { FieldItem } from "./FieldItem";
@@ -13,6 +14,7 @@ type CanvasProps = {
     template: CertificateTemplate;
     selectedFieldId: string | null;
     isDraggingQr: boolean;
+    onBackgroundUpload: (event: ChangeEvent<HTMLInputElement>) => void;
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onPointerUp: () => void;
     onFieldPointerDown: (
@@ -27,22 +29,28 @@ export function Canvas({
     template,
     selectedFieldId,
     isDraggingQr,
+    onBackgroundUpload,
     onPointerMove,
     onPointerUp,
     onFieldPointerDown,
     onQrPointerDown,
 }: CanvasProps) {
     const qrConfig = normalizeQrConfig(template.qrConfig);
+    const hasBackgroundImage = Boolean(
+        String(template.backgroundImage ?? "").trim(),
+    );
 
     return (
-        <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
+        <section className="rounded-[2rem] border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5 md:p-6">
             <div className="mb-4 flex flex-col gap-1 px-1">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
+                    Vista previa editable
+                </p>
                 <h1 className="text-xl font-bold text-slate-950">
                     Área de diseño
                 </h1>
                 <p className="text-sm text-[var(--muted-foreground)]">
-                    Arrastra los campos dentro del certificado para ubicarlos en
-                    la posición deseada.
+                    Arrastra los campos dentro del certificado para ubicarlos en la posición deseada.
                 </p>
             </div>
 
@@ -54,7 +62,7 @@ export function Canvas({
                     onPointerUp={onPointerUp}
                     onPointerLeave={onPointerUp}
                 >
-                    {template.backgroundImage ? (
+                    {hasBackgroundImage ? (
                         <div
                             className="pointer-events-none absolute inset-0 select-none bg-cover bg-center bg-no-repeat"
                             style={{
@@ -64,36 +72,50 @@ export function Canvas({
                             }}
                         />
                     ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 text-center">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50 px-6 text-center">
                             <BadgeCheck className="h-16 w-16 text-[#172861]" />
 
-                            <h2 className="mt-4 text-3xl font-bold text-slate-950">
-                                Certificado de finalización
+                            <h2 className="mt-4 text-2xl font-bold text-slate-950 sm:text-3xl">
+                                Comienza con la imagen de fondo
                             </h2>
 
-                            <p className="mt-2 max-w-xl text-sm text-slate-500">
-                                Sube una imagen de fondo para empezar a diseñar
-                                tu plantilla.
+                            <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-slate-500">
+                                Sube la plantilla base antes de agregar campos, firmas o código QR.
                             </p>
+
+                            <label className="mt-5 inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F]">
+                                <ImagePlus className="h-4 w-4" />
+                                Subir imagen de fondo
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={onBackgroundUpload}
+                                    className="hidden"
+                                />
+                            </label>
                         </div>
                     )}
 
-                    {template.fields.map((field) => (
-                        <FieldItem
-                            key={field.id}
-                            field={field}
-                            isSelected={selectedFieldId === field.id}
-                            onPointerDown={onFieldPointerDown}
-                        />
-                    ))}
+                    {hasBackgroundImage
+                        ? template.fields.map((field) => (
+                            <FieldItem
+                                key={field.id}
+                                field={field}
+                                isSelected={selectedFieldId === field.id}
+                                onPointerDown={onFieldPointerDown}
+                            />
+                        ))
+                        : null}
 
-                    <QrBox
-                        qrConfig={qrConfig}
-                        isDraggingQr={isDraggingQr}
-                        onPointerDown={onQrPointerDown}
-                    />
+                    {hasBackgroundImage ? (
+                        <QrBox
+                            qrConfig={qrConfig}
+                            isDraggingQr={isDraggingQr}
+                            onPointerDown={onQrPointerDown}
+                        />
+                    ) : null}
                 </div>
             </div>
-        </div>
+        </section>
     );
 }

@@ -188,8 +188,8 @@ export function ForumBlock({
 
     return (
         <>
-            <div className="space-y-5">
-                <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="min-w-0 space-y-4 sm:space-y-5">
+                <div className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-5">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="min-w-0">
                             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
@@ -197,12 +197,12 @@ export function ForumBlock({
                                 Foro
                             </div>
 
-                            <h2 className="text-xl font-black text-slate-950">
+                            <h2 className="break-words text-lg font-black text-slate-950 sm:text-xl">
                                 {title}
                             </h2>
 
                             {description ? (
-                                <p className="mt-3 max-w-4xl whitespace-pre-line text-sm font-semibold leading-6 text-slate-600">
+                                <p className="mt-3 max-w-4xl break-words whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">
                                     {description}
                                 </p>
                             ) : null}
@@ -214,7 +214,7 @@ export function ForumBlock({
                                         Consigna o instrucción del foro
                                     </div>
 
-                                    <p className="whitespace-pre-line text-sm font-semibold leading-6 text-blue-900">
+                                    <p className="break-words whitespace-pre-wrap text-sm font-semibold leading-6 text-blue-900">
                                         {instruction}
                                     </p>
                                 </div>
@@ -230,7 +230,7 @@ export function ForumBlock({
                         <button
                             type="button"
                             onClick={handleOpenModal}
-                            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-5 text-sm font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95"
+                            className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-4 py-3 text-center text-sm font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95 sm:w-auto sm:px-5"
                         >
                             <MessageSquarePlus className="h-4 w-4" />
                             Nueva participación
@@ -251,7 +251,7 @@ export function ForumBlock({
                     ) : null}
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="min-w-0 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h3 className="text-base font-black text-slate-950">
@@ -272,10 +272,10 @@ export function ForumBlock({
                             {posts.map((post, index) => (
                                 <article
                                     key={getPostKey(post, index)}
-                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                                    className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4"
                                 >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <p className="text-sm font-black text-slate-900">
+                                        <p className="break-words text-sm font-black text-slate-900">
                                             {getForumAuthor(post)}
                                         </p>
 
@@ -284,7 +284,7 @@ export function ForumBlock({
                                         </p>
                                     </div>
 
-                                    <p className="mt-2 whitespace-pre-line text-sm font-semibold leading-6 text-slate-600">
+                                    <p className="mt-2 break-words whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-600">
                                         {getStudentResponseText(post) ||
                                             "Sin contenido."}
                                     </p>
@@ -296,8 +296,8 @@ export function ForumBlock({
             </div>
 
             {openModal ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm">
-                    <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+                    <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] bg-white shadow-2xl sm:rounded-[28px]">
                         <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-wide text-blue-700">
@@ -318,7 +318,7 @@ export function ForumBlock({
                             </button>
                         </div>
 
-                        <div className="p-5">
+                        <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
                             <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
                                 <p className="text-xs font-black uppercase tracking-wide text-blue-700">
                                     Tema relacionado
@@ -333,7 +333,7 @@ export function ForumBlock({
                                     <p className="text-xs font-black uppercase tracking-wide text-slate-500">
                                         Consigna o instrucción
                                     </p>
-                                    <p className="mt-1 whitespace-pre-line text-sm font-semibold leading-6 text-slate-700">
+                                    <p className="mt-1 break-words whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-700">
                                         {instruction}
                                     </p>
                                 </div>

@@ -219,7 +219,7 @@ export function MdtCertificateTab(props: MdtCertificateTabProps) {
     }
 
     return (
-        <div className="space-y-5">
+        <div className="mt-4 min-w-0 overflow-hidden sm:mt-5">
             <MdtCertificatePanel
                 enabled={isMdtCourse}
                 courseId={courseId}

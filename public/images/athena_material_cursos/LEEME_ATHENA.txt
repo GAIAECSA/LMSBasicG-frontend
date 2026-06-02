@@ -1,0 +1,97 @@
+MATERIAL DEMO PARA CARGAR EN ATHENA
+====================================
+
+Este paquete contiene imágenes y datos de ejemplo para que tu catálogo de cursos se vea parecido al diseño moderno de referencia.
+
+Contenido del ZIP:
+- imagenes_cursos/hero-python-datos.png
+- imagenes_cursos/python-desde-cero.png
+- imagenes_cursos/diseno-ux.png
+- imagenes_cursos/ciberseguridad.png
+- imagenes_cursos/marketing-digital.png
+- imagenes_cursos/analisis-de-datos.png
+- athena_cursos_demo.json
+- athena_cursos_demo.csv
+
+Cómo usarlo:
+1. Entra como administrador a tu plataforma ATHENA.
+2. Crea o edita cursos desde el módulo de cursos.
+3. Para cada curso, copia el nombre, descripción, precio, descuento, nivel y duración desde el archivo JSON o CSV.
+4. Sube la imagen correspondiente desde la carpeta imagenes_cursos.
+5. Activa estas opciones para que salgan en el catálogo público:
+   - is_published: true
+   - open_enrollment: true
+6. Para que se vea la etiqueta de oferta, coloca un discount_price menor que price.
+7. Para que se vea la duración, coloca duration_hours mayor que 0.
+
+Curso recomendado para destacar:
+- Aprende Python para Datos
+- Imagen: imagenes_cursos/hero-python-datos.png
+
+Datos sugeridos para cada curso:
+
+------------------------------------------------------------
+Curso: Aprende Python para Datos
+Descripción: Aprende Python aplicado a limpieza, visualización y análisis de datos. Ideal para iniciar en ciencia de datos.
+Precio: 20.0 USD
+Descuento: 12.0 USD
+Nivel: INTERMEDIO
+Duración: 2 horas
+Imagen: imagenes_cursos/hero-python-datos.png
+Publicado: Sí
+Matrícula abierta: Sí
+
+------------------------------------------------------------
+Curso: Python desde Cero
+Descripción: Aprende Python desde los conceptos básicos hasta programación avanzada con ejemplos prácticos.
+Precio: 15.0 USD
+Descuento: 12.0 USD
+Nivel: INTERMEDIO
+Duración: 8 horas
+Imagen: imagenes_cursos/python-desde-cero.png
+Publicado: Sí
+Matrícula abierta: Sí
+
+------------------------------------------------------------
+Curso: Diseño UX
+Descripción: Aprende diseño centrado en el usuario y crea experiencias digitales simples, claras e intuitivas.
+Precio: 22.0 USD
+Descuento: 18.0 USD
+Nivel: INTERMEDIO
+Duración: 6 horas
+Imagen: imagenes_cursos/diseno-ux.png
+Publicado: Sí
+Matrícula abierta: Sí
+
+------------------------------------------------------------
+Curso: Ciberseguridad
+Descripción: Conoce los fundamentos de seguridad, protección de sistemas, datos y redes digitales.
+Precio: 25.0 USD
+Descuento: 19.0 USD
+Nivel: INTERMEDIO
+Duración: 10 horas
+Imagen: imagenes_cursos/ciberseguridad.png
+Publicado: Sí
+Matrícula abierta: Sí
+
+------------------------------------------------------------
+Curso: Marketing Digital
+Descripción: Desarrolla estrategias de marketing digital para atraer, convertir y fidelizar clientes.
+Precio: 18.0 USD
+Descuento: 15.0 USD
+Nivel: BÁSICO
+Duración: 5 horas
+Imagen: imagenes_cursos/marketing-digital.png
+Publicado: Sí
+Matrícula abierta: Sí
+
+------------------------------------------------------------
+Curso: Análisis de Datos
+Descripción: Aprende a analizar y visualizar datos para tomar mejores decisiones mediante gráficos y reportes.
+Precio: 21.0 USD
+Descuento: 17.0 USD
+Nivel: INTERMEDIO
+Duración: 7 horas
+Imagen: imagenes_cursos/analisis-de-datos.png
+Publicado: Sí
+Matrícula abierta: Sí

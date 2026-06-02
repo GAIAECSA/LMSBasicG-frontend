@@ -15,6 +15,7 @@ import {
     AlertCircle,
     ArchiveRestore,
     ArchiveX,
+    ArrowLeftRight,
     Award,
     CheckCircle2,
     ExternalLink,
@@ -31,6 +32,7 @@ import {
     UploadCloud,
     X,
 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { API_URL } from "@/services/api-client.service";
 import {
     createMdtCertificate,
@@ -255,6 +257,11 @@ export function MdtCertificadosProfesorView({
     cursoIdInicial = 0,
     bloquearCurso = false,
 }: MdtCertificadosProfesorViewProps) {
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const esRutaAdministrador = pathname.startsWith("/admin/");
+
     const inputArchivosRef = useRef<HTMLInputElement | null>(null);
     const inputCarpetaRef = useRef<HTMLInputElement | null>(null);
 
@@ -795,6 +802,13 @@ export function MdtCertificadosProfesorView({
         void cargarEstudiantes();
     }
 
+    function cambiarCursoAdministrador() {
+        setMensajeError("");
+        setMensajeExito("");
+
+        router.push("/admin/mdt-certificados");
+    }
+
     return (
         <main className="min-h-screen bg-slate-50 px-3 py-4 text-slate-950 sm:px-5 md:px-6 lg:px-8">
             <section className="mx-auto w-full max-w-[1500px] space-y-5">
@@ -882,19 +896,18 @@ export function MdtCertificadosProfesorView({
                                         Consultar
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={consultarTodo}
-                                        disabled={cargando}
-                                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 xl:w-auto"
-                                    >
-                                        {cargando ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <RefreshCcw className="h-4 w-4" />
-                                        )}
-                                        Actualizar
-                                    </button>
+                                    {esRutaAdministrador ? (
+                                        <button
+                                            type="button"
+                                            onClick={cambiarCursoAdministrador}
+                                            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-[#172861] shadow-sm transition hover:bg-blue-50 xl:w-auto"
+                                        >
+                                            <ArrowLeftRight className="h-4 w-4" />
+                                            Cambiar curso
+                                        </button>
+                                    ) : (
+                                        null
+                                    )}
 
                                     <button
                                         type="button"
@@ -1029,9 +1042,6 @@ export function MdtCertificadosProfesorView({
                                                     <th className="px-5 py-4">
                                                         Fecha
                                                     </th>
-                                                    <th className="px-5 py-4 text-right">
-                                                        Acciones
-                                                    </th>
                                                 </tr>
                                             </thead>
 
@@ -1107,72 +1117,6 @@ export function MdtCertificadosProfesorView({
                                                                 )}
                                                             </td>
 
-                                                            <td className="px-5 py-4">
-                                                                <div className="flex justify-end gap-2">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            abrirModalEdicion(
-                                                                                certificado,
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            procesandoId ===
-                                                                            certificado.id
-                                                                        }
-                                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        <Pencil className="h-4 w-4" />
-                                                                        Editar
-                                                                    </button>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            void cambiarEstadoCertificado(
-                                                                                certificado,
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            procesandoId ===
-                                                                            certificado.id
-                                                                        }
-                                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        {procesandoId ===
-                                                                            certificado.id ? (
-                                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                                        ) : certificado.deleted ? (
-                                                                            <ArchiveRestore className="h-4 w-4" />
-                                                                        ) : (
-                                                                            <ArchiveX className="h-4 w-4" />
-                                                                        )}
-
-                                                                        {certificado.deleted
-                                                                            ? "Restaurar"
-                                                                            : "Ocultar"}
-                                                                    </button>
-
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            setDeleteModal(
-                                                                                {
-                                                                                    certificado,
-                                                                                },
-                                                                            )
-                                                                        }
-                                                                        disabled={
-                                                                            procesandoId ===
-                                                                            certificado.id
-                                                                        }
-                                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                        Eliminar
-                                                                    </button>
-                                                                </div>
-                                                            </td>
                                                         </tr>
                                                     ),
                                                 )}

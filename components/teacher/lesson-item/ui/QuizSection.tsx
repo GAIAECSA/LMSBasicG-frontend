@@ -4,6 +4,8 @@ import { useState } from "react";
 import {
     AlertTriangle,
     CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
     ClipboardList,
     ListChecks,
     Plus,
@@ -18,34 +20,44 @@ type QuizSectionProps = {
 
 const QUIZ_MAX_POINTS = 10;
 
+function isQuestionComplete(
+    question: LessonItemState["form"]["quiz_questions"][number],
+) {
+    const hasQuestion = question.question.trim().length > 0;
+
+    const completedOptions = question.options.filter(
+        (option) => option.trim().length > 0,
+    );
+
+    const hasEnoughOptions = completedOptions.length >= 2;
+
+    const selectedOption = question.options[question.correct_answer];
+
+    const hasValidCorrectAnswer =
+        Boolean(selectedOption) && selectedOption.trim().length > 0;
+
+    return hasQuestion && hasEnoughOptions && hasValidCorrectAnswer;
+}
+
 export function QuizSection({ item }: QuizSectionProps) {
     const [openModal, setOpenModal] = useState(false);
 
     const questions = item.form.quiz_questions;
 
-    const totalPoints = questions.reduce(
-        (total, question) => total + Number(question.points || 0),
-        0,
+    const totalPoints = Number(
+        questions
+            .reduce(
+                (total, question) => total + Number(question.points || 0),
+                0,
+            )
+            .toFixed(2),
     );
 
     const remainingPoints = QUIZ_MAX_POINTS - totalPoints;
 
-    const incompleteQuestions = questions.filter((question) => {
-        const hasQuestion = question.question.trim().length > 0;
-
-        const completedOptions = question.options.filter(
-            (option) => option.trim().length > 0,
-        );
-
-        const hasEnoughOptions = completedOptions.length >= 2;
-
-        const selectedOption = question.options[question.correct_answer];
-
-        const hasValidCorrectAnswer =
-            Boolean(selectedOption) && selectedOption.trim().length > 0;
-
-        return !hasQuestion || !hasEnoughOptions || !hasValidCorrectAnswer;
-    }).length;
+    const incompleteQuestions = questions.filter(
+        (question) => !isQuestionComplete(question),
+    ).length;
 
     if (item.itemType !== "quiz") {
         return null;
@@ -160,19 +172,19 @@ export function QuizSection({ item }: QuizSectionProps) {
 
                 <div
                     className={`mt-5 rounded-2xl border px-4 py-4 ${statusTone === "danger"
-                            ? "border-red-200 bg-red-50"
-                            : statusTone === "success"
-                                ? "border-emerald-200 bg-emerald-50"
-                                : "border-amber-200 bg-amber-50"
+                        ? "border-red-200 bg-red-50"
+                        : statusTone === "success"
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-amber-200 bg-amber-50"
                         }`}
                 >
                     <div className="flex items-start gap-3">
                         <div
                             className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${statusTone === "danger"
-                                    ? "bg-red-100 text-red-700"
-                                    : statusTone === "success"
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-amber-100 text-amber-700"
+                                ? "bg-red-100 text-red-700"
+                                : statusTone === "success"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-amber-100 text-amber-700"
                                 }`}
                         >
                             {statusTone === "success" ? (
@@ -185,10 +197,10 @@ export function QuizSection({ item }: QuizSectionProps) {
                         <div>
                             <p
                                 className={`text-sm font-black ${statusTone === "danger"
-                                        ? "text-red-800"
-                                        : statusTone === "success"
-                                            ? "text-emerald-800"
-                                            : "text-amber-800"
+                                    ? "text-red-800"
+                                    : statusTone === "success"
+                                        ? "text-emerald-800"
+                                        : "text-amber-800"
                                     }`}
                             >
                                 Control de puntaje total
@@ -196,17 +208,19 @@ export function QuizSection({ item }: QuizSectionProps) {
 
                             <p
                                 className={`mt-1 text-sm font-semibold ${statusTone === "danger"
-                                        ? "text-red-700"
-                                        : statusTone === "success"
-                                            ? "text-emerald-700"
-                                            : "text-amber-700"
+                                    ? "text-red-700"
+                                    : statusTone === "success"
+                                        ? "text-emerald-700"
+                                        : "text-amber-700"
                                     }`}
                             >
                                 {totalPoints > QUIZ_MAX_POINTS
-                                    ? `La evaluación supera el máximo permitido. Debes reducir ${totalPoints - QUIZ_MAX_POINTS} punto(s).`
+                                    ? `La evaluación supera el máximo permitido. Debes reducir ${totalPoints - QUIZ_MAX_POINTS
+                                    } punto(s).`
                                     : totalPoints === QUIZ_MAX_POINTS
                                         ? "La sumatoria de puntos está correcta: 10/10."
-                                        : `Aún puedes asignar ${QUIZ_MAX_POINTS - totalPoints} punto(s) sin superar el máximo de 10.`}
+                                        : `Aún puedes asignar ${QUIZ_MAX_POINTS - totalPoints
+                                        } punto(s) sin superar el máximo de 10.`}
                             </p>
                         </div>
                     </div>
@@ -228,8 +242,8 @@ export function QuizSection({ item }: QuizSectionProps) {
                         </span>
 
                         <span className="mt-1 text-sm font-semibold text-blue-600">
-                            Las preguntas se administran en una ventana modal
-                            para mantener limpia la pantalla.
+                            Cada pregunta se configurará individualmente desde el
+                            paginador.
                         </span>
                     </button>
                 ) : (
@@ -241,8 +255,8 @@ export function QuizSection({ item }: QuizSectionProps) {
                                 </p>
 
                                 <p className="mt-1 text-sm font-semibold text-slate-500">
-                                    Puedes editar, agregar o eliminar preguntas
-                                    desde el modal.
+                                    Edita una pregunta por vez y utiliza el
+                                    paginador para cambiar de pregunta.
                                 </p>
                             </div>
 
@@ -264,6 +278,7 @@ export function QuizSection({ item }: QuizSectionProps) {
                     item={item}
                     totalPoints={totalPoints}
                     remainingPoints={remainingPoints}
+                    incompleteQuestions={incompleteQuestions}
                     onClose={() => setOpenModal(false)}
                 />
             ) : null}
@@ -304,33 +319,81 @@ function QuestionsModal({
     item,
     totalPoints,
     remainingPoints,
+    incompleteQuestions,
     onClose,
 }: {
     item: LessonItemState;
     totalPoints: number;
     remainingPoints: number;
+    incompleteQuestions: number;
     onClose: () => void;
 }) {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
     const questions = item.form.quiz_questions;
 
+    const activeQuestionIndex = Math.min(
+        currentQuestionIndex,
+        Math.max(questions.length - 1, 0),
+    );
+
+    const currentQuestion = questions[activeQuestionIndex];
+
+    function goToQuestion(index: number) {
+        if (index < 0 || index >= questions.length) return;
+
+        setCurrentQuestionIndex(index);
+    }
+
+    function addQuestionAndOpenIt() {
+        const newQuestionIndex = questions.length;
+
+        item.handleAddQuestion();
+        setCurrentQuestionIndex(newQuestionIndex);
+    }
+
+    function removeCurrentQuestion() {
+        if (!currentQuestion) return;
+
+        item.handleRemoveQuestion(currentQuestion.id);
+
+        setCurrentQuestionIndex((current) =>
+            Math.max(0, Math.min(current, questions.length - 2)),
+        );
+    }
+
+    const canSave =
+        questions.length > 0 &&
+        totalPoints === QUIZ_MAX_POINTS &&
+        incompleteQuestions === 0;
+
+    const saveButtonLabel = item.saving
+        ? "Guardando..."
+        : totalPoints !== QUIZ_MAX_POINTS
+            ? "Completa los 10 puntos"
+            : incompleteQuestions > 0
+                ? "Completa las preguntas"
+                : "Guardar preguntas";
+
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm">
-            <div className="flex max-h-[92vh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
-                <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#172861] to-blue-900 px-6 py-5">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6">
+            <div className="flex max-h-[94vh] w-full max-w-[1000px] flex-col overflow-hidden rounded-[1.6rem] bg-white shadow-2xl sm:rounded-[2rem]">
+                <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#172861] to-blue-900 px-5 py-4 sm:px-6 sm:py-5">
                     <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(255,132,40,0.35),transparent_45%)]" />
 
                     <div className="relative flex items-start justify-between gap-4">
-                        <div>
+                        <div className="min-w-0">
                             <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-100">
                                 Banco de preguntas
                             </p>
 
-                            <h3 className="mt-2 text-2xl font-black text-white">
+                            <h3 className="mt-1 break-words text-xl font-black text-white sm:text-2xl">
                                 Administrar preguntas de la evaluación
                             </h3>
 
                             <p className="mt-1 text-sm font-semibold text-slate-200">
-                                Total: {questions.length} preguntas /{" "}
+                                Total: {questions.length} pregunta
+                                {questions.length === 1 ? "" : "s"} /{" "}
                                 {totalPoints} puntos
                             </p>
                         </div>
@@ -338,41 +401,43 @@ function QuestionsModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20"
+                            aria-label="Cerrar modal"
                         >
                             <X className="h-5 w-5" />
                         </button>
                     </div>
                 </div>
 
-                <div className="border-b border-slate-200 bg-white px-6 py-4">
+                <div className="border-b border-slate-200 bg-white px-5 py-3 sm:px-6">
                     <div
-                        className={`rounded-2xl border px-4 py-3 ${totalPoints > QUIZ_MAX_POINTS
-                                ? "border-red-200 bg-red-50"
-                                : totalPoints === QUIZ_MAX_POINTS
-                                    ? "border-emerald-200 bg-emerald-50"
-                                    : "border-amber-200 bg-amber-50"
+                        className={`rounded-xl border px-4 py-2.5 ${totalPoints > QUIZ_MAX_POINTS
+                            ? "border-red-200 bg-red-50"
+                            : totalPoints === QUIZ_MAX_POINTS
+                                ? "border-emerald-200 bg-emerald-50"
+                                : "border-amber-200 bg-amber-50"
                             }`}
                     >
                         <p
                             className={`text-sm font-black ${totalPoints > QUIZ_MAX_POINTS
-                                    ? "text-red-800"
-                                    : totalPoints === QUIZ_MAX_POINTS
-                                        ? "text-emerald-800"
-                                        : "text-amber-800"
+                                ? "text-red-800"
+                                : totalPoints === QUIZ_MAX_POINTS
+                                    ? "text-emerald-800"
+                                    : "text-amber-800"
                                 }`}
                         >
                             {totalPoints > QUIZ_MAX_POINTS
-                                ? `Has excedido el límite por ${totalPoints - QUIZ_MAX_POINTS} punto(s).`
+                                ? `Has excedido el límite por ${totalPoints - QUIZ_MAX_POINTS
+                                } punto(s).`
                                 : totalPoints === QUIZ_MAX_POINTS
                                     ? "La sumatoria está perfecta: 10/10."
-                                    : `Te quedan ${remainingPoints} punto(s) disponibles para llegar al máximo de 10.`}
+                                    : `Te quedan ${remainingPoints} punto(s) para completar el máximo de 10.`}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto bg-slate-50 p-5 sm:p-6">
-                    {questions.length === 0 ? (
+                <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-5">
+                    {questions.length === 0 || !currentQuestion ? (
                         <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
                             <ListChecks className="mx-auto h-10 w-10 text-slate-400" />
 
@@ -381,196 +446,275 @@ function QuestionsModal({
                             </h4>
 
                             <p className="mt-1 text-sm font-semibold text-slate-500">
-                                Agrega preguntas para construir la evaluación.
+                                Agrega una pregunta para construir la evaluación.
                             </p>
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            {questions.map((question, questionIndex) => (
-                                <div
-                                    key={question.id}
-                                    className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-                                >
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div>
-                                            <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
-                                                Pregunta {questionIndex + 1}
-                                            </p>
+                            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                                        Pregunta {currentQuestionIndex + 1} de{" "}
+                                        {questions.length}
+                                    </p>
 
-                                            <p className="mt-1 text-sm font-semibold text-slate-500">
-                                                Configura opciones, respuesta
-                                                correcta y puntaje.
-                                            </p>
-                                        </div>
+                                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                                        Edita una pregunta y continúa con la
+                                        siguiente desde el paginador.
+                                    </p>
+                                </div>
 
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                item.handleRemoveQuestion(
-                                                    question.id,
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={removeCurrentQuestion}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-red-50 px-3 text-xs font-black text-red-700 ring-1 ring-red-100 transition hover:bg-red-100"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        Eliminar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={addQuestionAndOpenIt}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-blue-50 px-3 text-xs font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Nueva pregunta
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                                <label className="block">
+                                    <span className="text-sm font-black text-slate-700">
+                                        Texto de la pregunta
+                                    </span>
+
+                                    <input
+                                        type="text"
+                                        value={currentQuestion.question}
+                                        onChange={(event) =>
+                                            item.handleChangeQuestion(
+                                                currentQuestion.id,
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        placeholder="Ej: ¿Cuál es la respuesta correcta?"
+                                    />
+                                </label>
+
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    {currentQuestion.options.map(
+                                        (option, optionIndex) => (
+                                            <label
+                                                key={`${currentQuestion.id}-${optionIndex}`}
+                                                className="block"
+                                            >
+                                                <span className="text-sm font-black text-slate-700">
+                                                    Opción {optionIndex + 1}
+                                                </span>
+
+                                                <input
+                                                    type="text"
+                                                    value={option}
+                                                    onChange={(event) =>
+                                                        item.handleChangeOption(
+                                                            currentQuestion.id,
+                                                            optionIndex,
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                                    placeholder={
+                                                        optionIndex < 2
+                                                            ? `Opción ${optionIndex +
+                                                            1
+                                                            } obligatoria`
+                                                            : `Opción ${optionIndex +
+                                                            1
+                                                            } opcional`
+                                                    }
+                                                />
+                                            </label>
+                                        ),
+                                    )}
+                                </div>
+
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    <label className="block">
+                                        <span className="text-sm font-black text-slate-700">
+                                            Respuesta correcta
+                                        </span>
+
+                                        <select
+                                            value={
+                                                currentQuestion.correct_answer
+                                            }
+                                            onChange={(event) =>
+                                                item.handleChangeCorrectAnswer(
+                                                    currentQuestion.id,
+                                                    Number(event.target.value),
                                                 )
                                             }
-                                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 text-sm font-black text-red-700 ring-1 ring-red-100 transition hover:bg-red-100"
+                                            className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                                         >
-                                            <Trash2 className="h-4 w-4" />
-                                            Eliminar
-                                        </button>
-                                    </div>
+                                            {currentQuestion.options.map(
+                                                (_, optionIndex) => (
+                                                    <option
+                                                        key={optionIndex}
+                                                        value={optionIndex}
+                                                    >
+                                                        Opción {optionIndex + 1}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                    </label>
 
-                                    <label className="mt-5 block">
+                                    <label className="block">
                                         <span className="text-sm font-black text-slate-700">
-                                            Texto de la pregunta
+                                            Puntos
                                         </span>
 
                                         <input
-                                            type="text"
-                                            value={question.question}
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={currentQuestion.points}
                                             onChange={(event) =>
-                                                item.handleChangeQuestion(
-                                                    question.id,
-                                                    event.target.value,
+                                                item.handleChangePoints(
+                                                    currentQuestion.id,
+                                                    Number(event.target.value),
                                                 )
                                             }
-                                            className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                            placeholder="Ej: ¿Cuál es la respuesta correcta?"
+                                            className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                            placeholder="Ej: 2"
                                         />
                                     </label>
-
-                                    <div className="mt-5 grid gap-4 md:grid-cols-2">
-                                        {question.options.map(
-                                            (option, optionIndex) => (
-                                                <label
-                                                    key={`${question.id}-${optionIndex}`}
-                                                    className="block"
-                                                >
-                                                    <span className="text-sm font-black text-slate-700">
-                                                        Opción{" "}
-                                                        {optionIndex + 1}
-                                                    </span>
-
-                                                    <input
-                                                        type="text"
-                                                        value={option}
-                                                        onChange={(event) =>
-                                                            item.handleChangeOption(
-                                                                question.id,
-                                                                optionIndex,
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                                        placeholder={
-                                                            optionIndex < 2
-                                                                ? `Opción ${optionIndex + 1} obligatoria`
-                                                                : `Opción ${optionIndex + 1} opcional`
-                                                        }
-                                                    />
-                                                </label>
-                                            ),
-                                        )}
-                                    </div>
-
-                                    <div className="mt-5 grid gap-4 md:grid-cols-2">
-                                        <label className="block">
-                                            <span className="text-sm font-black text-slate-700">
-                                                Respuesta correcta
-                                            </span>
-
-                                            <select
-                                                value={question.correct_answer}
-                                                onChange={(event) =>
-                                                    item.handleChangeCorrectAnswer(
-                                                        question.id,
-                                                        Number(
-                                                            event.target.value,
-                                                        ),
-                                                    )
-                                                }
-                                                className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                            >
-                                                {question.options.map(
-                                                    (_, optionIndex) => (
-                                                        <option
-                                                            key={optionIndex}
-                                                            value={optionIndex}
-                                                        >
-                                                            Opción{" "}
-                                                            {optionIndex + 1}
-                                                        </option>
-                                                    ),
-                                                )}
-                                            </select>
-                                        </label>
-
-                                        <label className="block">
-                                            <span className="text-sm font-black text-slate-700">
-                                                Puntos
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={question.points}
-                                                onChange={(event) =>
-                                                    item.handleChangePoints(
-                                                        question.id,
-                                                        Number(
-                                                            event.target.value,
-                                                        ),
-                                                    )
-                                                }
-                                                className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                                placeholder="Ej: 2"
-                                            />
-                                        </label>
-                                    </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        goToQuestion(currentQuestionIndex - 1)
+                                    }
+                                    disabled={currentQuestionIndex === 0}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    Anterior
+                                </button>
+
+                                <div className="flex justify-center gap-2 overflow-x-auto pb-1">
+                                    {questions.map((question, index) => {
+                                        const active =
+                                            index === currentQuestionIndex;
+
+                                        const complete =
+                                            isQuestionComplete(question);
+
+                                        return (
+                                            <button
+                                                key={question.id}
+                                                type="button"
+                                                onClick={() =>
+                                                    goToQuestion(index)
+                                                }
+                                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-black transition ${active
+                                                    ? "bg-[#172861] text-white"
+                                                    : complete
+                                                        ? "bg-emerald-100 text-emerald-700"
+                                                        : "border border-amber-200 bg-amber-50 text-amber-700"
+                                                    }`}
+                                            >
+                                                {index + 1}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        goToQuestion(currentQuestionIndex + 1)
+                                    }
+                                    disabled={
+                                        currentQuestionIndex ===
+                                        questions.length - 1
+                                    }
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Siguiente
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-5 py-4 lg:flex-row lg:items-center lg:justify-between sm:px-6">
                     <button
                         type="button"
-                        onClick={item.handleAddQuestion}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-blue-50 px-5 text-sm font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100"
+                        onClick={addQuestionAndOpenIt}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-50 px-4 text-sm font-black text-blue-700 ring-1 ring-blue-100 transition hover:bg-blue-100"
                     >
                         <Plus className="h-4 w-4" />
-                        Agregar pregunta
+                        Agregar siguiente pregunta
                     </button>
 
-                    <div className="flex flex-col items-start gap-1 sm:items-end">
+                    <div className="flex flex-col items-start gap-1 lg:items-end">
                         <p className="text-sm font-black text-slate-800">
                             Total actual: {totalPoints} / {QUIZ_MAX_POINTS}
                         </p>
 
                         <p
                             className={`text-xs font-semibold ${totalPoints > QUIZ_MAX_POINTS
-                                    ? "text-red-600"
-                                    : totalPoints === QUIZ_MAX_POINTS
-                                        ? "text-emerald-600"
-                                        : "text-slate-500"
+                                ? "text-red-600"
+                                : totalPoints === QUIZ_MAX_POINTS
+                                    ? "text-emerald-600"
+                                    : "text-slate-500"
                                 }`}
                         >
                             {totalPoints > QUIZ_MAX_POINTS
-                                ? "Debes reducir el puntaje total para poder guardar."
+                                ? "Debes reducir el puntaje total."
                                 : totalPoints === QUIZ_MAX_POINTS
                                     ? "Puntaje completo."
                                     : `Todavía puedes usar ${remainingPoints} punto(s).`}
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48]"
-                    >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Listo
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                        >
+                            <X className="h-4 w-4" />
+                            Cerrar
+                        </button>
+
+                        <button
+                            type="submit"
+                            form="lesson-item-editor-form"
+                            disabled={item.saving || !canSave}
+                            title={
+                                totalPoints !== QUIZ_MAX_POINTS
+                                    ? "La sumatoria debe ser exactamente de 10 puntos."
+                                    : incompleteQuestions > 0
+                                        ? "Completa todas las preguntas antes de guardar."
+                                        : "Guardar preguntas"
+                            }
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <CheckCircle2 className="h-4 w-4" />
+
+                            {saveButtonLabel}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

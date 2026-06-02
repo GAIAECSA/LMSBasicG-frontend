@@ -10,6 +10,7 @@ type ToolbarProps = {
     routeCourseId: number;
     numericCourseId: number;
     courseOptions: Course[];
+    hasBackgroundImage: boolean;
     isSavingTemplate: boolean;
     isGenerating: boolean;
     onSelectCourse: (value: string) => void;
@@ -25,6 +26,7 @@ export function Toolbar({
     routeCourseId,
     numericCourseId,
     courseOptions,
+    hasBackgroundImage,
     isSavingTemplate,
     isGenerating,
     onSelectCourse,
@@ -33,16 +35,16 @@ export function Toolbar({
     onGeneratePdf,
 }: ToolbarProps) {
     return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Link
-                href={backHref}
-                className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                {backLabel}
-            </Link>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                    href={backHref}
+                    className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    {backLabel}
+                </Link>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
                 {isAdminRoute && routeCourseId <= 0 ? (
                     <select
                         value={numericCourseId || ""}
@@ -59,10 +61,12 @@ export function Toolbar({
                         ))}
                     </select>
                 ) : null}
+            </div>
 
+            <div className="flex flex-col gap-2 sm:flex-row">
                 <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-bold text-[#172861] shadow-sm transition hover:bg-blue-50">
                     <ImagePlus className="h-4 w-4" />
-                    Subir fondo
+                    {hasBackgroundImage ? "Cambiar fondo" : "Subir fondo"}
                     <input
                         type="file"
                         accept="image/*"
@@ -74,8 +78,13 @@ export function Toolbar({
                 <button
                     type="button"
                     onClick={onSaveTemplate}
-                    disabled={isSavingTemplate}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={!hasBackgroundImage || isSavingTemplate}
+                    title={
+                        hasBackgroundImage
+                            ? "Guardar plantilla"
+                            : "Primero sube una imagen de fondo"
+                    }
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <Save className="h-4 w-4" />
                     {isSavingTemplate ? "Guardando..." : "Guardar"}
@@ -84,8 +93,13 @@ export function Toolbar({
                 <button
                     type="button"
                     onClick={onGeneratePdf}
-                    disabled={isGenerating}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={!hasBackgroundImage || isGenerating}
+                    title={
+                        hasBackgroundImage
+                            ? "Generar PDF"
+                            : "Primero sube una imagen de fondo"
+                    }
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <Download className="h-4 w-4" />
                     {isGenerating ? "Generando..." : "Generar PDF"}

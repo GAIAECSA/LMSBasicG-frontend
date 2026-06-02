@@ -4,8 +4,16 @@ import type {
     CertificateFieldType,
     CertificateTextAlign,
 } from "@/services/certificates.service";
-import { alignOptions, fieldTypeOptions, fontFamilyOptions, textCaseOptions } from "../constants";
-import type { CertificateFieldWithFormat, CertificateTextCase } from "../types";
+import {
+    alignOptions,
+    fieldTypeOptions,
+    fontFamilyOptions,
+    textCaseOptions,
+} from "../constants";
+import type {
+    CertificateFieldWithFormat,
+    CertificateTextCase,
+} from "../types";
 import {
     getFieldFontFamily,
     getFieldTextCase,
@@ -37,257 +45,252 @@ export function FieldPanel({
     onSignatureUpload,
     onDeleteField,
 }: FieldPanelProps) {
-    return (
-        <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-950">
-                Campo seleccionado
-            </h2>
-
-            {!selectedField ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-500">
-                    Selecciona un campo del certificado para editarlo. Para
-                    editar el QR, usa el panel de Código QR.
+    if (!selectedField) {
+        return (
+            <div className="border-t border-slate-100 bg-white px-4 py-3">
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+                    Selecciona un campo dentro del certificado para editarlo rápidamente.
                 </div>
-            ) : (
-                <div className="mt-5 max-h-[calc(100vh-260px)] space-y-4 overflow-y-auto pr-1">
-                    <div className="space-y-2">
-                        <label className="block text-[13px] font-bold text-slate-700">
-                            Variable del certificado
-                        </label>
+            </div>
+        );
+    }
 
-                        <select
-                            value={selectedField.type}
-                            onChange={(event) =>
-                                onChangeFieldType(
-                                    selectedField.id,
-                                    event.target.value as CertificateFieldType,
-                                )
-                            }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                        >
-                            {fieldTypeOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+    const selectedLabel =
+        fieldTypeOptions.find((option) => option.value === selectedField.type)
+            ?.label ?? "Campo seleccionado";
 
+    return (
+        <div className="border-t border-slate-100 bg-white px-4 py-3">
+            <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-700">
+                        Editando campo
+                    </p>
+                    <h3 className="truncate text-sm font-black text-slate-950">
+                        {selectedLabel}
+                    </h3>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
                     {isSignatureField(selectedField) ? (
-                        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-                            <p className="text-sm font-bold text-blue-950">
-                                Imagen de la firma
-                            </p>
-
-                            <p className="mt-1 text-xs leading-5 text-blue-700">
-                                La firma se muestra como vista previa, pero se
-                                guarda como archivo separado.
-                            </p>
-
-                            <label className="mt-3 inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-bold text-white transition hover:bg-[#0B163F]">
-                                <ImagePlus className="h-4 w-4" />
-                                Subir firma
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(event) =>
-                                        onSignatureUpload(
-                                            event,
-                                            selectedField.id,
-                                        )
-                                    }
-                                    className="hidden"
-                                />
-                            </label>
-
-                            {selectedField.signatureImage ? (
-                                <div className="mt-4 rounded-2xl border border-blue-100 bg-white p-3">
-                                    <div
-                                        className="mx-auto h-20 w-full bg-contain bg-center bg-no-repeat"
-                                        style={{
-                                            backgroundImage: toCssImageUrl(
-                                                selectedField.signatureImage,
-                                            ),
-                                        }}
-                                    />
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : null}
-
-                    <div className="space-y-2">
-                        <label className="block text-[13px] font-bold text-slate-700">
-                            Texto visible / variable
-                        </label>
-
-                        <textarea
-                            value={selectedField.value}
-                            onChange={(event) =>
-                                onUpdateField(selectedField.id, {
-                                    value: event.target.value,
-                                })
-                            }
-                            className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-[13px] font-bold text-slate-700">
-                            Tipografía
-                        </label>
-
-                        <select
-                            value={getFieldFontFamily(selectedField)}
-                            onChange={(event) =>
-                                onUpdateField(selectedField.id, {
-                                    fontFamily: event.target.value,
-                                })
-                            }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                        >
-                            {fontFamilyOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-[13px] font-bold text-slate-700">
-                            Formato del texto
-                        </label>
-
-                        <select
-                            value={getFieldTextCase(selectedField)}
-                            onChange={(event) =>
-                                onUpdateField(selectedField.id, {
-                                    textCase: event.target
-                                        .value as CertificateTextCase,
-                                })
-                            }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                        >
-                            {textCaseOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <NumberInput
-                            label="Tamaño"
-                            min={8}
-                            max={80}
-                            value={selectedField.fontSize}
-                            onChange={(value) =>
-                                onUpdateField(selectedField.id, {
-                                    fontSize: value,
-                                })
-                            }
-                        />
-
-                        <NumberInput
-                            label="Ancho %"
-                            min={10}
-                            max={100}
-                            value={selectedField.width}
-                            onChange={(value) =>
-                                onUpdateField(selectedField.id, {
-                                    width: value,
-                                })
-                            }
-                        />
-
-                        <NumberInput
-                            label="Alto %"
-                            min={4}
-                            max={40}
-                            value={selectedField.height ?? 8}
-                            onChange={(value) =>
-                                onUpdateField(selectedField.id, {
-                                    height: value,
-                                })
-                            }
-                        />
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <label className="block text-[13px] font-bold text-slate-700">
-                                Color
-                            </label>
-
+                        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-black text-blue-700 transition hover:bg-blue-100">
+                            <ImagePlus className="h-4 w-4" />
+                            Firma
                             <input
-                                type="color"
-                                value={selectedField.color}
+                                type="file"
+                                accept="image/*"
                                 onChange={(event) =>
-                                    onUpdateField(selectedField.id, {
-                                        color: event.target.value,
-                                    })
+                                    onSignatureUpload(event, selectedField.id)
                                 }
-                                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3"
+                                className="hidden"
                             />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="block text-[13px] font-bold text-slate-700">
-                                Peso
-                            </label>
-
-                            <select
-                                value={selectedField.fontWeight}
-                                onChange={(event) =>
-                                    onUpdateField(selectedField.id, {
-                                        fontWeight: event.target.value as
-                                            | "normal"
-                                            | "bold",
-                                    })
-                                }
-                                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                            >
-                                <option value="normal">Normal</option>
-                                <option value="bold">Negrita</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="block text-[13px] font-bold text-slate-700">
-                            Alineación
                         </label>
-
-                        <select
-                            value={selectedField.textAlign}
-                            onChange={(event) =>
-                                onUpdateField(selectedField.id, {
-                                    textAlign: event.target
-                                        .value as CertificateTextAlign,
-                                })
-                            }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                        >
-                            {alignOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                    ) : null}
 
                     <button
                         type="button"
                         onClick={() => onDeleteField(selectedField.id)}
-                        className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 text-sm font-bold text-red-700 transition hover:bg-red-100"
+                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100"
                     >
                         <Trash2 className="h-4 w-4" />
-                        Eliminar campo
+                        Eliminar
                     </button>
                 </div>
-            )}
+            </div>
+
+            <div className="grid gap-2 xl:grid-cols-[180px_minmax(220px,1fr)_150px_150px_130px_130px_130px_130px_150px]">
+                <SelectField
+                    label="Variable"
+                    value={selectedField.type}
+                    onChange={(value) =>
+                        onChangeFieldType(
+                            selectedField.id,
+                            value as CertificateFieldType,
+                        )
+                    }
+                    options={fieldTypeOptions}
+                />
+
+                <InputField
+                    label="Texto"
+                    value={selectedField.value}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            value,
+                        })
+                    }
+                />
+
+                <SelectField
+                    label="Fuente"
+                    value={getFieldFontFamily(selectedField)}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            fontFamily: value,
+                        })
+                    }
+                    options={fontFamilyOptions}
+                />
+
+                <SelectField
+                    label="Formato"
+                    value={getFieldTextCase(selectedField)}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            textCase: value as CertificateTextCase,
+                        })
+                    }
+                    options={textCaseOptions}
+                />
+
+                <SelectField
+                    label="Peso"
+                    value={selectedField.fontWeight}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            fontWeight: value as "normal" | "bold",
+                        })
+                    }
+                    options={[
+                        { value: "normal", label: "Normal" },
+                        { value: "bold", label: "Negrita" },
+                    ]}
+                />
+
+                <SelectField
+                    label="Alineación"
+                    value={selectedField.textAlign}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            textAlign: value as CertificateTextAlign,
+                        })
+                    }
+                    options={alignOptions}
+                />
+
+                <NumberInput
+                    label="Tamaño"
+                    min={8}
+                    max={80}
+                    value={selectedField.fontSize}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            fontSize: value,
+                        })
+                    }
+                />
+
+                <NumberInput
+                    label="Ancho %"
+                    min={10}
+                    max={100}
+                    value={selectedField.width}
+                    onChange={(value) =>
+                        onUpdateField(selectedField.id, {
+                            width: value,
+                        })
+                    }
+                />
+
+                <div className="grid grid-cols-[1fr_52px] gap-2">
+                    <NumberInput
+                        label="Alto %"
+                        min={4}
+                        max={40}
+                        value={selectedField.height ?? 8}
+                        onChange={(value) =>
+                            onUpdateField(selectedField.id, {
+                                height: value,
+                            })
+                        }
+                    />
+
+                    <ColorInput
+                        label="Color"
+                        value={selectedField.color}
+                        onChange={(value) =>
+                            onUpdateField(selectedField.id, {
+                                color: value,
+                            })
+                        }
+                    />
+                </div>
+            </div>
+
+            {isSignatureField(selectedField) && selectedField.signatureImage ? (
+                <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50 p-2">
+                    <div
+                        className="h-14 w-full bg-contain bg-center bg-no-repeat"
+                        style={{
+                            backgroundImage: toCssImageUrl(
+                                selectedField.signatureImage,
+                            ),
+                        }}
+                    />
+                </div>
+            ) : null}
         </div>
+    );
+}
+
+type Option = {
+    value: string;
+    label: string;
+};
+
+function SelectField({
+    label,
+    value,
+    options,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    options: Option[];
+    onChange: (value: string) => void;
+}) {
+    return (
+        <label className="block min-w-0">
+            <span className="mb-1 block text-[11px] font-black text-slate-700">
+                {label}
+            </span>
+
+            <select
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+function InputField({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <label className="block min-w-0">
+            <span className="mb-1 block text-[11px] font-black text-slate-700">
+                {label}
+            </span>
+
+            <input
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            />
+        </label>
     );
 }
 
@@ -305,10 +308,10 @@ function NumberInput({
     onChange: (value: number) => void;
 }) {
     return (
-        <div className="space-y-2">
-            <label className="block text-[13px] font-bold text-slate-700">
+        <label className="block min-w-0">
+            <span className="mb-1 block text-[11px] font-black text-slate-700">
                 {label}
-            </label>
+            </span>
 
             <input
                 type="number"
@@ -316,8 +319,33 @@ function NumberInput({
                 max={max}
                 value={value}
                 onChange={(event) => onChange(Number(event.target.value))}
-                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
             />
-        </div>
+        </label>
+    );
+}
+
+function ColorInput({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <label className="block min-w-0">
+            <span className="mb-1 block text-[11px] font-black text-slate-700">
+                {label}
+            </span>
+
+            <input
+                type="color"
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-2"
+            />
+        </label>
     );
 }

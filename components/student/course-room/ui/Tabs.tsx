@@ -48,25 +48,28 @@ export function Tabs({
     });
 
     return (
-        <div className="border-b border-[var(--border)]">
-            <div className="flex gap-7 overflow-x-auto text-sm font-black">
-                {visibleTabs.map((tab) => {
-                    const active = activeTab === tab.key;
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
+            <div className="overflow-x-auto overscroll-x-contain px-2 sm:px-3">
+                <div className="flex min-w-max gap-1.5 py-2 sm:gap-2">
+                    {visibleTabs.map((tab) => {
+                        const active = activeTab === tab.key;
 
-                    return (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            onClick={() => onChange(tab.key)}
-                            className={`whitespace-nowrap border-b-2 px-1 py-4 transition ${active
-                                    ? "border-[var(--primary)] text-[var(--primary)]"
-                                    : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                                }`}
-                        >
-                            {tab.label}
-                        </button>
-                    );
-                })}
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => onChange(tab.key)}
+                                aria-current={active ? "page" : undefined}
+                                className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-black transition sm:px-4 sm:text-sm ${active
+                                    ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                                    : "text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--foreground)]"
+                                    }`}
+                            >
+                                {tab.label}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

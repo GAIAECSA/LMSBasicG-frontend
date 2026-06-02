@@ -112,6 +112,10 @@ function getErrorMessage(
         : fallbackMessage;
 }
 
+function isMdtCourse(course: Course): boolean {
+    return course.is_mdt === true;
+}
+
 const COURSES_PER_PAGE = 8;
 
 export function ReportsAdminPanel() {
@@ -204,11 +208,13 @@ export function ReportsAdminPanel() {
         const normalizedSearch =
             courseSearchTerm.trim().toLowerCase();
 
+        const mdtCourses = courses.filter(isMdtCourse);
+
         if (!normalizedSearch) {
-            return courses;
+            return mdtCourses;
         }
 
-        return courses.filter((course) => {
+        return mdtCourses.filter((course) => {
             return course.name
                 .toLowerCase()
                 .includes(normalizedSearch);
@@ -301,6 +307,14 @@ export function ReportsAdminPanel() {
         course: Course,
     ) {
         if (!selectedReportType) return;
+
+        if (!isMdtCourse(course)) {
+            setModalErrorMessage(
+                "Solo se pueden generar reportes para cursos MDT.",
+            );
+
+            return;
+        }
 
         const currentReportType =
             selectedReportType;
@@ -587,11 +601,11 @@ export function ReportsAdminPanel() {
                                     <Users className="h-9 w-9 text-slate-300" />
 
                                     <p className="mt-3 text-sm font-black text-slate-700">
-                                        No se encontraron cursos
+                                        No se encontraron cursos MDT
                                     </p>
 
                                     <p className="mt-1 text-xs font-semibold text-slate-400">
-                                        Intenta buscar con otro nombre.
+                                        Los reportes están disponibles únicamente para cursos MDT.
                                     </p>
                                 </div>
                             ) : (
@@ -638,8 +652,8 @@ export function ReportsAdminPanel() {
                         <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                             <p className="text-xs font-bold text-slate-500">
                                 {filteredCourses.length === 0
-                                    ? "No hay cursos disponibles"
-                                    : `Mostrando ${firstVisibleCourse} - ${lastVisibleCourse} de ${filteredCourses.length} cursos`}
+                                    ? "No hay cursos MDT disponibles"
+                                    : `Mostrando ${firstVisibleCourse} - ${lastVisibleCourse} de ${filteredCourses.length} cursos MDT`}
                             </p>
 
                             {totalCoursePages > 1 && (

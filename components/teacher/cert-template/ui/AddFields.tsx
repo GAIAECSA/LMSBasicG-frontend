@@ -18,17 +18,19 @@ export function AddFields({
             <button
                 type="button"
                 onClick={onToggle}
-                className="flex w-full items-center justify-between gap-3 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-5 py-4 text-left text-white"
+                className="flex w-full items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 text-left transition hover:bg-blue-50"
             >
                 <div>
-                    <h2 className="text-lg font-bold">Agregar campos</h2>
+                    <h2 className="text-base font-bold text-slate-950">
+                        Agregar campos
+                    </h2>
 
-                    <p className="mt-1 text-sm leading-6 text-blue-50">
-                        Agrega textos, variables y firmas.
+                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                        Inserta textos, variables y firmas en el certificado.
                     </p>
                 </div>
 
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/20">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#172861] ring-1 ring-blue-100">
                     <ChevronDown
                         className={`h-5 w-5 transition ${isOpen ? "" : "-rotate-90"
                             }`}
@@ -37,28 +39,25 @@ export function AddFields({
             </button>
 
             {isOpen ? (
-                <div className="px-5 py-4">
-                    <div className="max-h-[260px] overflow-y-auto pr-1">
-                        <div className="grid gap-2">
-                            {fieldTypeOptions.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => onAddField(option.value)}
-                                    className="inline-flex h-10 items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#172861]"
-                                >
-                                    {option.label}
-                                    <Plus className="h-4 w-4" />
-                                </button>
-                            ))}
-                        </div>
+                <div className="p-4">
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {fieldTypeOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => onAddField(option.value)}
+                                className="inline-flex min-h-10 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-left text-sm font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-[#172861]"
+                            >
+                                <span>{option.label}</span>
+                                <Plus className="h-4 w-4 shrink-0" />
+                            </button>
+                        ))}
                     </div>
                 </div>
             ) : (
                 <div className="px-5 py-4">
                     <p className="rounded-2xl bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-500">
-                        Panel minimizado. Presiona el encabezado para agregar
-                        más campos.
+                        Presiona el encabezado para mostrar los campos disponibles.
                     </p>
                 </div>
             )}

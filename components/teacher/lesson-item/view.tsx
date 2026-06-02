@@ -76,7 +76,7 @@ export function LessonItemEditorPage({
                 className="grid gap-6 xl:grid-cols-[1fr_330px]"
             >
                 <div className="space-y-6">
-                    <GeneralSection item={item} />
+{/*                     <GeneralSection item={item} /> */}
                     <TextSection item={item} />
                     <FileSection item={item} />
                     <VideoSection item={item} />

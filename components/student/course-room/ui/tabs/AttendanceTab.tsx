@@ -137,16 +137,16 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
             : 0;
 
     return (
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="space-y-5">
-                <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+        <div className="mt-4 grid min-w-0 gap-4 sm:mt-5 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="min-w-0 space-y-4 sm:space-y-5">
+                <section className="min-w-0 rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[24px] sm:p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="flex items-start gap-4">
+                        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--secondary)] text-[var(--primary)]">
                                 <CalendarCheck className="h-6 w-6" />
                             </div>
 
-                            <div>
+                            <div className="min-w-0">
                                 <h2 className="text-lg font-black text-[var(--foreground)]">
                                     Asistencia del curso
                                 </h2>
@@ -161,7 +161,7 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
                         </div>
                     </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                    <div className="mt-4 grid gap-3 sm:mt-5 sm:grid-cols-3 sm:gap-4">
                         <SummaryBox
                             label="Presentes"
                             value={String(attendanceStats.present)}
@@ -191,8 +191,8 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
                     ) : null}
                 </section>
 
-                <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                    <div className="mb-5 flex items-center justify-between gap-3">
+                <section className="min-w-0 rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[24px] sm:p-5">
+                    <div className="mb-4 flex min-w-0 flex-wrap items-center justify-between gap-3 sm:mb-5">
                         <h3 className="text-base font-black text-[var(--foreground)]">
                             Sesiones de asistencia
                         </h3>
@@ -218,7 +218,7 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
                                 No hay sesiones de asistencia
                             </h3>
 
-                            <p className="mt-2 text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
+                            <p className="mt-2 break-words text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
                                 Cuando el docente cree sesiones de asistencia,
                                 aparecerán en esta sección.
                             </p>
@@ -257,7 +257,7 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
                                 return (
                                     <article
                                         key={session.id}
-                                        className={`rounded-3xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${getAttendanceCardClass(
+                                        className={`min-w-0 rounded-2xl border p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-3xl sm:p-4 ${getAttendanceCardClass(
                                             visualStatus,
                                         )}`}
                                     >
@@ -275,16 +275,16 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
 
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex flex-wrap items-start justify-between gap-2">
-                                                        <div>
+                                                        <div className="min-w-0">
                                                             <h4
-                                                                className={`text-sm font-black ${getAttendanceTextClass(
+                                                                className={`break-words text-sm font-black ${getAttendanceTextClass(
                                                                     visualStatus,
                                                                 )}`}
                                                             >
                                                                 {session.title}
                                                             </h4>
 
-                                                            <p className="mt-1 text-xs font-bold text-[var(--muted-foreground)]">
+                                                            <p className="mt-1 break-words text-xs font-bold leading-5 text-[var(--muted-foreground)]">
                                                                 {formatAttendanceDate(
                                                                     session.starts_at,
                                                                 )}
@@ -306,7 +306,7 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
                                                     </div>
 
                                                     {session.description ? (
-                                                        <p className="mt-2 text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
+                                                        <p className="mt-2 break-words text-sm font-semibold leading-6 text-[var(--muted-foreground)]">
                                                             {
                                                                 session.description
                                                             }
@@ -410,8 +410,8 @@ export function AttendanceTab({ room }: AttendanceTabProps) {
                 </section>
             </div>
 
-            <aside className="space-y-5">
-                <section className="rounded-[24px] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+            <aside className="min-w-0">
+                <section className="min-w-0 rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm sm:rounded-[24px] sm:p-5">
                     <h3 className="text-base font-black text-[var(--foreground)]">
                         Resumen
                     </h3>
@@ -468,7 +468,7 @@ function SummaryBox({
 
     return (
         <div
-            className={`rounded-2xl border p-4 shadow-sm ${classNameByStatus[status]}`}
+            className={`min-w-0 rounded-2xl border p-3 shadow-sm sm:p-4 ${classNameByStatus[status]}`}
         >
             <div className="flex items-center gap-3">
                 {icon}
