@@ -4,22 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     AlertCircle,
-    Bell,
     BookOpen,
-    CalendarDays,
     CheckCircle2,
     ChevronRight,
-    Clock3,
     Filter,
     Folder,
     GraduationCap,
     ImageIcon,
-    Loader2,
-    MoreVertical,
-    RefreshCw,
     Search,
-    SlidersHorizontal,
-    UserCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +20,10 @@ import {
     getEnrollmentsByUser,
     type Enrollment,
 } from "@/services/enrollments.service";
+import {
+    getProgressByEnrollment,
+    type BlockProgress,
+} from "@/services/progress.service";
 import { getAuthSession } from "@/lib/auth";
 import { getEffectiveRoleByPathname, roleLabels } from "@/lib/constants";
 import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
@@ -53,10 +49,6 @@ type CourseWithExtraFields = Course & {
     category_name?: string | null;
     subcategory_name?: string | null;
     description?: string | null;
-    total_lessons?: number | string | null;
-    lessons_count?: number | string | null;
-    modules_count?: number | string | null;
-    total_modules?: number | string | null;
     modules?: unknown[] | null;
 };
 
@@ -85,6 +77,8 @@ type EnrollmentWithExtraFields = Enrollment & {
     } | null;
 };
 
+type CourseProgressMap = Record<number, number>;
+
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
@@ -94,6 +88,7 @@ const ROLE_ID_STUDENT = 4;
 
 function readRecord(value: unknown) {
     if (!value || typeof value !== "object") return null;
+
     return value as Record<string, unknown>;
 }
 
@@ -144,6 +139,10 @@ function cleanText(value: unknown) {
         .replace(/<[^>]*>/g, " ")
         .replace(/\s+/g, " ")
         .trim();
+}
+
+function clampProgress(value: number) {
+    return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function getUserFullName(user: unknown) {
@@ -256,31 +255,17 @@ function getCourseDescription(
     );
 }
 
-function formatDate(value: unknown) {
-    const text = toText(value);
-
-    if (!text) return "";
-
-    const date = new Date(text);
-
-    if (Number.isNaN(date.getTime())) {
-        return text;
-    }
-
-    return new Intl.DateTimeFormat("es-EC", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(date);
-}
-
 function getCourseAccessRole(
     enrollment: Enrollment,
     sessionUser: SessionUserWithRole | undefined,
     currentUserId: number,
 ): CourseAccessRole {
     const enrollmentRecord = readRecord(enrollment);
-    const userRecord = readRecord((enrollment as EnrollmentWithExtraFields).user);
+
+    const userRecord = readRecord(
+        (enrollment as EnrollmentWithExtraFields).user,
+    );
+
     const sessionRecord = readRecord(sessionUser);
 
     const teacherIds = [
@@ -350,7 +335,12 @@ function isActiveUserCourseEnrollment(
 
     if (courseId <= 0) return false;
 
-    const accessRole = getCourseAccessRole(enrollment, sessionUser, currentUserId);
+    const accessRole = getCourseAccessRole(
+        enrollment,
+        sessionUser,
+        currentUserId,
+    );
+
     const accepted = (enrollment as EnrollmentWithExtraFields).accepted;
 
     if (accessRole === "teacher") {
@@ -369,16 +359,24 @@ function getUniqueActiveCourseEnrollments(
     const seen = new Set<string>();
 
     enrollments.forEach((enrollment) => {
-        if (!isActiveUserCourseEnrollment(enrollment, sessionUser, currentUserId)) {
+        if (
+            !isActiveUserCourseEnrollment(
+                enrollment,
+                sessionUser,
+                currentUserId,
+            )
+        ) {
             return;
         }
 
         const courseId = getEnrollmentCourseId(enrollment);
+
         const accessRole = getCourseAccessRole(
             enrollment,
             sessionUser,
             currentUserId,
         );
+
         const key = `${courseId}-${accessRole}`;
 
         if (seen.has(key)) return;
@@ -390,14 +388,79 @@ function getUniqueActiveCourseEnrollments(
     return result;
 }
 
-function getCourseProgress(
+/*
+ * Obtiene los IDs de los bloques que existan dentro del curso.
+ *
+ * La función recorre objetos anidados para soportar estructuras como:
+ *
+ * modules -> lessons -> blocks
+ * modules -> lesson_items -> lesson_blocks
+ * lessons -> lessonBlocks
+ */
+function getCourseBlockIds(course: CourseWithExtraFields | null) {
+    const blockIds = new Set<number>();
+    const visitedObjects = new Set<object>();
+
+    const blockCollectionKeys = new Set([
+        "blocks",
+        "lesson_blocks",
+        "lessonBlocks",
+        "content_blocks",
+        "contentBlocks",
+    ]);
+
+    function visit(value: unknown, parentKey = "") {
+        if (!value || typeof value !== "object") return;
+
+        if (visitedObjects.has(value as object)) return;
+
+        visitedObjects.add(value as object);
+
+        if (Array.isArray(value)) {
+            value.forEach((item) => {
+                if (
+                    blockCollectionKeys.has(parentKey) &&
+                    item &&
+                    typeof item === "object"
+                ) {
+                    const record = item as Record<string, unknown>;
+
+                    const blockId =
+                        toNumericId(record.id) ??
+                        toNumericId(record.lesson_block_id) ??
+                        toNumericId(record.block_id);
+
+                    if (blockId !== null && blockId > 0) {
+                        blockIds.add(blockId);
+                    }
+                }
+
+                visit(item, parentKey);
+            });
+
+            return;
+        }
+
+        Object.entries(value as Record<string, unknown>).forEach(
+            ([key, nestedValue]) => {
+                visit(nestedValue, key);
+            },
+        );
+    }
+
+    visit(course);
+
+    return blockIds;
+}
+
+function getStoredProgressFallback(
     enrollment: Enrollment,
     course: CourseWithExtraFields | null,
 ) {
     const enrollmentRecord = readRecord(enrollment);
     const courseRecord = readRecord(course);
 
-    const progressCandidates = [
+    const candidates = [
         enrollmentRecord?.progress_percent,
         enrollmentRecord?.progress,
         enrollmentRecord?.percentage,
@@ -411,8 +474,8 @@ function getCourseProgress(
         .map(toNumericId)
         .filter((value): value is number => value !== null);
 
-    if (progressCandidates.length > 0) {
-        return Math.max(0, Math.min(100, Math.round(progressCandidates[0])));
+    if (candidates.length > 0) {
+        return clampProgress(candidates[0]);
     }
 
     const statusText = [
@@ -434,70 +497,148 @@ function getCourseProgress(
     return 0;
 }
 
-function getCourseLastActivity(enrollment: Enrollment) {
-    const record = readRecord(enrollment);
+function calculateCourseProgress(
+    progressRecords: BlockProgress[],
+    course: CourseWithExtraFields | null,
+    fallbackProgress: number,
+) {
+    if (!Array.isArray(progressRecords) || progressRecords.length === 0) {
+        return fallbackProgress;
+    }
 
-    return (
-        formatDate(record?.last_activity_at) ||
-        formatDate(record?.last_activity) ||
-        formatDate(record?.lastAccessAt) ||
-        "Sin actividad registrada"
+    const courseBlockIds = getCourseBlockIds(course);
+
+    const trackedBlockIds = new Set(
+        progressRecords
+            .map((progress) => Number(progress.lesson_block_id))
+            .filter((blockId) => Number.isFinite(blockId) && blockId > 0),
+    );
+
+    const completedBlockIds = new Set(
+        progressRecords
+            .filter((progress) => progress.is_completed === true)
+            .map((progress) => Number(progress.lesson_block_id))
+            .filter((blockId) => Number.isFinite(blockId) && blockId > 0),
+    );
+
+    /*
+     * Se prioriza la cantidad real de bloques del curso.
+     *
+     * Si getAllCourses() no devuelve los módulos y bloques anidados,
+     * se utiliza como respaldo la cantidad de bloques encontrados en
+     * los registros del endpoint de progreso.
+     */
+    const totalBlocks =
+        courseBlockIds.size > 0 ? courseBlockIds.size : trackedBlockIds.size;
+
+    if (totalBlocks <= 0) {
+        return fallbackProgress;
+    }
+
+    const completedBlocks =
+        courseBlockIds.size > 0
+            ? Array.from(completedBlockIds).filter((blockId) =>
+                courseBlockIds.has(blockId),
+            ).length
+            : completedBlockIds.size;
+
+    return clampProgress((completedBlocks / totalBlocks) * 100);
+}
+
+async function getProgressMapForEnrollments(
+    enrollments: Enrollment[],
+    coursesById: Record<number, CourseWithExtraFields>,
+    sessionUser: SessionUserWithRole | undefined,
+    currentUserId: number,
+) {
+    const entries = await Promise.all(
+        enrollments.map(async (enrollment) => {
+            const enrollmentId = Number(enrollment.id);
+
+            const courseId = getEnrollmentCourseId(enrollment);
+
+            const course =
+                coursesById[courseId] ??
+                ((enrollment as EnrollmentWithExtraFields).course ?? null);
+
+            const fallbackProgress = getStoredProgressFallback(
+                enrollment,
+                course,
+            );
+
+            const accessRole = getCourseAccessRole(
+                enrollment,
+                sessionUser,
+                currentUserId,
+            );
+
+            /*
+             * El progreso corresponde únicamente al acceso del estudiante.
+             * En las tarjetas de docentes no se muestra una barra.
+             */
+            if (
+                accessRole === "teacher" ||
+                !Number.isFinite(enrollmentId) ||
+                enrollmentId <= 0
+            ) {
+                return [enrollmentId, fallbackProgress] as const;
+            }
+
+            try {
+                const progressRecords =
+                    await getProgressByEnrollment(enrollmentId);
+
+                const progress = calculateCourseProgress(
+                    progressRecords,
+                    course,
+                    fallbackProgress,
+                );
+
+                return [enrollmentId, progress] as const;
+            } catch {
+                /*
+                 * Si el endpoint falla para una matrícula concreta,
+                 * la página continúa funcionando con el valor disponible
+                 * dentro de la matrícula o del curso.
+                 */
+                return [enrollmentId, fallbackProgress] as const;
+            }
+        }),
+    );
+
+    return entries.reduce<CourseProgressMap>(
+        (accumulator, [enrollmentId, progress]) => {
+            if (Number.isFinite(enrollmentId) && enrollmentId > 0) {
+                accumulator[enrollmentId] = progress;
+            }
+
+            return accumulator;
+        },
+        {},
     );
 }
 
-function getNextActivity(
+function getResolvedProgress(
     enrollment: Enrollment,
     course: CourseWithExtraFields | null,
-    accessRole: CourseAccessRole,
+    progressByEnrollment: CourseProgressMap,
 ) {
-    const enrollmentRecord = readRecord(enrollment);
-    const courseRecord = readRecord(course);
+    const enrollmentId = Number(enrollment.id);
 
-    const nextActivity =
-        cleanText(enrollmentRecord?.next_activity) ||
-        cleanText(enrollmentRecord?.nextActivity) ||
-        cleanText(enrollmentRecord?.next_lesson_name) ||
-        cleanText(enrollmentRecord?.next_block_name) ||
-        cleanText(courseRecord?.next_activity);
+    const loadedProgress = progressByEnrollment[enrollmentId];
 
-    if (nextActivity) return nextActivity;
-
-    if (accessRole === "teacher") {
-        return "Gestionar módulos, actividades y estudiantes";
+    if (typeof loadedProgress === "number") {
+        return loadedProgress;
     }
 
-    return "Continuar desde el aula del curso";
-}
-
-function getLessonsLabel(course: CourseWithExtraFields | null) {
-    const record = readRecord(course);
-
-    const totalLessons =
-        toNumericId(record?.total_lessons) ??
-        toNumericId(record?.lessons_count);
-
-    if (totalLessons && totalLessons > 0) {
-        return `${totalLessons} lecciones`;
-    }
-
-    const totalModules =
-        toNumericId(record?.modules_count) ?? toNumericId(record?.total_modules);
-
-    if (totalModules && totalModules > 0) {
-        return `${totalModules} módulos`;
-    }
-
-    if (Array.isArray(course?.modules) && course.modules.length > 0) {
-        return `${course.modules.length} módulos`;
-    }
-
-    return "Aula virtual";
+    return getStoredProgressFallback(enrollment, course);
 }
 
 function getStatusLabel(progress: number, accessRole: CourseAccessRole) {
     if (accessRole === "teacher") return "Docente asignado";
     if (progress >= 100) return "Completado";
     if (progress > 0) return "En progreso";
+
     return "Matrícula aprobada";
 }
 
@@ -505,7 +646,10 @@ function getAccessRoleLabel(accessRole: CourseAccessRole) {
     return accessRole === "teacher" ? "Docente" : "Estudiante";
 }
 
-function getCourseWorkspaceHref(courseId: number, accessRole: CourseAccessRole) {
+function getCourseWorkspaceHref(
+    courseId: number,
+    accessRole: CourseAccessRole,
+) {
     if (accessRole === "teacher") {
         return `/teacher/courses/${courseId}`;
     }
@@ -513,29 +657,10 @@ function getCourseWorkspaceHref(courseId: number, accessRole: CourseAccessRole) 
     return `/student/courses/${courseId}?tab=summary`;
 }
 
-function getRoleBadgeClass(accessRole: CourseAccessRole) {
-    if (accessRole === "teacher") {
-        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
-    }
-
-    return "bg-[var(--secondary)] text-[var(--primary)]";
-}
-
-function getStatusBadgeClass(completed: boolean, accessRole: CourseAccessRole) {
-    if (accessRole === "teacher") {
-        return "bg-amber-50 text-amber-700 ring-1 ring-amber-200";
-    }
-
-    if (completed) {
-        return "bg-[var(--success-soft)] text-[var(--success)]";
-    }
-
-    return "bg-[var(--secondary)] text-[var(--primary)]";
-}
-
 function getFilteredEnrollments(
     enrollments: Enrollment[],
     coursesById: Record<number, CourseWithExtraFields>,
+    progressByEnrollment: CourseProgressMap,
     filter: CourseFilter,
     searchTerm: string,
 ) {
@@ -543,11 +668,16 @@ function getFilteredEnrollments(
 
     return enrollments.filter((enrollment) => {
         const courseId = getEnrollmentCourseId(enrollment);
+
         const course =
             coursesById[courseId] ??
             ((enrollment as EnrollmentWithExtraFields).course ?? null);
 
-        const progress = getCourseProgress(enrollment, course);
+        const progress = getResolvedProgress(
+            enrollment,
+            course,
+            progressByEnrollment,
+        );
 
         const matchesFilter =
             filter === "all" ||
@@ -605,13 +735,9 @@ function ImageWithFallback({
 function PageTopBar({
     roleLabel,
     initials,
-    isRefreshing,
-    onRefresh,
 }: {
     roleLabel: string;
     initials: string;
-    isRefreshing: boolean;
-    onRefresh: () => void;
 }) {
     return (
         <div className="flex flex-wrap items-center justify-end gap-3">
@@ -625,7 +751,6 @@ function PageTopBar({
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-black text-white shadow-sm">
                 {initials}
             </div>
-
         </div>
     );
 }
@@ -634,15 +759,16 @@ function CourseCard({
     enrollment,
     course,
     accessRole,
+    progress,
 }: {
     enrollment: Enrollment;
     course: CourseWithExtraFields | null;
     accessRole: CourseAccessRole;
+    progress: number;
 }) {
     const displayCourse =
         course ?? ((enrollment as EnrollmentWithExtraFields).course ?? null);
 
-    const progress = getCourseProgress(enrollment, displayCourse);
     const completed = progress >= 100;
     const courseId = getEnrollmentCourseId(enrollment);
     const courseName = getCourseTitle(enrollment, displayCourse);
@@ -657,7 +783,9 @@ function CourseCard({
 
     return (
         <article
-            className={`group overflow-hidden rounded-[26px] border bg-[var(--card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isTeacher ? "border-green-200" : "border-[var(--border)]"
+            className={`group overflow-hidden rounded-[26px] border bg-[var(--card)] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isTeacher
+                    ? "border-green-200"
+                    : "border-[var(--border)]"
                 }`}
         >
             <div className="grid gap-0 xl:h-[220px] xl:grid-cols-[285px_minmax(0,1fr)_245px]">
@@ -672,7 +800,9 @@ function CourseCard({
 
                     <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
                         <span
-                            className={`rounded-full px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ${isTeacher ? "bg-green-600" : "bg-[var(--primary)]"
+                            className={`rounded-full px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-white shadow-sm ${isTeacher
+                                    ? "bg-green-600"
+                                    : "bg-[var(--primary)]"
                                 }`}
                         >
                             {accessRoleLabel}
@@ -690,10 +820,10 @@ function CourseCard({
                     <div className="flex flex-wrap items-center gap-2">
                         <span
                             className={`inline-flex rounded-full px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide ${isTeacher
-                                ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                                : completed
-                                    ? "bg-[var(--success-soft)] text-[var(--success)]"
-                                    : "bg-[var(--secondary)] text-[var(--primary)]"
+                                    ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                                    : completed
+                                        ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                        : "bg-[var(--secondary)] text-[var(--primary)]"
                                 }`}
                         >
                             {isTeacher
@@ -703,6 +833,7 @@ function CourseCard({
 
                         <span className="inline-flex max-w-[220px] items-center gap-1.5 truncate rounded-full bg-[var(--muted)] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-[var(--muted-foreground)]">
                             <Folder className="h-3.5 w-3.5 shrink-0" />
+
                             <span className="truncate">{category}</span>
                         </span>
                     </div>
@@ -724,8 +855,8 @@ function CourseCard({
 
                                 <span
                                     className={`text-sm font-black ${completed
-                                        ? "text-[var(--success)]"
-                                        : "text-[var(--primary)]"
+                                            ? "text-[var(--success)]"
+                                            : "text-[var(--primary)]"
                                         }`}
                                 >
                                     {progress}%
@@ -735,8 +866,8 @@ function CourseCard({
                             <div className="h-2 overflow-hidden rounded-full bg-[var(--muted)]">
                                 <div
                                     className={`h-full rounded-full transition-all duration-500 ${completed
-                                        ? "bg-[var(--success)]"
-                                        : "bg-[var(--primary)]"
+                                            ? "bg-[var(--success)]"
+                                            : "bg-[var(--primary)]"
                                         }`}
                                     style={{ width: `${progress}%` }}
                                 />
@@ -747,25 +878,26 @@ function CourseCard({
                             <p className="text-xs font-bold text-[var(--muted-foreground)]">
                                 Acceso docente
                             </p>
+
                             <p className="mt-1 text-sm font-semibold leading-6 text-[var(--foreground)]">
-                                Puedes administrar módulos, actividades y estudiantes del curso.
+                                Puedes administrar módulos, actividades y
+                                estudiantes del curso.
                             </p>
                         </div>
                     )}
                 </div>
 
                 <aside className="flex h-full flex-col justify-between gap-3 border-t border-[var(--border)] bg-[var(--background)]/60 p-4 xl:h-[220px] xl:border-l xl:border-t-0">
-
                     <div
                         className={`rounded-[18px] border px-4 py-3 ${isTeacher
-                            ? "border-green-200 bg-green-50"
-                            : "border-[var(--border)] bg-[var(--card)]"
+                                ? "border-green-200 bg-green-50"
+                                : "border-[var(--border)] bg-[var(--card)]"
                             }`}
                     >
                         <p
                             className={`flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide ${isTeacher
-                                ? "text-green-700"
-                                : "text-[var(--primary)]"
+                                    ? "text-green-700"
+                                    : "text-[var(--primary)]"
                                 }`}
                         >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -806,9 +938,14 @@ export default function StudentCoursesPage() {
     const currentUserId = toNumericId(user?.id ?? sessionUser?.id) ?? 0;
 
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+
     const [coursesById, setCoursesById] = useState<
         Record<number, CourseWithExtraFields>
     >({});
+
+    const [progressByEnrollment, setProgressByEnrollment] =
+        useState<CourseProgressMap>({});
+
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
@@ -820,38 +957,71 @@ export default function StudentCoursesPage() {
     const effectiveRole = getEffectiveRoleByPathname(user?.role, pathname);
     const roleLabel = roleLabels[effectiveRole];
 
-    const inProgressCount = enrollments.filter((enrollment) => {
-        const courseId = getEnrollmentCourseId(enrollment);
-        const course =
-            coursesById[courseId] ??
-            ((enrollment as EnrollmentWithExtraFields).course ?? null);
+    const inProgressCount = useMemo(
+        () =>
+            enrollments.filter((enrollment) => {
+                const courseId = getEnrollmentCourseId(enrollment);
 
-        return getCourseProgress(enrollment, course) < 100;
-    }).length;
+                const course =
+                    coursesById[courseId] ??
+                    ((enrollment as EnrollmentWithExtraFields).course ?? null);
 
-    const completedCount = enrollments.filter((enrollment) => {
-        const courseId = getEnrollmentCourseId(enrollment);
-        const course =
-            coursesById[courseId] ??
-            ((enrollment as EnrollmentWithExtraFields).course ?? null);
+                return (
+                    getResolvedProgress(
+                        enrollment,
+                        course,
+                        progressByEnrollment,
+                    ) < 100
+                );
+            }).length,
+        [enrollments, coursesById, progressByEnrollment],
+    );
 
-        return getCourseProgress(enrollment, course) >= 100;
-    }).length;
+    const completedCount = useMemo(
+        () =>
+            enrollments.filter((enrollment) => {
+                const courseId = getEnrollmentCourseId(enrollment);
+
+                const course =
+                    coursesById[courseId] ??
+                    ((enrollment as EnrollmentWithExtraFields).course ?? null);
+
+                return (
+                    getResolvedProgress(
+                        enrollment,
+                        course,
+                        progressByEnrollment,
+                    ) >= 100
+                );
+            }).length,
+        [enrollments, coursesById, progressByEnrollment],
+    );
 
     const filteredEnrollments = useMemo(
         () =>
             getFilteredEnrollments(
                 enrollments,
                 coursesById,
+                progressByEnrollment,
                 activeFilter,
                 searchTerm,
             ),
-        [enrollments, coursesById, activeFilter, searchTerm],
+        [
+            enrollments,
+            coursesById,
+            progressByEnrollment,
+            activeFilter,
+            searchTerm,
+        ],
     );
 
     const loadMyCourses = useCallback(async () => {
         const session = getAuthSession();
-        const localSessionUser = session?.user as SessionUserWithRole | undefined;
+
+        const localSessionUser = session?.user as
+            | SessionUserWithRole
+            | undefined;
+
         const userId = Number(user?.id ?? localSessionUser?.id);
 
         if (!userId || Number.isNaN(userId)) {
@@ -864,6 +1034,7 @@ export default function StudentCoursesPage() {
 
         try {
             const data = await getAllCourses();
+
             coursesResponse = Array.isArray(data) ? data : [];
         } catch {
             coursesResponse = [];
@@ -889,9 +1060,17 @@ export default function StudentCoursesPage() {
             return accumulator;
         }, {});
 
+        const progressMap = await getProgressMapForEnrollments(
+            myCourseEnrollments,
+            coursesMap,
+            localSessionUser,
+            userId,
+        );
+
         return {
             myCourseEnrollments,
             coursesMap,
+            progressMap,
         };
     }, [user?.id]);
 
@@ -904,9 +1083,12 @@ export default function StudentCoursesPage() {
 
             setEnrollments(data.myCourseEnrollments);
             setCoursesById(data.coursesMap);
+            setProgressByEnrollment(data.progressMap);
         } catch (error) {
             setEnrollments([]);
             setCoursesById({});
+            setProgressByEnrollment({});
+
             setErrorMessage(
                 error instanceof Error
                     ? error.message
@@ -927,6 +1109,7 @@ export default function StudentCoursesPage() {
 
                     setEnrollments(data.myCourseEnrollments);
                     setCoursesById(data.coursesMap);
+                    setProgressByEnrollment(data.progressMap);
                     setErrorMessage("");
                 })
                 .catch((error) => {
@@ -934,6 +1117,8 @@ export default function StudentCoursesPage() {
 
                     setEnrollments([]);
                     setCoursesById({});
+                    setProgressByEnrollment({});
+
                     setErrorMessage(
                         error instanceof Error
                             ? error.message
@@ -967,12 +1152,7 @@ export default function StudentCoursesPage() {
                     </p>
                 </div>
 
-                <PageTopBar
-                    roleLabel={roleLabel}
-                    initials={initials}
-                    isRefreshing={isRefreshing}
-                    onRefresh={() => void handleRefreshCourses()}
-                />
+                <PageTopBar roleLabel={roleLabel} initials={initials} />
             </div>
 
             <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -981,8 +1161,8 @@ export default function StudentCoursesPage() {
                         type="button"
                         onClick={() => setActiveFilter("all")}
                         className={`h-12 rounded-full px-7 text-sm font-black transition ${activeFilter === "all"
-                            ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
-                            : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
+                                ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                                : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
                             }`}
                     >
                         Todos ({enrollments.length})
@@ -992,8 +1172,8 @@ export default function StudentCoursesPage() {
                         type="button"
                         onClick={() => setActiveFilter("progress")}
                         className={`h-12 rounded-full px-7 text-sm font-black transition ${activeFilter === "progress"
-                            ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
-                            : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
+                                ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                                : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
                             }`}
                     >
                         En progreso ({inProgressCount})
@@ -1003,8 +1183,8 @@ export default function StudentCoursesPage() {
                         type="button"
                         onClick={() => setActiveFilter("completed")}
                         className={`h-12 rounded-full px-7 text-sm font-black transition ${activeFilter === "completed"
-                            ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
-                            : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
+                                ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                                : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
                             }`}
                     >
                         Completados ({completedCount})
@@ -1028,10 +1208,13 @@ export default function StudentCoursesPage() {
 
                     <button
                         type="button"
-                        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)]"
+                        onClick={() => void handleRefreshCourses()}
+                        disabled={isRefreshing}
+                        className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <Filter className="h-4 w-4" />
-                        Filtros
+
+                        {isRefreshing ? "Actualizando..." : "Actualizar"}
                     </button>
                 </div>
             </div>
@@ -1039,10 +1222,12 @@ export default function StudentCoursesPage() {
             {errorMessage ? (
                 <div className="mb-5 flex items-start gap-3 rounded-2xl border border-[var(--danger)] bg-[var(--danger-soft)] p-4 text-sm font-semibold text-[var(--danger)]">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+
                     <div>
                         <p className="font-black">
                             No se pudieron cargar tus cursos.
                         </p>
+
                         <p className="mt-1">{errorMessage}</p>
                     </div>
                 </div>
@@ -1081,6 +1266,7 @@ export default function StudentCoursesPage() {
                 <div className="space-y-5">
                     {filteredEnrollments.map((enrollment) => {
                         const courseId = getEnrollmentCourseId(enrollment);
+
                         const course =
                             coursesById[courseId] ??
                             ((enrollment as EnrollmentWithExtraFields).course ??
@@ -1092,12 +1278,19 @@ export default function StudentCoursesPage() {
                             currentUserId,
                         );
 
+                        const progress = getResolvedProgress(
+                            enrollment,
+                            course,
+                            progressByEnrollment,
+                        );
+
                         return (
                             <CourseCard
                                 key={`${enrollment.id}-${courseId}-${accessRole}`}
                                 enrollment={enrollment}
                                 course={course}
                                 accessRole={accessRole}
+                                progress={progress}
                             />
                         );
                     })}

@@ -1,10 +1,11 @@
 "use client";
 
-import { Download, ExternalLink, FileWarning, X } from "lucide-react";
+import { Download, ExternalLink, FileBadge2, FileWarning, X } from "lucide-react";
 import type { CertificateWithExtraFields } from "../types";
 import {
     getCertificateCode,
     getCertificateFileUrl,
+    getCertificateTypeLabel,
     getCourseName,
     getProtectedPdfViewerUrl,
 } from "../utils";
@@ -22,18 +23,23 @@ export function PreviewModal({ certificate, onClose }: PreviewModalProps) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4">
             <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--primary)] px-5 py-4 text-[var(--primary-foreground)]">
-                    <div>
+                <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--primary)] px-5 py-4 text-[var(--primary-foreground)]">
+                    <div className="min-w-0">
                         <h2 className="text-lg font-black">
                             Vista previa del certificado
                         </h2>
 
-                        <p className="mt-1 text-xs font-semibold text-white/80">
+                        <p className="mt-1 truncate text-xs font-semibold text-white/80">
                             {getCourseName(certificate)}
+                        </p>
+
+                        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white">
+                            <FileBadge2 className="h-4 w-4" />
+                            {getCertificateTypeLabel(certificate)}
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2">
                         {fileUrl ? (
                             <>
                                 <a

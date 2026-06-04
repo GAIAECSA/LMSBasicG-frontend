@@ -2,6 +2,8 @@ import { API_BASE_URL, MIN_CERTIFICATE_GRADE } from "./constants";
 import type {
     CertificateStatusFilter,
     CertificateStatusStyles,
+    CertificateType,
+    CertificateTypeStyles,
     CertificateWithExtraFields,
     EnrollmentForCertificate,
 } from "./types";
@@ -12,6 +14,24 @@ export function toNumericId(value: unknown) {
     const numericValue = Number(value);
 
     return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function normalizeText(value: unknown) {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isTruthyMdtValue(value: unknown) {
+    if (value === true || value === 1) return true;
+
+    if (typeof value !== "string") return false;
+
+    return ["true", "1", "yes", "si", "sí", "mdt"].includes(
+        normalizeText(value),
+    );
 }
 
 export function normalizeResourceUrl(url?: string | null) {
@@ -43,11 +63,11 @@ export function getCertificateFileUrl(
 
     return normalizeResourceUrl(
         certificate.file_url ||
-            certificate.pdf_url ||
-            certificate.certificate_url ||
-            certificate.url ||
-            certificate.path ||
-            "",
+        certificate.pdf_url ||
+        certificate.certificate_url ||
+        certificate.url ||
+        certificate.path ||
+        "",
     );
 }
 
@@ -57,6 +77,77 @@ export function getProtectedPdfViewerUrl(url: string) {
     const cleanUrl = url.split("#")[0];
 
     return `${cleanUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
+}
+
+export function getCertificateType(
+    certificate: CertificateWithExtraFields,
+): CertificateType {
+    const certificateRecord = certificate as unknown as Record<string, unknown>;
+
+    const courseRecord =
+        certificate.course && typeof certificate.course === "object"
+            ? (certificate.course as unknown as Record<string, unknown>)
+            : {};
+
+    const hasMdtFlag = [
+        certificateRecord.is_mdt,
+        certificateRecord.isMdt,
+        certificateRecord.mdt,
+        courseRecord.is_mdt,
+        courseRecord.isMdt,
+        courseRecord.mdt,
+    ].some(isTruthyMdtValue);
+
+    if (hasMdtFlag) {
+        return "mdt";
+    }
+
+    const possibleTypeValues = [
+        certificateRecord.certificate_type,
+        certificateRecord.certificateType,
+        certificateRecord.template_type,
+        certificateRecord.type,
+        certificateRecord.source,
+        certificateRecord.origin,
+        courseRecord.certificate_type,
+        courseRecord.type,
+        certificateRecord.file_url,
+        certificateRecord.pdf_url,
+        certificateRecord.certificate_url,
+        certificateRecord.url,
+        certificateRecord.path,
+    ];
+
+    const hasMdtText = possibleTypeValues
+        .map(normalizeText)
+        .filter(Boolean)
+        .some((value) => value.includes("mdt"));
+
+    return hasMdtText ? "mdt" : "institutional";
+}
+
+export function getCertificateTypeLabel(
+    certificate: CertificateWithExtraFields,
+) {
+    return getCertificateType(certificate) === "mdt"
+        ? "Certificado MDT"
+        : "Certificado institucional";
+}
+
+export function getCertificateTypeStyles(
+    certificate: CertificateWithExtraFields,
+): CertificateTypeStyles {
+    if (getCertificateType(certificate) === "mdt") {
+        return {
+            badge: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
+            icon: "text-blue-600",
+        };
+    }
+
+    return {
+        badge: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
+        icon: "text-violet-600",
+    };
 }
 
 export function getCertificateStatusLabel(
@@ -127,12 +218,9 @@ export function getCertificateFinalGrade(
 export function isCertificateGeneratedAfterFinish(
     certificate: CertificateWithExtraFields,
 ) {
-    const finalGrade = getCertificateFinalGrade(certificate);
-
     return (
         certificate.is_valid === true &&
-        finalGrade !== null &&
-        finalGrade >= MIN_CERTIFICATE_GRADE
+        Boolean(getCertificateFileUrl(certificate))
     );
 }
 
@@ -141,6 +229,7 @@ export function isApprovedEnrollmentForCertificate(
     certificate: CertificateWithExtraFields,
 ) {
     const certificateCourseId = getCertificateCourseId(certificate);
+
     const enrollmentCourseId =
         toNumericId(enrollment.course?.id) || toNumericId(enrollment.course_id);
 
@@ -183,10 +272,10 @@ export function formatDate(value?: string | null) {
 export function getCertificateDate(certificate: CertificateWithExtraFields) {
     return formatDate(
         certificate.issued_at ||
-            certificate.issue_date ||
-            certificate.created_at ||
-            certificate.updated_at ||
-            null,
+        certificate.issue_date ||
+        certificate.created_at ||
+        certificate.updated_at ||
+        null,
     );
 }
 
@@ -195,22 +284,27 @@ export function getFilteredCertificates(
     filter: CertificateStatusFilter,
     searchTerm: string,
 ) {
-    const cleanSearchTerm = searchTerm.trim().toLowerCase();
+    const cleanSearchTerm = normalizeText(searchTerm);
 
     return certificates.filter((certificate) => {
-        if (!isCertificateGeneratedAfterFinish(certificate)) return false;
+        if (!isCertificateGeneratedAfterFinish(certificate)) {
+            return false;
+        }
+
+        const certificateType = getCertificateType(certificate);
 
         const matchesFilter =
-            filter === "all" ||
-            (filter === "valid" && certificate.is_valid);
+            filter === "all" || certificateType === filter;
 
-        const courseName = getCourseName(certificate).toLowerCase();
-        const code = getCertificateCode(certificate).toLowerCase();
+        const courseName = normalizeText(getCourseName(certificate));
+        const code = normalizeText(getCertificateCode(certificate));
+        const typeLabel = normalizeText(getCertificateTypeLabel(certificate));
 
         const matchesSearch =
             cleanSearchTerm.length === 0 ||
             courseName.includes(cleanSearchTerm) ||
-            code.includes(cleanSearchTerm);
+            code.includes(cleanSearchTerm) ||
+            typeLabel.includes(cleanSearchTerm);
 
         return matchesFilter && matchesSearch;
     });

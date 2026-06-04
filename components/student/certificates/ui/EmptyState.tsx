@@ -17,7 +17,7 @@ export function EmptyState() {
 
             <Link
                 href="/student/courses"
-                className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-[var(--primary)] px-5 text-sm font-black text-[var(--primary-foreground)] transition hover:opacity-95"
+                className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-[var(--primary)] px-5 text-sm font-black !text-white transition hover:opacity-95"
             >
                 Ir a mis cursos
             </Link>

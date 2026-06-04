@@ -491,13 +491,46 @@ export function getStudentResponsePayload(response: StudentBlockResponse | null)
     return response ? parseJsonSafe<Record<string, unknown>>(response.response, {}) : {};
 }
 
-export function getStudentResponseText(response: unknown): string {
+export function getStudentResponseText(
+    response: unknown,
+): string {
+    /*
+     * Algunos bloques todavía no tienen una entrega registrada.
+     * En esos casos el backend puede devolver null o undefined.
+     */
+    if (response === null || response === undefined) {
+        return "";
+    }
+
+    /*
+     * Si la respuesta llega directamente como texto, se muestra sin
+     * intentar leer propiedades internas.
+     */
+    if (typeof response === "string") {
+        return response.trim();
+    }
+
+    /*
+     * Evita intentar leer propiedades de valores que no sean objetos.
+     */
+    if (
+        typeof response !== "object" ||
+        Array.isArray(response)
+    ) {
+        return "";
+    }
+
     const item = response as Record<string, unknown>;
 
-    function parseJson(value: unknown): Record<string, unknown> {
+    function parseJson(
+        value: unknown,
+    ): Record<string, unknown> {
         if (!value) return {};
 
-        if (typeof value === "object" && !Array.isArray(value)) {
+        if (
+            typeof value === "object" &&
+            !Array.isArray(value)
+        ) {
             return value as Record<string, unknown>;
         }
 
@@ -512,10 +545,11 @@ export function getStudentResponseText(response: unknown): string {
                 ) {
                     return parsed as Record<string, unknown>;
                 }
-
-                return {};
             } catch {
-                return {};
+                /*
+                 * Puede ser un texto normal y no un JSON.
+                 * En ese caso se evaluará posteriormente como texto.
+                 */
             }
         }
 

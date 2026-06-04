@@ -1,5 +1,9 @@
 import { API_BASE_URL, AUTH_STORAGE_KEY } from "./constants";
-import type { EnrollmentForCertificate } from "./types";
+import type {
+    EnrollmentForCertificate,
+    MdtCertificateForStudent,
+} from "./types";
+
 
 function cleanToken(value: unknown): string {
     if (typeof value !== "string") return "";
@@ -106,4 +110,43 @@ export async function getEnrollmentsByUserForCertificates(
     const data = await parseApiResponse<EnrollmentForCertificate[]>(response);
 
     return Array.isArray(data) ? data : [];
+}
+
+export async function getMdtCertificateByCourseAndIdNumber(
+    idNumber: string,
+    courseId: number,
+): Promise<MdtCertificateForStudent | null> {
+    const cleanIdNumber = idNumber.trim();
+
+    if (!cleanIdNumber || !courseId) {
+        return null;
+    }
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/v1/mdt-certificates/id-number/${encodeURIComponent(
+            cleanIdNumber,
+        )}?course_id=${courseId}&certificate_type=MDT`,
+        {
+            method: "GET",
+            headers: getAuthHeaders(),
+            cache: "no-store",
+        },
+    );
+
+    /*
+     * Es normal que un curso matriculado todavía no tenga un certificado MDT.
+     * En ese caso no se debe interrumpir la carga del resto de certificados.
+     */
+    if (response.status === 404) {
+        return null;
+    }
+
+    const data =
+        await parseApiResponse<MdtCertificateForStudent | null>(response);
+
+    if (!data || typeof data !== "object" || !("id" in data)) {
+        return null;
+    }
+
+    return data;
 }

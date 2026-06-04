@@ -728,23 +728,23 @@ export function LoginForm() {
 
     return (
         <>
-            <div className="rounded-[22px] border border-white/70 bg-white/90 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.14)] backdrop-blur-md sm:rounded-[28px] sm:p-6 lg:p-8">
-                <div className="mb-6 sm:mb-7">
+            <div className="w-full rounded-[20px] border border-white/70 bg-white/90 p-3.5 shadow-[0_18px_60px_rgba(15,23,42,0.14)] backdrop-blur-md sm:rounded-[26px] sm:p-5 lg:p-6 2xl:rounded-[28px] 2xl:p-8">
+                <div className="mb-4 sm:mb-5 2xl:mb-7">
                     <span className="inline-flex rounded-full bg-[#edf3ff] px-3 py-1 text-[11px] font-semibold text-[#4a6db3] shadow-sm">
-                        LMS BasicG
+                        ATHENA
                     </span>
 
-                    <h2 className="mt-4 text-[28px] font-bold text-slate-950">
+                    <h2 className="mt-3 text-[clamp(1.55rem,2.1vw,1.9rem)] font-bold leading-tight tracking-tight text-slate-950 sm:mt-4">
                         Iniciar sesión
                     </h2>
 
-                    <p className="mt-3 text-sm text-slate-500">
+                    <p className="mt-2 text-xs leading-5 text-slate-500 sm:mt-3 sm:text-sm">
                         Accede con tu usuario y contraseña.
                     </p>
                 </div>
 
                 <form
-                    className="space-y-5"
+                    className="space-y-3.5 sm:space-y-4 2xl:space-y-5"
                     onSubmit={handleSubmit}
                 >
                     {error ? (
@@ -772,19 +772,19 @@ export function LoginForm() {
                             }}
                             placeholder="Ingresa tu usuario"
                             autoComplete="username"
-                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff]"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-11 sm:rounded-2xl sm:px-4 2xl:h-12"
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-1.5 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between min-[360px]:gap-3">
                             <label className="text-sm font-semibold text-slate-700">
                                 Contraseña
                             </label>
 
                             <Link
                                 href="/forgot-password"
-                                className="text-xs font-semibold text-[#003d8f] hover:underline"
+                                className="text-[11px] font-semibold leading-4 text-[#003d8f] hover:underline sm:text-xs"
                             >
                                 ¿Olvidaste tu contraseña?
                             </Link>
@@ -809,7 +809,7 @@ export function LoginForm() {
                                 }}
                                 placeholder="Ingresa tu contraseña"
                                 autoComplete="current-password"
-                                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff]"
+                                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-11 sm:rounded-2xl sm:px-4 sm:pr-11 2xl:h-12 2xl:pr-12"
                             />
 
                             <button
@@ -820,7 +820,7 @@ export function LoginForm() {
                                             !previous,
                                     )
                                 }
-                                className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-slate-400 transition hover:text-slate-700"
+                                className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center text-slate-400 transition hover:text-slate-700 sm:h-11 sm:w-11 2xl:h-12 2xl:w-12"
                                 aria-label={
                                     showPassword
                                         ? "Ocultar contraseña"
@@ -836,18 +836,18 @@ export function LoginForm() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
                         <div className="flex items-start gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#003d8f] shadow-sm">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#003d8f] shadow-sm sm:h-9 sm:w-9">
                                 <FileText className="h-4 w-4" />
                             </div>
 
                             <div className="min-w-0">
-                                <p className="text-sm font-bold text-slate-800">
+                                <p className="text-xs font-bold text-slate-800 sm:text-sm">
                                     Política de privacidad
                                 </p>
 
-                                <p className="mt-1 text-xs leading-5 text-slate-500">
+                                <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
                                     Si tienes una política pendiente, se mostrará después de validar tus datos.
                                 </p>
                             </div>
@@ -857,7 +857,7 @@ export function LoginForm() {
                     <button
                         type="submit"
                         disabled={submitting || loadingPolicy}
-                        className="flex h-12 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#003d8f_0%,#002a66_100%)] px-4 text-sm font-bold text-white shadow-lg shadow-blue-950/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
+                        className="flex h-10 w-full items-center justify-center rounded-xl bg-[linear-gradient(180deg,#003d8f_0%,#002a66_100%)] px-4 text-xs font-bold text-white shadow-lg shadow-blue-950/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70 sm:h-11 sm:rounded-2xl sm:text-sm 2xl:h-12"
                     >
                         {submitting ? (
                             <span className="flex items-center gap-2">
@@ -870,7 +870,7 @@ export function LoginForm() {
                     </button>
                 </form>
 
-                <div className="mt-5 text-center text-sm text-slate-500">
+                <div className="mt-4 text-center text-xs text-slate-500 sm:mt-5 sm:text-sm">    
                     ¿No tienes cuenta?{" "}
                     <Link
                         href="/register"

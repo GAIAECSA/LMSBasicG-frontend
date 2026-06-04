@@ -21,13 +21,51 @@ function buildFrames() {
     });
 }
 
+function ArrowLeftIcon() {
+    return (
+        <svg
+            aria-hidden="true"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.2"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+            />
+        </svg>
+    );
+}
+
+function LockIcon() {
+    return (
+        <svg
+            aria-hidden="true"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 0 0-9 0v3.75m-.75 0h10.5A2.25 2.25 0 0 1 19.5 12.75v6A2.25 2.25 0 0 1 17.25 21H6.75A2.25 2.25 0 0 1 4.5 18.75v-6a2.25 2.25 0 0 1 2.25-2.25Z"
+            />
+        </svg>
+    );
+}
+
 function WalkingMascot() {
     const frames = useMemo(() => buildFrames(), []);
     const [frame, setFrame] = useState(0);
 
     useEffect(() => {
         const interval = window.setInterval(() => {
-            setFrame((prev) => (prev + 1) % frames.length);
+            setFrame((previousFrame) => (previousFrame + 1) % frames.length);
         }, 120);
 
         return () => window.clearInterval(interval);
@@ -60,7 +98,9 @@ export function AuthShell({ active, children }: AuthShellProps) {
             <section className="relative hidden overflow-hidden bg-[#2b5fbe] lg:block">
                 <div
                     className="absolute inset-0 bg-cover bg-center"
-                    style={{ backgroundImage: "url('/images/login-hero.jpg')" }}
+                    style={{
+                        backgroundImage: "url('/images/login-hero.jpg')",
+                    }}
                 />
 
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,45,100,0.56),rgba(42,95,190,0.36))]" />
@@ -69,7 +109,7 @@ export function AuthShell({ active, children }: AuthShellProps) {
                 <div className="absolute left-10 top-24 h-40 w-40 rounded-full border border-white/20 bg-white/10" />
                 <div className="absolute right-[-120px] top-[-40px] h-[420px] w-[420px] rounded-full bg-white/20" />
                 <div className="absolute right-20 top-16 h-[320px] w-[320px] rounded-full bg-white/10" />
-                <div className="absolute right-28 bottom-20 h-[240px] w-[240px] rounded-full border border-white/15 bg-white/10" />
+                <div className="absolute bottom-20 right-28 h-[240px] w-[240px] rounded-full border border-white/15 bg-white/10" />
 
                 <div className="relative z-10 flex h-full flex-col justify-between p-10 text-white xl:p-14">
                     <div>
@@ -127,41 +167,52 @@ export function AuthShell({ active, children }: AuthShellProps) {
                             </div>
                         </div>
 
-                        <div className="w-full rounded-[24px] border border-white/70 bg-white/70 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:rounded-[28px] sm:p-2">
-                            <div className="grid grid-cols-2 gap-1">
-                                <Link
-                                    href="/login"
-                                    className={`${tabBase} ${active === "login"
-                                            ? tabActive
-                                            : tabInactive
-                                        }`}
-                                >
-                                    Iniciar sesión
-                                </Link>
+                        {active === "forgot" ? (
+                            <div className="w-full rounded-[24px] border border-white/70 bg-white/70 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:rounded-[28px] sm:p-2">
+                                <div className="flex h-11 items-center justify-between rounded-2xl bg-white px-4 shadow-sm sm:h-12">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                        <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#edf4ff] text-[#2457b8]">
+                                            <LockIcon />
+                                        </span>
 
-                                <Link
-                                    href="/register"
-                                    className={`${tabBase} ${active === "register"
-                                            ? tabActive
-                                            : tabInactive
-                                        }`}
-                                >
-                                    Registro
-                                </Link>
+                                        Recuperación de acceso
+                                    </div>
+
+                                    <Link
+                                        href="/login"
+                                        className="inline-flex items-center gap-1 text-xs font-bold text-[#3a63c8] transition hover:text-[#244aab]"
+                                    >
+                                        <ArrowLeftIcon />
+                                        Volver
+                                    </Link>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        ) : (
+                            <div className="w-full rounded-[24px] border border-white/70 bg-white/70 p-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-sm sm:rounded-[28px] sm:p-2">
+                                <div className="grid grid-cols-2 gap-1">
+                                    <Link
+                                        href="/login"
+                                        className={`${tabBase} ${active === "login"
+                                                ? tabActive
+                                                : tabInactive
+                                            }`}
+                                    >
+                                        Iniciar sesión
+                                    </Link>
 
-                    {active === "forgot" ? (
-                        <div className="mb-4 text-right">
-                            <Link
-                                href="/login"
-                                className="text-sm font-medium text-[#3a63c8] transition hover:text-[#244aab]"
-                            >
-                                Volver al inicio de sesión
-                            </Link>
-                        </div>
-                    ) : null}
+                                    <Link
+                                        href="/register"
+                                        className={`${tabBase} ${active === "register"
+                                                ? tabActive
+                                                : tabInactive
+                                            }`}
+                                    >
+                                        Registro
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     {children}
                 </div>
