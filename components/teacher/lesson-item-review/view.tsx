@@ -8,8 +8,13 @@ import { GradePanel } from "./ui/GradePanel";
 import { Header } from "./ui/Header";
 import { Loading } from "./ui/Loading";
 import { PreviewPanel } from "./ui/PreviewPanel";
-import { SurveySelector } from "./ui/SurveySelector";
 import { Toolbar } from "./ui/Toolbar";
+
+const PAGE_CLASS =
+    "min-h-screen w-full bg-slate-50 px-3 py-3 pb-8 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3";
+
+const CONTAINER_CLASS =
+    "mx-auto w-full max-w-[1480px] min-w-0 space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3";
 
 export function LessonItemReviewPage({
     courseId,
@@ -19,14 +24,15 @@ export function LessonItemReviewPage({
 
     if (review.loading) {
         return (
-            <section className="min-h-screen w-full bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1480px] space-y-5">
+            <section className={PAGE_CLASS}>
+                <div className={CONTAINER_CLASS}>
                     <Toolbar
                         backHref={review.backHref}
                         editorHref={review.editorHref}
                         refreshing={review.refreshing}
                         onRefresh={review.loadData}
                     />
+
                     <Loading />
                 </div>
             </section>
@@ -35,14 +41,15 @@ export function LessonItemReviewPage({
 
     if (review.error && !review.block) {
         return (
-            <section className="min-h-screen w-full bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1480px] space-y-5">
+            <section className={PAGE_CLASS}>
+                <div className={CONTAINER_CLASS}>
                     <Toolbar
                         backHref={review.backHref}
                         editorHref={review.editorHref}
                         refreshing={review.refreshing}
                         onRefresh={review.loadData}
                     />
+
                     <ErrorState
                         title="No se pudo cargar la revisión"
                         message={review.error}
@@ -53,8 +60,8 @@ export function LessonItemReviewPage({
     }
 
     return (
-        <section className="min-h-screen w-full bg-slate-50 px-4 py-5 pb-10 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-[1480px] space-y-5">
+        <section className={PAGE_CLASS}>
+            <div className={CONTAINER_CLASS}>
                 <Toolbar
                     backHref={review.backHref}
                     editorHref={review.editorHref}
@@ -64,18 +71,14 @@ export function LessonItemReviewPage({
 
                 <Header review={review} />
 
-              {/*   {review.itemType === "survey" ? (
-                    <SurveySelector review={review} />
-                ) : null} */}
-
                 {review.error ? (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700">
+                    <div className="break-words rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                         {review.error}
                     </div>
                 ) : null}
 
                 {review.notice ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-bold text-emerald-700">
+                    <div className="break-words rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold leading-5 text-emerald-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                         {review.notice}
                     </div>
                 ) : null}
@@ -85,10 +88,10 @@ export function LessonItemReviewPage({
                 ) : review.itemType === "survey" ? (
                     <PreviewPanel review={review} />
                 ) : (
-                    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="grid min-w-0 items-start gap-3 sm:gap-4 lg:gap-5 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]">
                         <PreviewPanel review={review} />
 
-                        <aside className="xl:sticky xl:top-5">
+                        <aside className="min-w-0 xl:sticky xl:top-3">
                             <GradePanel review={review} />
                         </aside>
                     </div>

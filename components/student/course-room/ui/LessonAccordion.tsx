@@ -22,7 +22,7 @@ export function LessonAccordion({
     );
 
     return (
-        <div className="rounded-xl bg-white">
+        <div className="min-w-0 rounded-xl bg-white">
             <button
                 type="button"
                 onClick={() =>
@@ -31,20 +31,21 @@ export function LessonAccordion({
                         [lessonItem.id]: !isOpen,
                     }))
                 }
-                className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-[var(--muted)]"
+                className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2.5 py-2 text-left transition hover:bg-[var(--muted)] sm:px-3"
             >
-                <span className="text-sm font-black text-[var(--foreground)]">
+                <span className="line-clamp-2 break-all text-xs font-black leading-4 text-[var(--foreground)] [overflow-wrap:anywhere] sm:text-sm sm:leading-5">
                     Lección {lessonIndex + 1}: {lessonItem.name}
                 </span>
 
                 <ChevronDown
-                    className={`h-4 w-4 text-[var(--muted-foreground)] transition ${isOpen ? "" : "-rotate-90"
-                        }`}
+                    className={`h-4 w-4 shrink-0 text-[var(--muted-foreground)] transition ${
+                        isOpen ? "" : "-rotate-90"
+                    }`}
                 />
             </button>
 
             {isOpen ? (
-                <div className="mt-2 space-y-2">
+                <div className="mt-1.5 space-y-1.5 sm:mt-2 sm:space-y-2">
                     {visibleBlocks.length === 0 ? (
                         <p className="rounded-xl bg-[var(--muted)] px-3 py-2 text-xs font-semibold text-[var(--muted-foreground)]">
                             Sin contenido.
@@ -54,15 +55,9 @@ export function LessonAccordion({
                             <BlockButton
                                 key={block.id}
                                 block={block}
-                                selectedBlockId={
-                                    room.selectedBlock?.id ?? null
-                                }
-                                completedBlocks={
-                                    room.completedBlocks
-                                }
-                                onSelect={
-                                    room.handleSelectBlock
-                                }
+                                selectedBlockId={room.selectedBlock?.id ?? null}
+                                completedBlocks={room.completedBlocks}
+                                onSelect={room.handleSelectBlock}
                             />
                         ))
                     )}

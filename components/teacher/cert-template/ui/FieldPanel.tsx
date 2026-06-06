@@ -1,14 +1,24 @@
-import type { ChangeEvent } from "react";
-import { ImagePlus, Trash2 } from "lucide-react";
+"use client";
+
+import type {
+    ChangeEvent,
+    ReactNode,
+} from "react";
+import {
+    AlignCenter,
+    AlignLeft,
+    AlignRight,
+    Bold,
+    ImagePlus,
+    Trash2,
+} from "lucide-react";
 import type {
     CertificateFieldType,
     CertificateTextAlign,
 } from "@/services/certificates.service";
 import {
-    alignOptions,
     fieldTypeOptions,
     fontFamilyOptions,
-    textCaseOptions,
 } from "../constants";
 import type {
     CertificateFieldWithFormat,
@@ -38,6 +48,35 @@ type FieldPanelProps = {
     onDeleteField: (fieldId: string) => void;
 };
 
+type TextCaseButton = {
+    value: CertificateTextCase;
+    label: string;
+    title: string;
+};
+
+const TEXT_CASE_BUTTONS: TextCaseButton[] = [
+    {
+        value: "none",
+        label: "Aa",
+        title: "Mantener el texto como está escrito",
+    },
+    {
+        value: "uppercase",
+        label: "AA",
+        title: "Convertir el texto a MAYÚSCULAS",
+    },
+    {
+        value: "lowercase",
+        label: "aa",
+        title: "Convertir el texto a minúsculas",
+    },
+    {
+        value: "sentence",
+        label: "A.",
+        title: "Aplicar formato tipo oración",
+    },
+];
+
 export function FieldPanel({
     selectedField,
     onUpdateField,
@@ -45,42 +84,55 @@ export function FieldPanel({
     onSignatureUpload,
     onDeleteField,
 }: FieldPanelProps) {
+
     if (!selectedField) {
         return (
-            <div className="border-t border-slate-100 bg-white px-4 py-3">
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
-                    Selecciona un campo dentro del certificado para editarlo rápidamente.
+            <div className="border-t border-slate-100 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
+                <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-xs font-bold leading-5 text-slate-500 sm:rounded-2xl sm:px-4 sm:text-sm">
+                    Selecciona un campo dentro del certificado para mostrar sus herramientas de edición.
                 </div>
             </div>
         );
     }
 
     const selectedLabel =
-        fieldTypeOptions.find((option) => option.value === selectedField.type)
-            ?.label ?? "Campo seleccionado";
+        fieldTypeOptions.find(
+            (option) => option.value === selectedField.type,
+        )?.label ?? "Campo seleccionado";
+
+    const currentTextCase = getFieldTextCase(selectedField);
+    const isBold = selectedField.fontWeight === "bold";
 
     return (
-        <div className="border-t border-slate-100 bg-white px-4 py-3">
-            <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 border-t border-slate-100 bg-white px-3 py-2.5 sm:px-4 sm:py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-700">
-                        Editando campo
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-blue-700 sm:text-[10px]">
+                        Campo seleccionado
                     </p>
-                    <h3 className="truncate text-sm font-black text-slate-950">
+
+                    <h3
+                        title={selectedLabel}
+                        className="truncate text-xs font-black text-slate-950 sm:text-sm"
+                    >
                         {selectedLabel}
                     </h3>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                     {isSignatureField(selectedField) ? (
-                        <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-black text-blue-700 transition hover:bg-blue-100">
-                            <ImagePlus className="h-4 w-4" />
-                            Firma
+                        <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 active:scale-[0.97] sm:h-9 sm:rounded-xl sm:px-3 sm:text-xs">
+                            <ImagePlus className="h-4 w-4 shrink-0" />
+                            Subir firma
+
                             <input
                                 type="file"
                                 accept="image/*"
                                 onChange={(event) =>
-                                    onSignatureUpload(event, selectedField.id)
+                                    onSignatureUpload(
+                                        event,
+                                        selectedField.id,
+                                    )
                                 }
                                 className="hidden"
                             />
@@ -89,138 +141,199 @@ export function FieldPanel({
 
                     <button
                         type="button"
-                        onClick={() => onDeleteField(selectedField.id)}
-                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100"
+                        onClick={() =>
+                            onDeleteField(selectedField.id)
+                        }
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 text-[11px] font-black text-red-700 transition hover:bg-red-100 active:scale-[0.97] sm:h-9 sm:rounded-xl sm:px-3 sm:text-xs"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 shrink-0" />
                         Eliminar
                     </button>
                 </div>
             </div>
 
-            <div className="grid gap-2 xl:grid-cols-[180px_minmax(220px,1fr)_150px_150px_130px_130px_130px_130px_150px]">
-                <SelectField
-                    label="Variable"
-                    value={selectedField.type}
-                    onChange={(value) =>
-                        onChangeFieldType(
-                            selectedField.id,
-                            value as CertificateFieldType,
-                        )
-                    }
-                    options={fieldTypeOptions}
-                />
+            <div className="mt-2.5 flex min-w-0 flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 sm:rounded-2xl sm:p-2.5">
+                <ToolbarGroup label="Variable">
+                    <select
+                        value={selectedField.type}
+                        onChange={(event) =>
+                            onChangeFieldType(
+                                selectedField.id,
+                                event.target
+                                    .value as CertificateFieldType,
+                            )
+                        }
+                        className="h-9 w-[148px] min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:w-[170px]"
+                    >
+                        {fieldTypeOptions.map((option) => (
+                            <option
+                                key={option.value}
+                                value={option.value}
+                            >
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </ToolbarGroup>
 
-                <InputField
+                <ToolbarGroup
                     label="Texto"
-                    value={selectedField.value}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            value,
-                        })
-                    }
-                />
+                    className="min-w-[190px] flex-1"
+                >
+                    <input
+                        value={selectedField.value}
+                        onChange={(event) =>
+                            onUpdateField(selectedField.id, {
+                                value: event.target.value,
+                            })
+                        }
+                        className="h-9 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    />
+                </ToolbarGroup>
 
-                <SelectField
-                    label="Fuente"
-                    value={getFieldFontFamily(selectedField)}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            fontFamily: value,
-                        })
-                    }
-                    options={fontFamilyOptions}
-                />
+                <ToolbarGroup label="Fuente">
+                    <select
+                        value={getFieldFontFamily(selectedField)}
+                        onChange={(event) =>
+                            onUpdateField(selectedField.id, {
+                                fontFamily: event.target.value,
+                            })
+                        }
+                        className="h-9 w-[118px] rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    >
+                        {fontFamilyOptions.map((option) => (
+                            <option
+                                key={option.value}
+                                value={option.value}
+                            >
+                                {option.label}
+                            </option>
+                        ))}
+                    </select>
+                </ToolbarGroup>
 
-                <SelectField
-                    label="Formato"
-                    value={getFieldTextCase(selectedField)}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            textCase: value as CertificateTextCase,
-                        })
-                    }
-                    options={textCaseOptions}
-                />
-
-                <SelectField
-                    label="Peso"
-                    value={selectedField.fontWeight}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            fontWeight: value as "normal" | "bold",
-                        })
-                    }
-                    options={[
-                        { value: "normal", label: "Normal" },
-                        { value: "bold", label: "Negrita" },
-                    ]}
-                />
-
-                <SelectField
-                    label="Alineación"
-                    value={selectedField.textAlign}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            textAlign: value as CertificateTextAlign,
-                        })
-                    }
-                    options={alignOptions}
-                />
-
-                <NumberInput
-                    label="Tamaño"
-                    min={8}
-                    max={80}
-                    value={selectedField.fontSize}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            fontSize: value,
-                        })
-                    }
-                />
-
-                <NumberInput
-                    label="Ancho %"
-                    min={10}
-                    max={100}
-                    value={selectedField.width}
-                    onChange={(value) =>
-                        onUpdateField(selectedField.id, {
-                            width: value,
-                        })
-                    }
-                />
-
-                <div className="grid grid-cols-[1fr_52px] gap-2">
+                <ToolbarGroup label="Tamaño">
                     <NumberInput
-                        label="Alto %"
-                        min={4}
-                        max={40}
-                        value={selectedField.height ?? 8}
+                        value={selectedField.fontSize}
+                        min={8}
+                        max={80}
+                        className="w-[66px]"
                         onChange={(value) =>
                             onUpdateField(selectedField.id, {
-                                height: value,
+                                fontSize: value,
                             })
                         }
                     />
+                </ToolbarGroup>
 
-                    <ColorInput
-                        label="Color"
-                        value={selectedField.color}
-                        onChange={(value) =>
+                <ToolbarGroup label="Estilo">
+                    <ToolbarButton
+                        active={isBold}
+                        title="Negrita"
+                        onClick={() =>
                             onUpdateField(selectedField.id, {
-                                color: value,
+                                fontWeight: isBold
+                                    ? "normal"
+                                    : "bold",
                             })
                         }
+                    >
+                        <Bold className="h-4 w-4" />
+                    </ToolbarButton>
+                </ToolbarGroup>
+
+                <ToolbarGroup label="Formato">
+                    <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        {TEXT_CASE_BUTTONS.map((option) => (
+                            <CompactTextButton
+                                key={option.value}
+                                title={option.title}
+                                active={
+                                    currentTextCase === option.value
+                                }
+                                label={option.label}
+                                onClick={() =>
+                                    onUpdateField(
+                                        selectedField.id,
+                                        {
+                                            textCase:
+                                                option.value,
+                                        },
+                                    )
+                                }
+                            />
+                        ))}
+                    </div>
+                </ToolbarGroup>
+
+                <ToolbarGroup label="Alineación">
+                    <div className="flex overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <AlignmentButton
+                            title="Alinear a la izquierda"
+                            active={
+                                selectedField.textAlign === "left"
+                            }
+                            onClick={() =>
+                                onUpdateField(selectedField.id, {
+                                    textAlign:
+                                        "left" as CertificateTextAlign,
+                                })
+                            }
+                        >
+                            <AlignLeft className="h-4 w-4" />
+                        </AlignmentButton>
+
+                        <AlignmentButton
+                            title="Centrar"
+                            active={
+                                selectedField.textAlign === "center"
+                            }
+                            onClick={() =>
+                                onUpdateField(selectedField.id, {
+                                    textAlign:
+                                        "center" as CertificateTextAlign,
+                                })
+                            }
+                        >
+                            <AlignCenter className="h-4 w-4" />
+                        </AlignmentButton>
+
+                        <AlignmentButton
+                            title="Alinear a la derecha"
+                            active={
+                                selectedField.textAlign === "right"
+                            }
+                            onClick={() =>
+                                onUpdateField(selectedField.id, {
+                                    textAlign:
+                                        "right" as CertificateTextAlign,
+                                })
+                            }
+                        >
+                            <AlignRight className="h-4 w-4" />
+                        </AlignmentButton>
+                    </div>
+                </ToolbarGroup>
+
+                <ToolbarGroup label="Color">
+                    <input
+                        type="color"
+                        value={selectedField.color}
+                        onChange={(event) =>
+                            onUpdateField(selectedField.id, {
+                                color: event.target.value,
+                            })
+                        }
+                        className="h-9 w-11 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
                     />
-                </div>
+                </ToolbarGroup>
             </div>
 
-            {isSignatureField(selectedField) && selectedField.signatureImage ? (
-                <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50 p-2">
+            {isSignatureField(selectedField) &&
+                selectedField.signatureImage ? (
+                <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50 p-2">
                     <div
-                        className="h-14 w-full bg-contain bg-center bg-no-repeat"
+                        className="h-12 w-full bg-contain bg-center bg-no-repeat"
                         style={{
                             backgroundImage: toCssImageUrl(
                                 selectedField.signatureImage,
@@ -233,118 +346,163 @@ export function FieldPanel({
     );
 }
 
-type Option = {
-    value: string;
-    label: string;
-};
-
-function SelectField({
+function ToolbarGroup({
     label,
-    value,
-    options,
-    onChange,
+    className = "",
+    children,
 }: {
     label: string;
-    value: string;
-    options: Option[];
-    onChange: (value: string) => void;
+    className?: string;
+    children: ReactNode;
 }) {
     return (
-        <label className="block min-w-0">
-            <span className="mb-1 block text-[11px] font-black text-slate-700">
+        <div className={`min-w-0 ${className}`}>
+            <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-slate-500">
                 {label}
-            </span>
+            </p>
 
-            <select
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-        </label>
+            {children}
+        </div>
     );
 }
 
-function InputField({
-    label,
-    value,
-    onChange,
+function ToolbarButton({
+    active,
+    title,
+    children,
+    onClick,
 }: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
+    active: boolean;
+    title: string;
+    children: ReactNode;
+    onClick: () => void;
 }) {
     return (
-        <label className="block min-w-0">
-            <span className="mb-1 block text-[11px] font-black text-slate-700">
-                {label}
-            </span>
+        <button
+            type="button"
+            title={title}
+            aria-label={title}
+            onClick={onClick}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition active:scale-[0.96] ${active
+                    ? "border-blue-200 bg-blue-100 text-[#172861]"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                }`}
+        >
+            {children}
+        </button>
+    );
+}
 
-            <input
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            />
-        </label>
+function CompactTextButton({
+    active,
+    title,
+    label,
+    onClick,
+}: {
+    active: boolean;
+    title: string;
+    label: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            title={title}
+            aria-label={title}
+            onClick={onClick}
+            className={`inline-flex h-9 min-w-9 items-center justify-center border-r border-slate-200 px-1.5 text-xs font-black transition last:border-r-0 active:scale-[0.96] ${active
+                    ? "bg-blue-100 text-[#172861]"
+                    : "bg-white text-slate-600 hover:bg-slate-100"
+                }`}
+        >
+            {label}
+        </button>
+    );
+}
+
+function AlignmentButton({
+    active,
+    title,
+    children,
+    onClick,
+}: {
+    active: boolean;
+    title: string;
+    children: ReactNode;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            title={title}
+            aria-label={title}
+            onClick={onClick}
+            className={`inline-flex h-9 w-9 items-center justify-center border-r border-slate-200 transition last:border-r-0 active:scale-[0.96] ${active
+                    ? "bg-blue-100 text-[#172861]"
+                    : "bg-white text-slate-600 hover:bg-slate-100"
+                }`}
+        >
+            {children}
+        </button>
     );
 }
 
 function NumberInput({
-    label,
+    value,
     min,
     max,
+    className = "",
+    onChange,
+}: {
+    value: number;
+    min: number;
+    max: number;
+    className?: string;
+    onChange: (value: number) => void;
+}) {
+    return (
+        <input
+            type="number"
+            value={value}
+            min={min}
+            max={max}
+            onChange={(event) => {
+                const parsedValue = Number(event.target.value);
+
+                if (!Number.isFinite(parsedValue)) return;
+
+                onChange(parsedValue);
+            }}
+            className={`h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 ${className}`}
+        />
+    );
+}
+
+function AdvancedNumberField({
+    label,
     value,
+    min,
+    max,
     onChange,
 }: {
     label: string;
+    value: number;
     min: number;
     max: number;
-    value: number;
     onChange: (value: number) => void;
 }) {
     return (
         <label className="block min-w-0">
-            <span className="mb-1 block text-[11px] font-black text-slate-700">
+            <span className="mb-1 block text-[10px] font-black text-slate-700">
                 {label}
             </span>
 
-            <input
-                type="number"
+            <NumberInput
+                value={value}
                 min={min}
                 max={max}
-                value={value}
-                onChange={(event) => onChange(Number(event.target.value))}
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-            />
-        </label>
-    );
-}
-
-function ColorInput({
-    label,
-    value,
-    onChange,
-}: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    return (
-        <label className="block min-w-0">
-            <span className="mb-1 block text-[11px] font-black text-slate-700">
-                {label}
-            </span>
-
-            <input
-                type="color"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-2"
+                className="w-full"
+                onChange={onChange}
             />
         </label>
     );

@@ -322,10 +322,10 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
 
     if (!row) {
         return (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                <HelpCircle className="mx-auto h-9 w-9 text-slate-400" />
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center sm:rounded-2xl sm:p-8 [@media(max-height:760px)]:p-4">
+                <HelpCircle className="mx-auto h-8 w-8 text-slate-400 sm:h-9 sm:w-9" />
 
-                <p className="mt-3 text-sm font-black text-slate-700">
+                <p className="mt-3 text-xs font-black leading-5 text-slate-700 sm:text-sm">
                     Selecciona un estudiante para revisar la evaluación.
                 </p>
             </div>
@@ -334,10 +334,10 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
 
     if (!row.responseId) {
         return (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-                <HelpCircle className="mx-auto h-9 w-9 text-slate-400" />
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center sm:rounded-2xl sm:p-8 [@media(max-height:760px)]:p-4">
+                <HelpCircle className="mx-auto h-8 w-8 text-slate-400 sm:h-9 sm:w-9" />
 
-                <p className="mt-3 text-sm font-black text-slate-700">
+                <p className="mt-3 text-xs font-black leading-5 text-slate-700 sm:text-sm">
                     El estudiante aún no ha respondido la evaluación.
                 </p>
             </div>
@@ -345,19 +345,19 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
     }
 
     return (
-        <div className="space-y-5">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
-                        <Award className="h-6 w-6" />
+        <div className="space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
+                <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 sm:h-12 sm:w-12 sm:rounded-2xl">
+                        <Award className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
 
                     <div>
-                        <h3 className="text-base font-black text-slate-950">
+                        <h3 className="text-sm font-black text-slate-950 sm:text-base">
                             Respuesta de evaluación
                         </h3>
 
-                        <div className="mt-2 grid gap-1 text-sm font-semibold text-slate-500">
+                        <div className="mt-2 grid gap-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
                             <p>
                                 Nota actual:{" "}
                                 <span className="font-black text-slate-800">
@@ -412,25 +412,25 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                 </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                        <ClipboardList className="h-5 w-5" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:h-10 sm:w-10 sm:rounded-2xl">
+                        <ClipboardList className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
 
                     <div>
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+                        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 sm:text-xs sm:tracking-[0.14em]">
                             Preguntas y respuestas
                         </p>
 
-                        <h3 className="text-base font-black text-slate-950">
+                        <h3 className="text-sm font-black text-slate-950 sm:text-base">
                             {quizContent?.title || "Detalle de evaluación"}
                         </h3>
                     </div>
                 </div>
 
                 {questions.length > 0 ? (
-                    <div className="mt-5 space-y-4">
+                    <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4 [@media(max-height:760px)]:mt-3">
                         {questions.map((question, index) => {
                             const options = getQuestionOptions(question);
                             const studentAnswer = getStudentAnswer(response, question, index);
@@ -447,29 +447,29 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                             return (
                                 <article
                                     key={`${question.id ?? index}`}
-                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                                    className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl sm:p-4"
                                 >
-                                    <div className="flex items-start justify-between gap-3">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                         <div>
-                                            <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-700">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-blue-700 sm:text-xs sm:tracking-[0.12em]">
                                                 Pregunta {index + 1}
                                             </p>
 
-                                            <h4 className="mt-1 text-sm font-black leading-6 text-slate-950">
+                                            <h4 className="mt-1 break-words text-xs font-black leading-5 text-slate-950 [overflow-wrap:anywhere] sm:text-sm sm:leading-6">
                                                 {getQuestionText(question, index)}
                                             </h4>
                                         </div>
 
                                         {question.points !== null &&
                                             question.points !== undefined ? (
-                                            <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-600 shadow-sm">
+                                            <span className="w-fit rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm sm:px-3 sm:text-xs">
                                                 {question.points} pts
                                             </span>
                                         ) : null}
                                     </div>
 
                                     {options.length > 0 ? (
-                                        <div className="mt-4 grid gap-2">
+                                        <div className="mt-3 grid gap-2 sm:mt-4">
                                             {options.map((option, optionIndex) => {
                                                 const selected =
                                                     Number(studentAnswer) === optionIndex;
@@ -478,14 +478,14 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                                                 return (
                                                     <div
                                                         key={`${option}-${optionIndex}`}
-                                                        className={`rounded-2xl border px-4 py-3 text-sm font-bold ${correct
+                                                        className={`rounded-xl border px-3 py-2.5 text-xs font-bold leading-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm ${correct
                                                                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                                                                 : selected
                                                                     ? "border-blue-200 bg-blue-50 text-blue-800"
                                                                     : "border-slate-200 bg-white text-slate-600"
                                                             }`}
                                                     >
-                                                        <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:gap-3">
                                                             <span>
                                                                 {String.fromCharCode(
                                                                     65 + optionIndex,
@@ -494,11 +494,11 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                                                             </span>
 
                                                             {correct ? (
-                                                                <span className="text-xs font-black uppercase">
+                                                                <span className="text-[10px] font-black uppercase sm:text-xs">
                                                                     Correcta
                                                                 </span>
                                                             ) : selected ? (
-                                                                <span className="text-xs font-black uppercase">
+                                                                <span className="text-[10px] font-black uppercase sm:text-xs">
                                                                     Marcada
                                                                 </span>
                                                             ) : null}
@@ -509,25 +509,25 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                                         </div>
                                     ) : null}
 
-                                    <div className="mt-4 rounded-2xl bg-white p-4">
+                                    <div className="mt-3 rounded-xl bg-white p-3 sm:mt-4 sm:rounded-2xl sm:p-4">
                                         <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
                                             Respuesta del estudiante
                                         </p>
 
-                                        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                            <p className="text-sm font-black text-slate-800">
+                                        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                            <p className="break-words text-xs font-black leading-5 text-slate-800 [overflow-wrap:anywhere] sm:text-sm">
                                                 {formatAnswer(question, studentAnswer)}
                                             </p>
 
                                             {hasCorrection ? (
                                                 isCorrect ? (
-                                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                                                        <CheckCircle2 className="h-4 w-4" />
+                                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 sm:px-3 sm:text-xs">
+                                                        <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         Correcta
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">
-                                                        <XCircle className="h-4 w-4" />
+                                                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-700 sm:px-3 sm:text-xs">
+                                                        <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         Incorrecta
                                                     </span>
                                                 )
@@ -535,7 +535,7 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                                         </div>
 
                                         {correctIndex !== null && options[correctIndex] ? (
-                                            <p className="mt-2 text-sm font-semibold text-slate-500">
+                                            <p className="mt-2 break-words text-xs font-semibold leading-5 text-slate-500 [overflow-wrap:anywhere] sm:text-sm">
                                                 Respuesta correcta:{" "}
                                                 <span className="font-black text-slate-700">
                                                     {String.fromCharCode(65 + correctIndex)}.{" "}
@@ -549,9 +549,9 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                         })}
                     </div>
                 ) : (
-                    <div className="mt-5 space-y-3">
+                    <div className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
                         {answerItems.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center sm:rounded-2xl sm:p-6">
                                 <p className="text-sm font-black text-slate-700">
                                     No se encontraron respuestas registradas.
                                 </p>
@@ -560,18 +560,18 @@ export function QuizReviewPanel({ row, block }: QuizReviewPanelProps) {
                             answerItems.map((answer, index) => (
                                 <article
                                     key={`${answer.key}-${index}`}
-                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                                    className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl sm:p-4"
                                 >
-                                    <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-700">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.1em] text-blue-700 sm:text-xs sm:tracking-[0.12em]">
                                         Pregunta {answer.key}
                                     </p>
 
-                                    <div className="mt-3 rounded-2xl bg-white p-4">
+                                    <div className="mt-3 rounded-xl bg-white p-3 sm:rounded-2xl sm:p-4">
                                         <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
                                             Respuesta registrada
                                         </p>
 
-                                        <p className="mt-2 text-sm font-black text-slate-800">
+                                        <p className="mt-2 break-words text-xs font-black leading-5 text-slate-800 [overflow-wrap:anywhere] sm:text-sm">
                                             {formatSimpleAnswer(answer.value)}
                                         </p>
                                     </div>

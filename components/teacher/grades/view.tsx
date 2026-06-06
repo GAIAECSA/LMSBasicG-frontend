@@ -19,8 +19,8 @@ export function TeacherQuizGradesView({
 
     if (grades.isLoading) {
         return (
-            <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
+            <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+                <div className="mx-auto w-full max-w-[1480px]">
                     <Loading currentCourseId={grades.currentCourseId} />
                 </div>
             </div>
@@ -29,8 +29,8 @@ export function TeacherQuizGradesView({
 
     if (grades.currentCourseId <= 0) {
         return (
-            <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
+            <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+                <div className="mx-auto w-full max-w-[1480px]">
                     <CourseSelector
                         courseOptions={grades.courseOptions}
                         errorMessage={grades.errorMessage}
@@ -42,8 +42,8 @@ export function TeacherQuizGradesView({
     }
 
     return (
-        <section className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-[1500px] space-y-6">
+        <section className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+            <div className="mx-auto w-full max-w-[1480px] space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3">
                 <Header
                     isAdminRoute={grades.isAdminRoute}
                     course={grades.course}
@@ -56,28 +56,26 @@ export function TeacherQuizGradesView({
                     }
                 />
 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                     <Alert type="success" message={grades.notice} />
                     <Alert type="error" message={grades.errorMessage} />
                 </div>
 
-                <div className="rounded-[2rem] border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5 md:p-6 lg:p-7">
-                    <Filters
-                        isAdminRoute={grades.isAdminRoute}
-                        routeCourseId={grades.routeCourseId}
-                        currentCourseId={grades.currentCourseId}
-                        isRefreshing={grades.isRefreshing}
-                        searchTerm={grades.searchTerm}
-                        selectedBlockId={grades.selectedBlockId}
-                        activityBlocks={grades.activityBlocks}
-                        courseOptions={grades.courseOptions}
-                        setSearchTerm={grades.setSearchTerm}
-                        setSelectedBlockId={grades.setSelectedBlockId}
-                        setCurrentPage={grades.setCurrentPage}
-                        onRefresh={() => void grades.loadGrades(true)}
-                        onSelectCourse={grades.handleSelectCourse}
-                    />
-                </div>
+                <Filters
+                    isAdminRoute={grades.isAdminRoute}
+                    routeCourseId={grades.routeCourseId}
+                    currentCourseId={grades.currentCourseId}
+                    isRefreshing={grades.isRefreshing}
+                    searchTerm={grades.searchTerm}
+                    selectedBlockId={grades.selectedBlockId}
+                    activityBlocks={grades.activityBlocks}
+                    courseOptions={grades.courseOptions}
+                    setSearchTerm={grades.setSearchTerm}
+                    setSelectedBlockId={grades.setSelectedBlockId}
+                    setCurrentPage={grades.setCurrentPage}
+                    onRefresh={() => void grades.loadGrades(true)}
+                    onSelectCourse={grades.handleSelectCourse}
+                />
 
                 <Stats
                     course={grades.course}
@@ -91,26 +89,22 @@ export function TeacherQuizGradesView({
                     }
                 />
 
-                <div className="overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white shadow-sm">
-                    <div className="p-4 sm:p-5 md:p-6 lg:p-7">
-                        <Table
-                            groupedGradesLength={grades.groupedGrades.length}
-                            paginatedGroups={grades.paginatedGroups}
-                            startItem={grades.startItem}
-                            endItem={grades.endItem}
-                            activePage={grades.activePage}
-                            totalPages={grades.totalPages}
-                            generatingCertificateUserId={
-                                grades.generatingCertificateUserId
-                            }
-                            setCurrentPage={grades.setCurrentPage}
-                            openGroupModal={grades.openGroupModal}
-                            handleGenerateOrReissueCertificate={
-                                grades.handleGenerateOrReissueCertificate
-                            }
-                        />
-                    </div>
-                </div>
+                <Table
+                    groupedGradesLength={grades.groupedGrades.length}
+                    paginatedGroups={grades.paginatedGroups}
+                    startItem={grades.startItem}
+                    endItem={grades.endItem}
+                    activePage={grades.activePage}
+                    totalPages={grades.totalPages}
+                    generatingCertificateUserId={
+                        grades.generatingCertificateUserId
+                    }
+                    setCurrentPage={grades.setCurrentPage}
+                    openGroupModal={grades.openGroupModal}
+                    handleGenerateOrReissueCertificate={
+                        grades.handleGenerateOrReissueCertificate
+                    }
+                />
             </div>
 
             <Modal

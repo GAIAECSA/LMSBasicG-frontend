@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import {
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import {
     AlertTriangle,
     CheckCircle2,
@@ -19,6 +23,30 @@ type QuizSectionProps = {
 };
 
 const QUIZ_MAX_POINTS = 10;
+
+function distributeQuizPoints<T extends { points: number | string }>(
+    questions: T[],
+): T[] {
+    if (questions.length === 0) return [];
+
+    /*
+     * Trabajamos con centésimas para que la suma siempre sea
+     * exactamente 10 y no existan errores por decimales.
+     */
+    const totalCents = QUIZ_MAX_POINTS * 100;
+    const baseCents = Math.floor(totalCents / questions.length);
+    const remainingCents = totalCents % questions.length;
+
+    return questions.map((question, index) => {
+        const pointsInCents =
+            baseCents + (index < remainingCents ? 1 : 0);
+
+        return {
+            ...question,
+            points: pointsInCents / 100,
+        };
+    });
+}
 
 function isQuestionComplete(
     question: LessonItemState["form"]["quiz_questions"][number],
@@ -41,6 +69,92 @@ function isQuestionComplete(
 
 export function QuizSection({ item }: QuizSectionProps) {
     const [openModal, setOpenModal] = useState(false);
+
+    const waitingForSaveRef = useRef(false);
+    const wasSavingRef = useRef(item.saving);
+
+    useEffect(() => {
+        const wasSaving = wasSavingRef.current;
+
+        wasSavingRef.current = item.saving;
+
+        /*
+         * No cerrar si el modal no está abierto o si el usuario
+         * todavía no presionó Guardar preguntas.
+         */
+        if (!openModal || !waitingForSaveRef.current) {
+            return;
+        }
+
+        /*
+         * Esperar hasta detectar la transición:
+         * guardando -> proceso finalizado.
+         */
+        if (!wasSaving || item.saving) {
+            return;
+        }
+
+        /*
+         * Si el backend devuelve un error, mantener el modal abierto.
+         */
+        if (item.error) {
+            waitingForSaveRef.current = false;
+            return;
+        }
+
+        /*
+         * Se programa el cierre para evitar actualizar el estado
+         * directamente dentro del cuerpo del efecto.
+         */
+        const timeoutId = window.setTimeout(() => {
+            waitingForSaveRef.current = false;
+            setOpenModal(false);
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [item.error, item.saving, openModal]);
+
+    function closeQuestionsModal() {
+        /*
+         * Impedir que el usuario cierre el modal mientras
+         * el backend continúa procesando el guardado.
+         */
+        if (item.saving) return;
+
+        waitingForSaveRef.current = false;
+        setOpenModal(false);
+    }
+
+    function openQuestionsModal() {
+        /*
+         * Al abrir el modal también corregimos evaluaciones antiguas
+         * que todavía tengan una distribución manual de puntos.
+         */
+        item.setForm((current) => ({
+            ...current,
+            quiz_questions: distributeQuizPoints(current.quiz_questions),
+        }));
+
+        setOpenModal(true);
+    }
+
+    function addFirstQuestionAndOpenModal() {
+        item.handleAddQuestion();
+
+        /*
+         * React aplica los actualizadores funcionales en orden.
+         * Este segundo actualizador recibe la pregunta recién agregada
+         * y distribuye automáticamente los 10 puntos.
+         */
+        item.setForm((current) => ({
+            ...current,
+            quiz_questions: distributeQuizPoints(current.quiz_questions),
+        }));
+
+        setOpenModal(true);
+    }
 
     const questions = item.form.quiz_questions;
 
@@ -92,7 +206,7 @@ export function QuizSection({ item }: QuizSectionProps) {
 
                     <button
                         type="button"
-                        onClick={() => setOpenModal(true)}
+                        onClick={openQuestionsModal}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48]"
                     >
                         <ListChecks className="h-4 w-4" />
@@ -170,69 +284,10 @@ export function QuizSection({ item }: QuizSectionProps) {
                     />
                 </div>
 
-                <div
-                    className={`mt-5 rounded-2xl border px-4 py-4 ${statusTone === "danger"
-                        ? "border-red-200 bg-red-50"
-                        : statusTone === "success"
-                            ? "border-emerald-200 bg-emerald-50"
-                            : "border-amber-200 bg-amber-50"
-                        }`}
-                >
-                    <div className="flex items-start gap-3">
-                        <div
-                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${statusTone === "danger"
-                                ? "bg-red-100 text-red-700"
-                                : statusTone === "success"
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-amber-100 text-amber-700"
-                                }`}
-                        >
-                            {statusTone === "success" ? (
-                                <CheckCircle2 className="h-5 w-5" />
-                            ) : (
-                                <AlertTriangle className="h-5 w-5" />
-                            )}
-                        </div>
-
-                        <div>
-                            <p
-                                className={`text-sm font-black ${statusTone === "danger"
-                                    ? "text-red-800"
-                                    : statusTone === "success"
-                                        ? "text-emerald-800"
-                                        : "text-amber-800"
-                                    }`}
-                            >
-                                Control de puntaje total
-                            </p>
-
-                            <p
-                                className={`mt-1 text-sm font-semibold ${statusTone === "danger"
-                                    ? "text-red-700"
-                                    : statusTone === "success"
-                                        ? "text-emerald-700"
-                                        : "text-amber-700"
-                                    }`}
-                            >
-                                {totalPoints > QUIZ_MAX_POINTS
-                                    ? `La evaluación supera el máximo permitido. Debes reducir ${totalPoints - QUIZ_MAX_POINTS
-                                    } punto(s).`
-                                    : totalPoints === QUIZ_MAX_POINTS
-                                        ? "La sumatoria de puntos está correcta: 10/10."
-                                        : `Aún puedes asignar ${QUIZ_MAX_POINTS - totalPoints
-                                        } punto(s) sin superar el máximo de 10.`}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
                 {questions.length === 0 ? (
                     <button
                         type="button"
-                        onClick={() => {
-                            item.handleAddQuestion();
-                            setOpenModal(true);
-                        }}
+                        onClick={addFirstQuestionAndOpenModal}
                         className="mt-6 flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-blue-200 bg-blue-50 px-5 py-7 text-center transition hover:bg-blue-100"
                     >
                         <Plus className="h-6 w-6 text-blue-700" />
@@ -247,29 +302,7 @@ export function QuizSection({ item }: QuizSectionProps) {
                         </span>
                     </button>
                 ) : (
-                    <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <p className="text-sm font-black text-slate-950">
-                                    Banco de preguntas configurado
-                                </p>
-
-                                <p className="mt-1 text-sm font-semibold text-slate-500">
-                                    Edita una pregunta por vez y utiliza el
-                                    paginador para cambiar de pregunta.
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setOpenModal(true)}
-                                className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-[#172861] ring-1 ring-blue-100 transition hover:bg-blue-50"
-                            >
-                                <ListChecks className="h-4 w-4" />
-                                Abrir preguntas
-                            </button>
-                        </div>
-                    </div>
+                    null
                 )}
             </section>
 
@@ -279,7 +312,10 @@ export function QuizSection({ item }: QuizSectionProps) {
                     totalPoints={totalPoints}
                     remainingPoints={remainingPoints}
                     incompleteQuestions={incompleteQuestions}
-                    onClose={() => setOpenModal(false)}
+                    onClose={closeQuestionsModal}
+                    onSaveStart={() => {
+                        waitingForSaveRef.current = true;
+                    }}
                 />
             ) : null}
         </>
@@ -321,12 +357,14 @@ function QuestionsModal({
     remainingPoints,
     incompleteQuestions,
     onClose,
+    onSaveStart,
 }: {
     item: LessonItemState;
     totalPoints: number;
     remainingPoints: number;
     incompleteQuestions: number;
     onClose: () => void;
+    onSaveStart: () => void;
 }) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
@@ -345,10 +383,18 @@ function QuestionsModal({
         setCurrentQuestionIndex(index);
     }
 
+    function redistributeCurrentQuestions() {
+        item.setForm((current) => ({
+            ...current,
+            quiz_questions: distributeQuizPoints(current.quiz_questions),
+        }));
+    }
+
     function addQuestionAndOpenIt() {
         const newQuestionIndex = questions.length;
 
         item.handleAddQuestion();
+        redistributeCurrentQuestions();
         setCurrentQuestionIndex(newQuestionIndex);
     }
 
@@ -356,6 +402,7 @@ function QuestionsModal({
         if (!currentQuestion) return;
 
         item.handleRemoveQuestion(currentQuestion.id);
+        redistributeCurrentQuestions();
 
         setCurrentQuestionIndex((current) =>
             Math.max(0, Math.min(current, questions.length - 2)),
@@ -398,14 +445,6 @@ function QuestionsModal({
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20"
-                            aria-label="Cerrar modal"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
                     </div>
                 </div>
 
@@ -583,15 +622,15 @@ function QuestionsModal({
                                             min="0"
                                             step="0.01"
                                             value={currentQuestion.points}
-                                            onChange={(event) =>
-                                                item.handleChangePoints(
-                                                    currentQuestion.id,
-                                                    Number(event.target.value),
-                                                )
-                                            }
-                                            className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                            placeholder="Ej: 2"
+                                            readOnly
+                                            aria-readonly="true"
+                                            title="La puntuación se calcula automáticamente según el número total de preguntas."
+                                            className="mt-2 h-11 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-bold text-slate-700 outline-none"
                                         />
+
+                                        <span className="mt-1.5 block text-[11px] font-semibold leading-4 text-slate-500">
+                                            Se calcula automáticamente para completar 10 puntos.
+                                        </span>
                                     </label>
                                 </div>
                             </div>
@@ -700,6 +739,7 @@ function QuestionsModal({
                         <button
                             type="submit"
                             form="lesson-item-editor-form"
+                            onClick={onSaveStart}
                             disabled={item.saving || !canSave}
                             title={
                                 totalPoints !== QUIZ_MAX_POINTS

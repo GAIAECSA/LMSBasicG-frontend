@@ -10,9 +10,17 @@ type StudentCoursePageProps = {
 export default async function StudentCoursePage({
     params,
 }: StudentCoursePageProps) {
-    const resolvedParams = await params;
+    const resolvedParams =
+        await params;
 
-    const courseId = resolvedParams.courseId ?? resolvedParams.id ?? "";
+    const courseId =
+        resolvedParams.courseId ??
+        resolvedParams.id ??
+        "";
 
-    return <StudentMoocCourseView courseId={courseId} />;
+    return (
+        <StudentMoocCourseView
+            courseId={courseId}
+        />
+    );
 }

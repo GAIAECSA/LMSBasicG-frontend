@@ -6,13 +6,13 @@ type GeneralSectionProps = {
 
 export function GeneralSection({ item }: GeneralSectionProps) {
     return (
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-black text-slate-950">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6 [@media(max-height:760px)]:p-4">
+            <h2 className="text-lg font-black text-slate-950 sm:text-xl">
                 Información general
             </h2>
 
-            <div className="mt-6 space-y-2">
-                <label className="block text-[13px] font-bold text-slate-700">
+            <div className="mt-4 space-y-2 sm:mt-6">
+                <label className="block text-xs font-bold text-slate-700 sm:text-[13px]">
                     Título
                 </label>
 
@@ -24,7 +24,7 @@ export function GeneralSection({ item }: GeneralSectionProps) {
                             title: event.target.value,
                         }))
                     }
-                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-10"
                 />
             </div>
         </div>

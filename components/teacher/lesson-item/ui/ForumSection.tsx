@@ -1,5 +1,4 @@
 import { Info, MessageSquareText, Save } from "lucide-react";
-import { BLOCK_TYPE_IDS } from "../constants";
 import type { LessonItemState } from "../hook";
 
 type ForumSectionProps = {
@@ -10,15 +9,15 @@ export function ForumSection({ item }: ForumSectionProps) {
     if (item.itemType !== "forum") return null;
 
     return (
-        <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-5 [@media(max-height:760px)]:p-4">
             <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                        <MessageSquareText className="h-5 w-5" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:h-10 sm:w-10 sm:rounded-2xl">
+                        <MessageSquareText className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
 
-                    <div>
-                        <h2 className="text-lg font-black text-slate-950">
+                    <div className="min-w-0">
+                        <h2 className="text-base font-black text-slate-950 sm:text-lg">
                             Configuración del foro
                         </h2>
 
@@ -27,10 +26,9 @@ export function ForumSection({ item }: ForumSectionProps) {
                         </p>
                     </div>
                 </div>
-
             </div>
 
-            <div className="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+            <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
                 <div className="flex gap-2">
                     <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
 
@@ -41,9 +39,9 @@ export function ForumSection({ item }: ForumSectionProps) {
                 </div>
             </div>
 
-            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="mt-4 grid gap-3 xl:grid-cols-[0.9fr_1.1fr] xl:gap-4">
                 <div className="space-y-2">
-                    <label className="block text-[11px] font-black uppercase tracking-wide text-slate-600">
+                    <label className="block text-[10px] font-black uppercase tracking-wide text-slate-600 sm:text-[11px]">
                         Descripción del foro
                     </label>
 
@@ -56,16 +54,16 @@ export function ForumSection({ item }: ForumSectionProps) {
                             }))
                         }
                         placeholder="Ej: En este foro se discutirá el tema revisado."
-                        className="min-h-[110px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                        className="min-h-[96px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:min-h-[110px] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm sm:leading-6 [@media(max-height:760px)]:min-h-[86px]"
                     />
 
-                    <p className="text-[11px] font-semibold text-slate-400">
+                    <p className="text-[10px] font-semibold text-slate-400 sm:text-[11px]">
                         Objetivo general del foro.
                     </p>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="block text-[11px] font-black uppercase tracking-wide text-slate-600">
+                    <label className="block text-[10px] font-black uppercase tracking-wide text-slate-600 sm:text-[11px]">
                         Consigna o instrucción
                     </label>
 
@@ -78,16 +76,16 @@ export function ForumSection({ item }: ForumSectionProps) {
                             }))
                         }
                         placeholder="Ej: Comparte tu opinión sobre el tema revisado."
-                        className="min-h-[110px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                        className="min-h-[96px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:min-h-[110px] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm sm:leading-6 [@media(max-height:760px)]:min-h-[86px]"
                     />
 
-                    <p className="text-[11px] font-semibold text-slate-400">
+                    <p className="text-[10px] font-semibold text-slate-400 sm:text-[11px]">
                         Instrucción principal antes de participar.
                     </p>
                 </div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
                 <div className="flex items-start gap-2">
                     <Save className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
 

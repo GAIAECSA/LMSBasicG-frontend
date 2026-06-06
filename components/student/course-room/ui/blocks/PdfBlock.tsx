@@ -18,30 +18,30 @@ export function PdfBlock({ room }: PdfBlockProps) {
     const description = getBlockDescription(room.selectedBlock);
 
     return (
-        <div className="min-w-0 space-y-4 sm:space-y-5">
+        <div className="min-w-0 space-y-4">
             {description ? (
-                <div className="min-w-0 break-words whitespace-pre-wrap rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-800">
+                <div className="min-w-0 break-words whitespace-pre-wrap rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs leading-5 text-blue-800 sm:rounded-2xl sm:p-4 sm:text-sm sm:leading-6">
                     {description}
                 </div>
             ) : null}
 
             {pdfUrl ? (
-                <div className="min-w-0 overflow-hidden rounded-[22px] border border-slate-200 bg-slate-100 shadow-sm sm:rounded-[28px]">
+                <div className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-slate-100 shadow-sm sm:rounded-[24px]">
                     <iframe
                         src={getProtectedPdfViewerUrl(pdfUrl)}
                         title={room.selectedTitle || "Documento PDF"}
-                        className="h-[460px] w-full bg-white sm:h-[620px] lg:h-[720px]"
+                        className="h-[420px] w-full bg-white sm:h-[560px] lg:h-[620px] 2xl:h-[720px]"
                     />
                 </div>
             ) : (
-                <div className="min-w-0 rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-5 text-center sm:rounded-[28px] sm:p-8">
-                    <FileText className="mx-auto h-10 w-10 text-slate-400" />
+                <div className="min-w-0 rounded-[20px] border border-dashed border-slate-300 bg-slate-50 p-5 text-center sm:rounded-[24px] sm:p-7">
+                    <FileText className="mx-auto h-9 w-9 text-slate-400 sm:h-10 sm:w-10" />
 
-                    <h3 className="mt-3 break-words text-lg font-black text-slate-950">
+                    <h3 className="mt-3 break-words text-base font-black text-slate-950 sm:text-lg">
                         PDF no disponible
                     </h3>
 
-                    <p className="mt-2 break-words text-sm text-slate-500">
+                    <p className="mt-2 break-words text-xs leading-5 text-slate-500 sm:text-sm">
                         Este bloque todavía no tiene un PDF cargado.
                     </p>
                 </div>

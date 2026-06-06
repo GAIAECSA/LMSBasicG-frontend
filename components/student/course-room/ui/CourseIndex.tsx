@@ -17,19 +17,13 @@ function toRecord(value: unknown): AnyRecord | null {
 
 function readBoolean(value: unknown, fallback = false) {
     if (typeof value === "boolean") return value;
-
     if (typeof value === "number") return value === 1;
 
     if (typeof value === "string") {
         const normalized = value.trim().toLowerCase();
 
-        if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
-            return true;
-        }
-
-        if (["false", "0", "no"].includes(normalized)) {
-            return false;
-        }
+        if (["true", "1", "yes", "si", "sí"].includes(normalized)) return true;
+        if (["false", "0", "no"].includes(normalized)) return false;
     }
 
     return fallback;
@@ -46,11 +40,7 @@ function getContentRecord(value: unknown): AnyRecord {
         try {
             const parsed = JSON.parse(value) as unknown;
 
-            if (
-                parsed &&
-                typeof parsed === "object" &&
-                !Array.isArray(parsed)
-            ) {
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
                 return parsed as AnyRecord;
             }
         } catch {
@@ -68,37 +58,35 @@ function shouldShowBlockInCourseIndex(block: LessonBlock) {
 
     const itemType = getLessonItemType(block);
 
-    if (itemType === "forum") {
-        return false;
-    }
+    if (itemType === "forum") return false;
 
     const content = getContentRecord(record.content);
 
     const isActive = readBoolean(
         record.is_active ??
-        record.isActive ??
-        content.is_active ??
-        content.isActive,
+            record.isActive ??
+            content.is_active ??
+            content.isActive,
         true,
     );
 
     const isDefault = readBoolean(
         record.default ??
-        record.is_default ??
-        record.isDefault ??
-        content.default ??
-        content.is_default ??
-        content.isDefault,
+            record.is_default ??
+            record.isDefault ??
+            content.default ??
+            content.is_default ??
+            content.isDefault,
         true,
     );
 
     const isRequired = readBoolean(
         record.is_required ??
-        record.required ??
-        record.isRequired ??
-        content.is_required ??
-        content.required ??
-        content.isRequired,
+            record.required ??
+            record.isRequired ??
+            content.is_required ??
+            content.required ??
+            content.isRequired,
         false,
     );
 
@@ -109,16 +97,12 @@ export function CourseIndex({ room }: CourseIndexProps) {
     const visibleModules = room.modules
         .map((moduleItem) => {
             const visibleLessons = moduleItem.lessons
-                .map((lessonItem) => {
-                    const visibleBlocks = lessonItem.blocks.filter(
+                .map((lessonItem) => ({
+                    ...lessonItem,
+                    blocks: lessonItem.blocks.filter(
                         shouldShowBlockInCourseIndex,
-                    );
-
-                    return {
-                        ...lessonItem,
-                        blocks: visibleBlocks,
-                    };
-                })
+                    ),
+                }))
                 .filter((lessonItem) => lessonItem.blocks.length > 0);
 
             return {
@@ -129,24 +113,24 @@ export function CourseIndex({ room }: CourseIndexProps) {
         .filter((moduleItem) => moduleItem.lessons.length > 0);
 
     return (
-        <aside className="min-w-0 overflow-hidden rounded-[22px] border border-[var(--border)] bg-[var(--card)] shadow-sm sm:rounded-[26px]">
-            <div className="border-b border-[var(--border)] p-4 sm:p-5">
-                <h2 className="text-base font-black text-[var(--foreground)] sm:text-lg">
+        <aside className="min-w-0 overflow-hidden rounded-[20px] border border-[var(--border)] bg-[var(--card)] shadow-sm sm:rounded-[24px] lg:sticky lg:top-3">
+            <div className="border-b border-[var(--border)] p-3.5 sm:p-4">
+                <h2 className="text-sm font-black text-[var(--foreground)] sm:text-base lg:text-lg">
                     Índice del curso
                 </h2>
 
-                <p className="mt-1 text-xs font-semibold text-[var(--muted-foreground)] sm:text-sm">
+                <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted-foreground)]">
                     Selecciona un contenido para continuar.
                 </p>
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto overscroll-contain p-3 sm:max-h-[520px] sm:p-4 xl:max-h-[calc(100vh-230px)]">
+            <div className="max-h-[340px] overflow-y-auto overscroll-contain p-2.5 sm:max-h-[430px] sm:p-3 lg:max-h-[calc(100vh-165px)]">
                 {visibleModules.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--muted)] p-4 text-center text-sm font-semibold text-[var(--muted-foreground)] sm:p-5">
+                    <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--muted)] p-3 text-center text-xs font-semibold leading-5 text-[var(--muted-foreground)] sm:rounded-2xl sm:p-4 sm:text-sm">
                         Este curso todavía no tiene contenidos disponibles.
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5 sm:space-y-3">
                         {visibleModules.map((moduleItem, moduleIndex) => (
                             <ModuleAccordion
                                 key={moduleItem.id}

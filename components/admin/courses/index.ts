@@ -1,0 +1,1 @@
+export { CoursesAdminPanel } from "./view";

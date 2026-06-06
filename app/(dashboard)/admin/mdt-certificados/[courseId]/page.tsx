@@ -1,4 +1,4 @@
-import { MdtCertificadosProfesorView } from "@/components/teacher/mdt-certificados/mdt-certificados-profesor";
+import { MdtCertificadosProfesorView } from "@/components/teacher/mdt-certificados";
 
 type AdminMdtCertificadosCoursePageProps = {
     params: Promise<{
@@ -11,11 +11,15 @@ export default async function AdminMdtCertificadosCoursePage({
 }: AdminMdtCertificadosCoursePageProps) {
     const { courseId } = await params;
 
-    const cursoIdInicial = Number(courseId);
+    const numericCourseId = Number(courseId);
 
     return (
         <MdtCertificadosProfesorView
-            cursoIdInicial={Number.isFinite(cursoIdInicial) ? cursoIdInicial : 0}
+            cursoIdInicial={
+                Number.isFinite(numericCourseId)
+                    ? numericCourseId
+                    : 0
+            }
             bloquearCurso
         />
     );

@@ -4,6 +4,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+    ChevronLeft,
+    ChevronRight,
+    ExternalLink,
+    Eye,
+    LoaderCircle,
+    RefreshCw,
+    X,
+} from "lucide-react";
+import {
     getEnrollmentsByRole,
     resolveEnrollmentVoucherUrl,
     type Enrollment,
@@ -189,59 +198,64 @@ export default function StudentsPage() {
 
     const endItem = Math.min(activePage * ROWS_PER_PAGE, filteredItems.length);
 
+    const openVoucherModal = (item: Enrollment, voucherUrl: string) => {
+        setVoucherModalUrl(voucherUrl);
+        setVoucherModalTitle(`Comprobante - ${getStudentName(item)}`);
+    };
+
     return (
-        <section className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
-                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+        <section className="min-w-0 space-y-4 sm:space-y-5 [&_button:not(:disabled)]:cursor-pointer [&_button:not(:disabled)]:select-none [&_button:not(:disabled)]:transition-all [&_button:not(:disabled)]:duration-150 [&_button:not(:disabled)]:ease-out [&_button:not(:disabled):active]:translate-y-px [&_button:not(:disabled):active]:scale-[0.97] [&_button:not(:disabled):active]:brightness-95 [&_button:not(:disabled):active]:shadow-inner">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-blue-100 sm:text-xs sm:tracking-[0.22em] lg:text-sm">
                             Gestión de estudiantes
                         </p>
 
-                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                        <h2 className="mt-2 text-xl font-bold sm:text-2xl md:text-3xl [@media(max-height:760px)]:text-xl">
                             Estudiantes matriculados
                         </h2>
 
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">
+                        <p className="mt-2 max-w-2xl text-xs leading-5 text-blue-50 sm:text-sm sm:leading-6">
                             Consulta las matrículas con rol de estudiante,
                             revisa el curso asociado, verifica el estado de la
                             solicitud y visualiza los comprobantes registrados.
                         </p>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 xl:min-w-[570px]">
+                        <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Registros
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1 text-xl font-bold sm:mt-2 sm:text-2xl lg:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.total}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                        <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Estudiantes
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1 text-xl font-bold sm:mt-2 sm:text-2xl lg:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.uniqueStudents}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                        <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Aprobados
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1 text-xl font-bold sm:mt-2 sm:text-2xl lg:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.acceptedStudents}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                        <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Pendientes
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1 text-xl font-bold sm:mt-2 sm:text-2xl lg:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.pendingStudents}
                             </p>
                         </div>
@@ -251,7 +265,7 @@ export default function StudentsPage() {
 
             {notice ? (
                 <div
-                    className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${notice.type === "success"
+                    className={`rounded-xl border px-3 py-3 text-xs font-semibold leading-5 sm:rounded-2xl sm:px-4 sm:text-sm ${notice.type === "success"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-red-200 bg-red-50 text-red-700"
                         }`}
@@ -260,14 +274,14 @@ export default function StudentsPage() {
                 </div>
             ) : null}
 
-            <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-950">
+            <div className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                        <h3 className="text-base font-bold text-slate-950 sm:text-lg">
                             Lista de estudiantes
                         </h3>
 
-                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                        <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)] sm:text-sm">
                             Busca por estudiante, curso, código, comentario, rol
                             o identificadores.
                         </p>
@@ -277,13 +291,18 @@ export default function StudentsPage() {
                         type="button"
                         onClick={() => void loadStudents(true)}
                         disabled={isRefreshing}
-                        className="h-12 rounded-2xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-xs font-bold text-white shadow-sm hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-sm"
                     >
+                        {isRefreshing ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="h-4 w-4" />
+                        )}
                         {isRefreshing ? "Actualizando..." : "Actualizar"}
                     </button>
                 </div>
 
-                <div className="mt-5 grid gap-3 xl:grid-cols-[1.2fr_1fr_220px]">
+                <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,1.35fr)_minmax(190px,0.9fr)_180px] [@media(max-height:760px)]:mt-3">
                     <input
                         value={search}
                         onChange={(event) => {
@@ -291,7 +310,7 @@ export default function StudentsPage() {
                             setCurrentPage(1);
                         }}
                         placeholder="Buscar por estudiante, curso, código, comentario o ID"
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm md:col-span-2 lg:col-span-1"
                     />
 
                     <select
@@ -300,7 +319,7 @@ export default function StudentsPage() {
                             setCourseFilterId(Number(event.target.value));
                             setCurrentPage(1);
                         }}
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm"
                     >
                         <option value={0}>Todos los cursos</option>
 
@@ -317,7 +336,7 @@ export default function StudentsPage() {
                             setStatusFilter(event.target.value as StatusFilter);
                             setCurrentPage(1);
                         }}
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-sm"
                     >
                         <option value="all">Todos los estados</option>
                         <option value="accepted">Aprobados</option>
@@ -326,32 +345,140 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
+            <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm sm:rounded-3xl">
+                {/* Tarjetas únicamente para celulares muy estrechos */}
+                <div className="divide-y divide-slate-100 md:hidden">
+                    {isLoading ? (
+                        <div className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                            Cargando estudiantes...
+                        </div>
+                    ) : filteredItems.length === 0 ? (
+                        <div className="px-4 py-10 text-center">
+                            <p className="text-sm font-bold text-slate-800">
+                                No hay estudiantes para mostrar.
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                                No se encontraron matrículas con rol estudiante
+                                para los filtros seleccionados.
+                            </p>
+                        </div>
+                    ) : (
+                        paginatedItems.map((item) => {
+                            const voucherUrl = resolveEnrollmentVoucherUrl(
+                                item.voucher_url,
+                            );
+
+                            return (
+                                <article
+                                    key={item.id}
+                                    className="space-y-3 p-4 transition hover:bg-blue-50/30"
+                                >
+                                    <div className="flex min-w-0 items-start justify-between gap-3">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-xs font-bold uppercase text-white">
+                                                {getStudentInitials(item)}
+                                            </div>
+
+                                            <div className="min-w-0">
+                                                <p
+                                                    className="truncate text-sm font-bold text-slate-950"
+                                                    title={getStudentName(item)}
+                                                >
+                                                    {getStudentName(item)}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <span
+                                            className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${getStatusBadgeClass(
+                                                item.accepted,
+                                            )}`}
+                                        >
+                                            {item.accepted === true
+                                                ? "Aprobado"
+                                                : "Pendiente"}
+                                        </span>
+                                    </div>
+
+                                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
+                                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                            Curso
+                                        </p>
+                                        <p
+                                            className="mt-1 line-clamp-2 text-sm font-semibold text-slate-800"
+                                            title={item.course.name}
+                                        >
+                                            {item.course.name}
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                                Rol
+                                            </p>
+                                            <p className="mt-1 truncate text-xs font-bold text-blue-700">
+                                                {item.role.name}
+                                            </p>
+                                        </div>
+
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                                Código
+                                            </p>
+                                            <p
+                                                className="mt-1 truncate text-xs font-semibold text-slate-700"
+                                                title={item.reference_code || "Sin código"}
+                                            >
+                                                {item.reference_code || "Sin código"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {voucherUrl ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                openVoucherModal(item, voucherUrl)
+                                            }
+                                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                            Ver comprobante
+                                        </button>
+                                    ) : (
+                                        <div className="flex h-10 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-400">
+                                            Sin comprobante
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Tabla desde tablet y escritorio. En laptops evita tarjetas con espacios vacíos. */}
+                <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full min-w-[820px] table-fixed divide-y divide-slate-200">
                         <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[25%] px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:px-4">
                                     Estudiante
                                 </th>
 
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[28%] px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:px-4">
                                     Curso
                                 </th>
 
-                                <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
-                                    Rol matrícula
-                                </th>
-
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[18%] px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:px-4">
                                     Código
                                 </th>
 
-                                <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[13%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:px-4">
                                     Estado
                                 </th>
 
-                                <th className="px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[16%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:px-4">
                                     Comprobante
                                 </th>
                             </tr>
@@ -361,8 +488,8 @@ export default function StudentsPage() {
                             {isLoading ? (
                                 <tr>
                                     <td
-                                        colSpan={6}
-                                        className="px-5 py-12 text-center text-sm font-semibold text-slate-500"
+                                        colSpan={5}
+                                        className="px-5 py-10 text-center text-sm font-semibold text-slate-500"
                                     >
                                         Cargando estudiantes...
                                     </td>
@@ -370,8 +497,8 @@ export default function StudentsPage() {
                             ) : filteredItems.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={6}
-                                        className="px-5 py-12 text-center"
+                                        colSpan={5}
+                                        className="px-5 py-10 text-center"
                                     >
                                         <p className="text-sm font-bold text-slate-800">
                                             No hay estudiantes para mostrar.
@@ -393,57 +520,48 @@ export default function StudentsPage() {
                                     return (
                                         <tr
                                             key={item.id}
-                                            className="align-top transition hover:bg-blue-50/40"
+                                            className="align-middle transition hover:bg-blue-50/40"
                                         >
-                                            <td className="px-5 py-4">
-                                                <div className="flex min-w-[230px] items-center gap-3">
-                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-sm font-bold uppercase text-white">
-                                                        {getStudentInitials(
-                                                            item,
-                                                        )}
+                                            <td className="px-3 py-2.5 lg:px-4">
+                                                <div className="flex min-w-0 items-center gap-2.5">
+                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-xs font-bold uppercase text-white">
+                                                        {getStudentInitials(item)}
                                                     </div>
 
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-950">
-                                                            {getStudentName(
-                                                                item,
-                                                            )}
-                                                        </p>
-                                                        <p className="mt-0.5 text-xs font-medium text-slate-500">
-                                                            Usuario #
-                                                            {item.user.id}
+                                                    <div className="min-w-0">
+                                                        <p
+                                                            className="truncate text-xs font-bold text-slate-950 lg:text-sm"
+                                                            title={getStudentName(item)}
+                                                        >
+                                                            {getStudentName(item)}
                                                         </p>
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            <td className="px-5 py-4">
-                                                <div className="min-w-[260px]">
-                                                    <p className="text-sm font-semibold text-slate-800">
+                                            <td className="px-3 py-2.5 lg:px-4">
+                                                <div className="min-w-0">
+                                                    <p
+                                                        className="line-clamp-2 text-xs font-semibold leading-5 text-slate-800 lg:text-sm"
+                                                        title={item.course.name}
+                                                    >
                                                         {item.course.name}
                                                     </p>
-                                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
-                                                        Curso #{item.course.id}
-                                                    </p>
                                                 </div>
                                             </td>
 
-                                            <td className="px-5 py-4 text-center">
-                                                <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                                                    {item.role.name}
-                                                </span>
+                                            <td className="px-3 py-2.5 lg:px-4">
+                                                <p
+                                                    className="truncate text-xs font-semibold text-slate-700 lg:text-sm"
+                                                    title={item.reference_code || "Sin código"}
+                                                >
+                                                    {item.reference_code || "Sin código"}
+                                                </p>
                                             </td>
 
-                                            <td className="px-5 py-4">
-                                                <span className="text-sm font-semibold text-slate-700">
-                                                    {item.reference_code ||
-                                                        "Sin código"}
-                                                </span>
-                                            </td>
-
-                                            <td className="px-5 py-4 text-center">
+                                            <td className="px-3 py-2.5 text-center lg:px-4">
                                                 <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getStatusBadgeClass(
+                                                    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold lg:text-xs ${getStatusBadgeClass(
                                                         item.accepted,
                                                     )}`}
                                                 >
@@ -453,26 +571,29 @@ export default function StudentsPage() {
                                                 </span>
                                             </td>
 
-                                            <td className="px-5 py-4 text-center">
+                                            <td className="px-3 py-2.5 text-center lg:px-4">
                                                 {voucherUrl ? (
                                                     <button
                                                         type="button"
-                                                        onClick={() => {
-                                                            setVoucherModalUrl(
+                                                        title="Ver comprobante"
+                                                        aria-label={`Ver comprobante de ${getStudentName(
+                                                            item,
+                                                        )}`}
+                                                        onClick={() =>
+                                                            openVoucherModal(
+                                                                item,
                                                                 voucherUrl,
-                                                            );
-                                                            setVoucherModalTitle(
-                                                                `Comprobante - ${getStudentName(
-                                                                    item,
-                                                                )}`,
-                                                            );
-                                                        }}
-                                                        className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                                                            )
+                                                        }
+                                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-2.5 text-[11px] font-bold text-blue-700 hover:bg-blue-100 lg:px-3 lg:text-xs"
                                                     >
-                                                        Ver comprobante
+                                                        <Eye className="h-3.5 w-3.5 shrink-0 lg:h-4 lg:w-4" />
+                                                        <span className="hidden lg:inline">
+                                                            Ver
+                                                        </span>
                                                     </button>
                                                 ) : (
-                                                    <span className="text-sm font-semibold text-slate-400">
+                                                    <span className="text-xs font-semibold text-slate-400">
                                                         Sin comprobante
                                                     </span>
                                                 )}
@@ -485,41 +606,45 @@ export default function StudentsPage() {
                     </table>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm font-semibold text-slate-500">
-                        Mostrando {startItem} a {endItem} de{" "}
-                        {filteredItems.length} registros
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+                    <p className="text-center text-xs font-semibold text-slate-500 sm:text-sm lg:text-left">
+                        Mostrando {startItem} a {endItem} de {filteredItems.length}{" "}
+                        registros
                     </p>
 
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-2 sm:flex sm:justify-center">
                         <button
                             type="button"
+                            aria-label="Página anterior"
                             onClick={() =>
                                 setCurrentPage((page) =>
                                     Math.max(1, page - 1),
                                 )
                             }
                             disabled={activePage === 1}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-slate-200 px-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3"
                         >
-                            Anterior
+                            <ChevronLeft className="h-4 w-4" />
+                            <span className="hidden sm:inline">Anterior</span>
                         </button>
 
-                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                        <span className="flex h-10 min-w-0 items-center justify-center whitespace-nowrap rounded-xl bg-slate-100 px-3 text-center text-xs font-bold text-slate-700 sm:text-sm">
                             Página {activePage} de {totalPages}
                         </span>
 
                         <button
                             type="button"
+                            aria-label="Página siguiente"
                             onClick={() =>
                                 setCurrentPage((page) =>
                                     Math.min(totalPages, page + 1),
                                 )
                             }
                             disabled={activePage === totalPages}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex h-10 items-center justify-center gap-1 rounded-xl border border-slate-200 px-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-3"
                         >
-                            Siguiente
+                            <span className="hidden sm:inline">Siguiente</span>
+                            <ChevronRight className="h-4 w-4" />
                         </button>
                     </div>
                 </div>
@@ -527,25 +652,28 @@ export default function StudentsPage() {
 
             {voucherModalUrl ? (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
                     onClick={() => setVoucherModalUrl(null)}
                 >
                     <div
-                        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+                        className="flex h-[92dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-3xl"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-5 py-4 text-white">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
+                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-4 py-4 text-white sm:px-5">
+                            <div className="flex items-start justify-between gap-3 sm:gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-100 sm:text-xs sm:tracking-[0.25em]">
                                         Vista previa
                                     </p>
 
-                                    <h3 className="mt-2 text-lg font-bold">
+                                    <h3
+                                        className="mt-2 truncate text-base font-bold sm:text-lg"
+                                        title={voucherModalTitle}
+                                    >
                                         {voucherModalTitle}
                                     </h3>
 
-                                    <p className="mt-1 text-sm text-blue-50">
+                                    <p className="mt-1 hidden text-sm text-blue-50 sm:block">
                                         Comprobante registrado en la matrícula
                                         del estudiante.
                                     </p>
@@ -553,47 +681,53 @@ export default function StudentsPage() {
 
                                 <button
                                     type="button"
+                                    aria-label="Cerrar comprobante"
                                     onClick={() => setVoucherModalUrl(null)}
-                                    className="rounded-2xl bg-white/15 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
+                                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-white/15 px-3 text-sm font-bold text-white ring-1 ring-white/20 hover:bg-white/25 sm:px-4"
                                 >
-                                    Cerrar
+                                    <X className="h-4 w-4" />
+                                    <span className="hidden sm:inline">
+                                        Cerrar
+                                    </span>
                                 </button>
                             </div>
                         </div>
 
-                        <div className="h-[72vh] bg-slate-100 p-4">
+                        <div className="min-h-0 flex-1 bg-slate-100 p-2 sm:p-4">
                             {voucherModalUrl.toLowerCase().includes(".pdf") ? (
                                 <iframe
                                     src={voucherModalUrl}
                                     title={voucherModalTitle}
-                                    className="h-full w-full rounded-2xl border border-slate-200 bg-white"
+                                    className="h-full w-full rounded-xl border border-slate-200 bg-white sm:rounded-2xl"
                                 />
                             ) : (
                                 <div className="flex h-full items-center justify-center">
                                     <img
                                         src={voucherModalUrl}
                                         alt={voucherModalTitle}
-                                        className="max-h-full max-w-full rounded-2xl object-contain shadow-sm"
+                                        className="max-h-full max-w-full rounded-xl object-contain shadow-sm sm:rounded-2xl"
                                     />
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end">
+                        <div className="flex flex-col gap-2 border-t border-slate-200 px-4 py-3 sm:flex-row sm:justify-end sm:gap-3 sm:px-5 sm:py-4">
                             <a
                                 href={voucherModalUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="rounded-xl border border-slate-200 px-4 py-2 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                             >
+                                <ExternalLink className="h-4 w-4" />
                                 Abrir en otra pestaña
                             </a>
 
                             <button
                                 type="button"
                                 onClick={() => setVoucherModalUrl(null)}
-                                className="rounded-xl bg-[#172861] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#0B163F]"
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-sm font-bold text-white hover:bg-[#0B163F]"
                             >
+                                <X className="h-4 w-4" />
                                 Cerrar
                             </button>
                         </div>

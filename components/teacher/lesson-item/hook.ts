@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+
 import {
     getLessonBlock,
     updateLessonBlock,

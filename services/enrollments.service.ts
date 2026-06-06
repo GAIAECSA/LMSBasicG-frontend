@@ -9,6 +9,8 @@ export interface Enrollment {
         firstname: string;
         lastname: string;
         role_id: number;
+        idnumber?: string | null;
+        id_number?: string | null;
     };
     course: {
         id: number;

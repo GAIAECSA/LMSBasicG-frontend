@@ -647,16 +647,16 @@ export function useCourseMods({
         });
     }
 
-    function closeCreateModal() {
-        if (isSaving) return;
+    function closeCreateModal(force = false) {
+        if (isSaving && !force) return;
 
         setCreateModal(null);
         setFormTitle("");
         setFormError("");
     }
 
-    function closeEditModal() {
-        if (isSaving) return;
+    function closeEditModal(force = false) {
+        if (isSaving && !force) return;
 
         setEditModal(null);
         setFormTitle("");
@@ -744,7 +744,7 @@ export function useCourseMods({
             }
 
             await refreshModules(false);
-            closeCreateModal();
+            closeCreateModal(true);
         } catch (error) {
             setFormError(getErrorMessage(error));
         } finally {
@@ -800,7 +800,7 @@ export function useCourseMods({
             }
 
             await refreshModules(false);
-            closeEditModal();
+            closeEditModal(true);
         } catch (error) {
             setFormError(getErrorMessage(error));
         } finally {
@@ -813,8 +813,8 @@ export function useCourseMods({
         setDeleteModal(deleteState);
     }
 
-    function closeDeleteModal() {
-        if (isSaving) return;
+    function closeDeleteModal(force = false) {
+        if (isSaving && !force) return;
 
         setDeleteModal(null);
     }
@@ -839,7 +839,7 @@ export function useCourseMods({
             }
 
             await refreshModules(false);
-            closeDeleteModal();
+            closeDeleteModal(true);
         } catch (error) {
             setActionError(getErrorMessage(error));
         } finally {

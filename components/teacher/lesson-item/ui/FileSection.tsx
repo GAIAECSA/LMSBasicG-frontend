@@ -99,26 +99,26 @@ export function FileSection({ item }: FileSectionProps) {
     }
 
     return (
-        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-6 py-5">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-[28px]">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-4 py-4 sm:px-6 sm:py-5 [@media(max-height:760px)]:py-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-white shadow-sm">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-white shadow-sm sm:h-12 sm:w-12 sm:rounded-2xl">
                             {isImage ? (
-                                <ImageIcon className="h-6 w-6" />
+                                <ImageIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                             ) : (
-                                <FileText className="h-6 w-6" />
+                                <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
                             )}
                         </span>
 
                         <div>
-                            <h2 className="text-xl font-black text-slate-950">
+                            <h2 className="text-lg font-black text-slate-950 sm:text-xl">
                                 {isImage
                                     ? "Imagen de la lección"
                                     : "PDF de la lección"}
                             </h2>
 
-                            <p className="mt-1 text-sm font-medium text-slate-500">
+                            <p className="mt-1 text-xs font-medium leading-5 text-slate-500 sm:text-sm">
                                 {isImage
                                     ? "Agrega una imagen de apoyo para el contenido del curso."
                                     : "Publica un documento que el estudiante pueda consultar."}
@@ -132,7 +132,7 @@ export function FileSection({ item }: FileSectionProps) {
                 </div>
             </div>
 
-            <div className="space-y-6 p-6">
+            <div className="space-y-4 p-4 sm:space-y-5 sm:p-6 [@media(max-height:760px)]:space-y-3 [@media(max-height:760px)]:p-4">
                 <div className="space-y-2">
                     <label className="block text-[13px] font-black text-slate-700">
                         Descripción del material
@@ -151,18 +151,18 @@ export function FileSection({ item }: FileSectionProps) {
                                 ? "Describe brevemente qué representa la imagen..."
                                 : "Describe brevemente el contenido del documento..."
                         }
-                        className="min-h-[96px] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        className="min-h-[80px] w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-medium leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:min-h-[96px] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
                     />
                 </div>
 
                 <div
                     className={`grid gap-5 ${hasPreview
-                            ? "lg:grid-cols-[minmax(0,1fr)_320px]"
+                            ? "xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]"
                             : ""
                         }`}
                 >
                     {hasPreview ? (
-                        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:rounded-3xl">
                             <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
                                 <div className="flex min-w-0 items-center gap-2">
                                     <span
@@ -209,14 +209,14 @@ export function FileSection({ item }: FileSectionProps) {
                             </div>
 
                             {isImage ? (
-                                <div className="flex min-h-[320px] items-center justify-center bg-slate-100 p-4">
+                                <div className="flex min-h-[200px] items-center justify-center bg-slate-100 p-3 sm:min-h-[260px] sm:p-4 lg:min-h-[300px] [@media(max-height:760px)]:min-h-[180px]">
                                     <img
                                         src={previewUrl}
                                         alt={
                                             item.form.description ||
                                             "Vista previa de la imagen de la lección"
                                         }
-                                        className="max-h-[520px] w-full rounded-2xl object-contain"
+                                        className="max-h-[420px] w-full rounded-xl object-contain sm:rounded-2xl lg:max-h-[520px] [@media(max-height:760px)]:max-h-[320px]"
                                     />
                                 </div>
                             ) : (
@@ -224,7 +224,7 @@ export function FileSection({ item }: FileSectionProps) {
                                     <iframe
                                         src={previewUrl}
                                         title="Vista previa del PDF de la lección"
-                                        className="h-[680px] w-full rounded-2xl border border-slate-200 bg-white"
+                                        className="h-[420px] w-full rounded-xl border border-slate-200 bg-white sm:h-[560px] sm:rounded-2xl lg:h-[680px] [@media(max-height:760px)]:h-[360px]"
                                     />
                                 </div>
                             )}
@@ -232,10 +232,10 @@ export function FileSection({ item }: FileSectionProps) {
                     ) : null}
 
                     <div className="space-y-4">
-                        <label className="group flex min-h-[190px] cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-5 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50">
-                            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm transition group-hover:-translate-y-1">
+                        <label className="group flex min-h-[145px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-4 text-center transition hover:border-blue-400 hover:bg-blue-50 sm:min-h-[170px] sm:rounded-3xl sm:px-5 sm:py-5 [@media(max-height:760px)]:min-h-[130px]">
+                            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-blue-700 shadow-sm transition group-hover:-translate-y-1 sm:h-14 sm:w-14 sm:rounded-2xl">
                                 {hasSelectedFile || hasExistingFile ? (
-                                    <RefreshCw className="h-6 w-6" />
+                                    <RefreshCw className="h-5 w-5 sm:h-6 sm:w-6" />
                                 ) : (
                                     <UploadCloud className="h-7 w-7" />
                                 )}
@@ -360,7 +360,7 @@ export function FileSection({ item }: FileSectionProps) {
                                 (!item.selectedFile &&
                                     !item.fullExistingFileUrl)
                             }
-                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-black text-white shadow-sm transition hover:bg-[#0f1d48] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none sm:h-12 sm:rounded-2xl sm:px-5 sm:text-sm"
                         >
                             <Save className="h-4 w-4" />
 

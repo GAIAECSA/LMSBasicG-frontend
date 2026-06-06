@@ -17,6 +17,12 @@ import { ModulesList } from "./ui/ModulesList";
 import { FormModal } from "./ui/FormModal";
 import { DeleteModal } from "./ui/DeleteModal";
 
+const PAGE_CLASS =
+    "min-h-screen w-full bg-slate-50 px-3 py-3 pb-8 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3";
+
+const CONTAINER_CLASS =
+    "mx-auto w-full max-w-[1480px] min-w-0 space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3";
+
 export function TeacherCourseModulesPage({
     courseId,
     params,
@@ -25,8 +31,8 @@ export function TeacherCourseModulesPage({
 
     if (mods.isLoading) {
         return (
-            <section className="min-h-screen w-full bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
+            <section className={PAGE_CLASS}>
+                <div className="mx-auto w-full max-w-[1480px] min-w-0">
                     <Loading numericCourseId={mods.numericCourseId} />
                 </div>
             </section>
@@ -35,8 +41,8 @@ export function TeacherCourseModulesPage({
 
     if (mods.numericCourseId <= 0) {
         return (
-            <section className="min-h-screen w-full bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
+            <section className={PAGE_CLASS}>
+                <div className="mx-auto w-full max-w-[1480px] min-w-0">
                     <CourseSelect
                         courseOptions={mods.courseOptions}
                         errorMessage={mods.errorMessage}
@@ -48,9 +54,9 @@ export function TeacherCourseModulesPage({
     }
 
     return (
-        <section className="min-h-screen w-full bg-slate-50 px-4 py-6 pb-10 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-[1500px] space-y-6">
-                <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className={PAGE_CLASS}>
+            <div className={CONTAINER_CLASS}>
+                <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4 [@media(max-height:760px)]:p-3">
                     <Toolbar
                         backHref={mods.backHref}
                         backLabel={mods.backLabel}
@@ -65,13 +71,13 @@ export function TeacherCourseModulesPage({
                     actionError={mods.actionError}
                 />
 
-                <div className="overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white shadow-sm">
+                <div className="min-w-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm sm:rounded-3xl">
                     <Header
                         selectedCourseName={mods.selectedCourseName}
                         modulesCount={mods.modules.length}
                     />
 
-                    <div className="p-5 sm:p-6 md:p-8 lg:p-9">
+                    <div className="min-w-0 p-3 sm:p-4 md:p-5 lg:p-6 [@media(max-height:760px)]:p-3">
                         {mods.modules.length === 0 ? (
                             <EmptyState
                                 onCreateModule={mods.openCreateModuleModal}

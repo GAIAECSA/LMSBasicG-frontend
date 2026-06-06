@@ -425,6 +425,99 @@ export function PublicCoursesView() {
                 .athena-public-page {
                     font-family: "Roboto", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                 }
+
+                /*
+                 * Compacta únicamente la portada en laptops con poca altura,
+                 * por ejemplo 1280 × 720 o 1366 × 768.
+                 */
+                @media (min-width: 1024px) and (max-height: 760px) {
+                    .athena-public-header-inner {
+                        height: 64px !important;
+                    }
+
+                    .athena-public-logo {
+                        height: 44px !important;
+                        width: 44px !important;
+                        border-radius: 14px !important;
+                    }
+
+                    .athena-public-brand {
+                        font-size: 20px !important;
+                    }
+
+                    .athena-public-main {
+                        padding-top: 14px !important;
+                        padding-bottom: 48px !important;
+                    }
+
+                    .athena-hero {
+                        min-height: 0 !important;
+                        gap: 24px !important;
+                        padding-top: 0 !important;
+                        padding-bottom: 0 !important;
+                    }
+
+                    .athena-hero-kicker {
+                        margin-bottom: 12px !important;
+                        padding: 6px 14px !important;
+                        font-size: 10px !important;
+                    }
+
+                    .athena-hero-title {
+                        font-size: 52px !important;
+                    }
+
+                    .athena-hero-copy {
+                        margin-top: 14px !important;
+                        font-size: 14px !important;
+                        line-height: 1.55 !important;
+                    }
+
+                    .athena-hero-actions {
+                        margin-top: 16px !important;
+                        gap: 10px !important;
+                    }
+
+                    .athena-hero-actions > * {
+                        height: 46px !important;
+                        padding-left: 18px !important;
+                        padding-right: 18px !important;
+                    }
+
+                    .athena-students {
+                        margin-top: 15px !important;
+                    }
+
+                    .athena-feature-frame {
+                        border-width: 6px !important;
+                        border-radius: 28px !important;
+                    }
+
+                    .athena-feature-image,
+                    .athena-feature-empty {
+                        height: 306px !important;
+                    }
+
+                    .athena-feature-content {
+                        height: 166px !important;
+                        padding: 12px !important;
+                    }
+
+                    .athena-routes {
+                        margin-top: 18px !important;
+                        gap: 14px !important;
+                    }
+
+                    .athena-route-card {
+                        min-height: 74px !important;
+                        gap: 14px !important;
+                        padding: 15px !important;
+                    }
+
+                    .athena-courses {
+                        margin-top: 28px !important;
+                    }
+                }
             `}</style>
 
             <section
@@ -437,14 +530,14 @@ export function PublicCoursesView() {
                     <div className="absolute bottom-[-180px] left-1/3 h-[420px] w-[420px] rounded-full bg-sky-100/70 blur-3xl" />
                 </div>
 
-                <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
-                    <div className="mx-auto flex h-[82px] max-w-[1360px] items-center justify-between px-5 md:px-8 xl:px-0">
+                <header className="athena-public-header sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl">
+                    <div className="athena-public-header-inner mx-auto flex h-[68px] max-w-[1360px] items-center justify-between gap-3 px-4 transition-all sm:h-[74px] sm:px-5 lg:h-[82px] lg:px-6 xl:px-8 2xl:px-0">
                         <button
                             type="button"
                             onClick={() => scrollToSection("inicio")}
-                            className="flex items-center gap-3"
+                            className="flex min-w-0 items-center gap-2.5 sm:gap-3"
                         >
-                            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                            <div className="athena-public-logo flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm transition-all sm:h-12 sm:w-12 sm:rounded-2xl lg:h-14 lg:w-14 lg:p-2">
                                 <img
                                     src={HEADER_LOGO}
                                     alt="Logo ATHENA"
@@ -453,13 +546,13 @@ export function PublicCoursesView() {
                             </div>
 
                             <div className="text-left">
-                                <p className="text-2xl font-black leading-none tracking-tight text-slate-950">
+                                <p className="athena-public-brand text-lg font-black leading-none tracking-tight text-slate-950 sm:text-xl lg:text-2xl">
                                     ATHENA
                                 </p>
                             </div>
                         </button>
 
-                        <nav className="hidden items-center gap-11 text-sm font-black text-slate-700 lg:flex">
+                        <nav className="hidden items-center gap-5 text-xs font-black text-slate-700 lg:flex xl:gap-7 xl:text-sm 2xl:gap-11">
                             <button
                                 type="button"
                                 onClick={() => scrollToSection("cursos")}
@@ -476,13 +569,12 @@ export function PublicCoursesView() {
                                 Rutas de aprendizaje
                             </button>
 
-                            <button
-                                type="button"
-                                onClick={() => scrollToSection("inicio")}
+                            <Link
+                                href="/athena"
                                 className="transition hover:text-blue-700"
                             >
                                 Sobre ATHENA
-                            </button>
+                            </Link>
 
                             <button
                                 type="button"
@@ -495,39 +587,40 @@ export function PublicCoursesView() {
 
                         <Link
                             href="/login"
-                            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-6 text-sm font-black !text-white shadow-[0_14px_34px_rgba(29,78,216,0.28)] transition hover:-translate-y-0.5 hover:bg-blue-800"
+                            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-black !text-white shadow-[0_14px_34px_rgba(29,78,216,0.28)] transition hover:-translate-y-0.5 hover:bg-blue-800 sm:h-11 sm:rounded-2xl sm:px-5 sm:text-sm lg:h-12 lg:px-6"
                         >
-                            Iniciar sesión
+                            <span className="sm:hidden">Entrar</span>
+                            <span className="hidden sm:inline">Iniciar sesión</span>
                             <ArrowIcon />
                         </Link>
                     </div>
                 </header>
 
-                <main className="mx-auto max-w-[1360px] px-5 pb-16 pt-8 md:px-8 xl:px-0">
+                <main className="athena-public-main mx-auto max-w-[1360px] px-4 pb-12 pt-5 sm:px-5 sm:pb-14 sm:pt-7 lg:px-6 lg:pb-16 lg:pt-8 xl:px-8 2xl:px-0">
                     <section
                         id="informacion"
-                        className="scroll-mt-28 grid min-h-[440px] items-center gap-10 py-5 lg:grid-cols-[0.78fr_1.22fr]"
+                        className="athena-hero scroll-mt-24 grid min-h-0 items-center gap-7 py-2 sm:gap-8 sm:py-4 lg:min-h-[400px] lg:grid-cols-[0.82fr_1.18fr] lg:gap-8 xl:min-h-[440px] xl:grid-cols-[0.78fr_1.22fr] xl:gap-10"
                     >
                         <div className="relative">
-                            <div className="mb-6 inline-flex rounded-full bg-blue-100 px-5 py-2 text-xs font-black uppercase tracking-[0.26em] text-blue-700">
+                            <div className="athena-hero-kicker mb-4 inline-flex rounded-full bg-blue-100 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 sm:mb-5 sm:px-5 sm:text-xs sm:tracking-[0.26em] lg:mb-6">
                                 Sistema virtual de aprendizaje
                             </div>
 
-                            <h1 className="max-w-[620px] text-[54px] font-black leading-[0.95] tracking-[-0.04em] text-slate-950 md:text-[70px]">
+                            <h1 className="athena-hero-title max-w-[620px] text-[42px] font-black leading-[0.95] tracking-[-0.04em] text-slate-950 xs:text-[48px] sm:text-[56px] md:text-[64px] xl:text-[70px]">
                                 Aprende con{" "}
                                 <span className="block text-blue-700">ATHENA</span>
                             </h1>
 
-                            <p className="mt-7 max-w-[610px] text-[15px] font-medium leading-7 text-slate-600 md:text-[16px]">
+                            <p className="athena-hero-copy mt-5 max-w-[610px] text-sm font-medium leading-6 text-slate-600 sm:mt-6 sm:text-[15px] sm:leading-7 md:text-[16px] lg:mt-7">
                                 Explora nuestro catálogo de cursos diseñados para ayudarte a adquirir
                                 nuevas habilidades y crecer profesionalmente.
                             </p>
 
-                            <div className="mt-8 flex flex-wrap gap-4">
+                            <div className="athena-hero-actions mt-6 flex flex-wrap gap-3 sm:mt-7 sm:gap-4 lg:mt-8">
                                 <button
                                     type="button"
                                     onClick={() => scrollToSection("cursos")}
-                                    className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-blue-700 px-7 text-sm font-black !text-white shadow-[0_16px_35px_rgba(29,78,216,0.25)] transition hover:-translate-y-0.5 hover:bg-blue-800"
+                                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-xs font-black !text-white shadow-[0_16px_35px_rgba(29,78,216,0.25)] transition hover:-translate-y-0.5 hover:bg-blue-800 sm:h-14 sm:gap-3 sm:px-7 sm:text-sm"
                                 >
                                     Explorar cursos
                                     <ArrowIcon />
@@ -535,19 +628,19 @@ export function PublicCoursesView() {
 
                                 <Link
                                     href="/login"
-                                    className="inline-flex h-14 items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-7 text-sm font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-700"
+                                    className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-xs font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50 hover:text-blue-700 sm:h-14 sm:gap-3 sm:px-7 sm:text-sm"
                                 >
                                     Crear cuenta
                                     <UserIcon />
                                 </Link>
                             </div>
 
-                            <div className="mt-8 flex items-center gap-4">
+                            <div className="athena-students mt-6 flex items-center gap-3 sm:mt-8 sm:gap-4">
                                 <div className="flex -space-x-3">
-                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#bcdcff]" />
-                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#a9dcff]" />
-                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#b7c7ff]" />
-                                    <div className="h-9 w-9 rounded-full border-2 border-white bg-[#dce4ee]" />
+                                    <div className="h-8 w-8 rounded-full border-2 border-white bg-[#bcdcff] sm:h-9 sm:w-9" />
+                                    <div className="h-8 w-8 rounded-full border-2 border-white bg-[#a9dcff] sm:h-9 sm:w-9" />
+                                    <div className="h-8 w-8 rounded-full border-2 border-white bg-[#b7c7ff] sm:h-9 sm:w-9" />
+                                    <div className="h-8 w-8 rounded-full border-2 border-white bg-[#dce4ee] sm:h-9 sm:w-9" />
                                 </div>
 
                                 <div>
@@ -564,9 +657,9 @@ export function PublicCoursesView() {
                         <div className="relative lg:flex lg:justify-end">
                             <div className="absolute -right-14 top-10 hidden h-[340px] w-[340px] rounded-full bg-blue-200/40 blur-3xl lg:block" />
 
-                            <div className="relative w-full max-w-[790px] overflow-hidden rounded-[34px] border-[8px] border-white bg-white shadow-[0_30px_90px_rgba(15,23,42,0.15)]">
+                            <div className="athena-feature-frame relative w-full max-w-[790px] overflow-hidden rounded-[24px] border-4 border-white bg-white shadow-[0_30px_90px_rgba(15,23,42,0.15)] sm:rounded-[30px] sm:border-[6px] lg:rounded-[34px] lg:border-[8px]">
                                 {featuredCourse ? (
-                                    <div className="relative h-[380px] overflow-hidden rounded-[25px] bg-slate-100">
+                                    <div className="athena-feature-image relative h-[300px] overflow-hidden rounded-[18px] bg-slate-100 sm:h-[340px] sm:rounded-[22px] lg:h-[360px] xl:h-[380px] xl:rounded-[25px]">
                                         <img
                                             src={resolveImageUrl(getCourseImageUrl(featuredCourse))}
                                             alt={getCourseName(featuredCourse)}
@@ -579,19 +672,19 @@ export function PublicCoursesView() {
                                         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/25 via-slate-950/5 to-white/20" />
                                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
 
-                                        <div className="absolute left-5 top-5 flex flex-wrap gap-3">
-                                            <span className="rounded-full bg-white px-5 py-2 text-xs font-black uppercase text-slate-800 shadow-sm">
+                                        <div className="absolute left-3 top-3 flex max-w-[calc(100%-62px)] flex-wrap gap-2 sm:left-5 sm:top-5 sm:gap-3">
+                                            <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase text-slate-800 shadow-sm sm:px-5 sm:py-2 sm:text-xs">
                                                 {getCourseLevel(featuredCourse)}
                                             </span>
 
                                             {hasDiscount(featuredCourse) ? (
-                                                <span className="rounded-full bg-orange-500 px-5 py-2 text-xs font-black uppercase text-white shadow-sm">
+                                                <span className="rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-sm sm:px-5 sm:py-2 sm:text-xs">
                                                     En oferta
                                                 </span>
                                             ) : null}
 
                                             {getCourseDurationHours(featuredCourse) > 0 ? (
-                                                <span className="rounded-full bg-blue-700 px-5 py-2 text-xs font-black uppercase text-white shadow-sm">
+                                                <span className="rounded-full bg-blue-700 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-sm sm:px-5 sm:py-2 sm:text-xs">
                                                     {getCourseDurationHours(featuredCourse)} horas
                                                 </span>
                                             ) : null}
@@ -599,29 +692,29 @@ export function PublicCoursesView() {
 
                                         <button
                                             type="button"
-                                            className="absolute right-5 top-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/95 text-blue-700 shadow-sm"
+                                            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 text-blue-700 shadow-sm sm:right-5 sm:top-5 sm:h-12 sm:w-12 sm:rounded-2xl"
                                             aria-label="Guardar curso"
                                         >
                                             ♡
                                         </button>
 
-                                        <div className="absolute bottom-4 left-5 w-[465px] max-w-[calc(100%-40px)]">
-                                            <div className="flex h-[200px] flex-col overflow-hidden rounded-[24px] border border-white/60 bg-white/90 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.20)] backdrop-blur-xl">
+                                        <div className="absolute bottom-3 left-3 w-[465px] max-w-[calc(100%-24px)] sm:bottom-4 sm:left-5 sm:max-w-[calc(100%-40px)]">
+                                            <div className="athena-feature-content flex h-[176px] flex-col overflow-hidden rounded-[18px] border border-white/60 bg-white/90 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.20)] backdrop-blur-xl sm:h-[190px] sm:rounded-[22px] sm:p-4 lg:h-[200px] lg:rounded-[24px]">
                                                 <span className="w-fit rounded-full bg-blue-50 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">
                                                     Curso destacado
                                                 </span>
 
-                                                <h2 className="mt-2 line-clamp-1 text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-slate-950">
+                                                <h2 className="mt-2 line-clamp-1 text-base font-black leading-[1.2] tracking-[-0.02em] text-slate-950 sm:text-[20px]">
                                                     {getCourseName(featuredCourse)}
                                                 </h2>
 
-                                                <p className="mt-2 line-clamp-2 h-[38px] max-w-[430px] text-[11px] font-medium leading-[18px] text-slate-600">
+                                                <p className="mt-1.5 line-clamp-2 h-[34px] max-w-[430px] text-[10px] font-medium leading-[16px] text-slate-600 sm:mt-2 sm:h-[38px] sm:text-[11px] sm:leading-[18px]">
                                                     {getCourseDescription(featuredCourse) ||
                                                         "Curso disponible en la plataforma ATHENA."}
                                                 </p>
 
                                                 <div className="mt-auto flex items-end justify-between gap-3">
-                                                    <div className="rounded-2xl bg-white px-4 py-2 shadow-sm">
+                                                    <div className="rounded-xl bg-white px-3 py-1.5 shadow-sm sm:rounded-2xl sm:px-4 sm:py-2">
                                                         <p className="text-[10px] font-black uppercase text-slate-400">
                                                             Inversión
                                                         </p>
@@ -632,7 +725,7 @@ export function PublicCoursesView() {
 
                                                     <Link
                                                         href="/login"
-                                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-black !text-white shadow-sm transition hover:bg-blue-800"
+                                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-black !text-white shadow-sm transition hover:bg-blue-800 sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm"
                                                     >
                                                         Ver detalles
                                                         <ArrowIcon />
@@ -642,7 +735,7 @@ export function PublicCoursesView() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex h-[420px] items-center justify-center rounded-[25px] bg-gradient-to-br from-blue-50 to-white p-8">
+                                    <div className="athena-feature-empty flex h-[300px] items-center justify-center rounded-[18px] bg-gradient-to-br from-blue-50 to-white p-6 sm:h-[340px] sm:rounded-[22px] sm:p-8 lg:h-[360px] xl:h-[420px] xl:rounded-[25px]">
                                         <div className="max-w-sm text-center">
                                             <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
                                                 <img
@@ -669,9 +762,9 @@ export function PublicCoursesView() {
 
                     <section
                         id="rutas"
-                        className="scroll-mt-28 mt-8 grid gap-5 md:grid-cols-3"
+                        className="athena-routes scroll-mt-24 mt-7 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:mt-8 lg:gap-5"
                     >
-                        <div className="flex min-h-[92px] items-center gap-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+                        <div className="athena-route-card flex min-h-[86px] items-center gap-4 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)] sm:p-5 lg:min-h-[92px] lg:gap-5 lg:rounded-[24px] lg:p-6">
                             <BookIcon />
                             <div>
                                 <p className="text-lg font-black text-slate-950">
@@ -683,7 +776,7 @@ export function PublicCoursesView() {
                             </div>
                         </div>
 
-                        <div className="flex min-h-[92px] items-center gap-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+                        <div className="athena-route-card flex min-h-[86px] items-center gap-4 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)] sm:p-5 lg:min-h-[92px] lg:gap-5 lg:rounded-[24px] lg:p-6">
                             <GlobeIcon />
                             <div>
                                 <p className="text-lg font-black text-slate-950">
@@ -695,7 +788,7 @@ export function PublicCoursesView() {
                             </div>
                         </div>
 
-                        <div className="flex min-h-[92px] items-center gap-5 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)]">
+                        <div className="athena-route-card flex min-h-[86px] items-center gap-4 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_16px_40px_rgba(15,23,42,0.06)] sm:p-5 lg:min-h-[92px] lg:gap-5 lg:rounded-[24px] lg:p-6">
                             <ShieldIcon />
                             <div>
                                 <p className="text-lg font-black text-slate-950">
@@ -708,13 +801,13 @@ export function PublicCoursesView() {
                         </div>
                     </section>
 
-                    <section id="cursos" className="scroll-mt-28 mt-10">
+                    <section id="cursos" className="athena-courses scroll-mt-24 mt-9 lg:mt-10">
                         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.26em] text-blue-700">
                                     Oferta disponible
                                 </p>
-                                <h2 className="mt-3 text-[34px] font-black tracking-[-0.03em] text-slate-950">
+                                <h2 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-slate-950 sm:mt-3 sm:text-[34px]">
                                     Cursos disponibles
                                 </h2>
                                 <p className="mt-2 text-sm font-medium text-slate-500">
@@ -722,7 +815,7 @@ export function PublicCoursesView() {
                                 </p>
                             </div>
 
-                            <div className="grid gap-3 sm:grid-cols-[1fr_220px] lg:w-[620px]">
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px] lg:w-[600px] xl:w-[620px] xl:grid-cols-[minmax(0,1fr)_220px]">
                                 <div className="relative">
                                     <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
                                         <SearchIcon />
@@ -780,7 +873,7 @@ export function PublicCoursesView() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                            <div className="mt-7 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:gap-5 xl:grid-cols-4 2xl:grid-cols-5">
                                 {visibleCourses.map((course) => (
                                     <article
                                         key={course.id}

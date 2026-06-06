@@ -16,6 +16,21 @@ import {
     X,
 } from "lucide-react";
 
+import {
+    AuthAlert,
+    AuthCard,
+    AuthField,
+    AuthFormHeader,
+    AuthInfoPanel,
+    AuthPrimaryButton,
+    AUTH_ACTION_CLASS,
+    AUTH_FOOTER_CLASS,
+    AUTH_FOOTER_LINK_CLASS,
+    AUTH_FORM_STACK_CLASS,
+    AUTH_INPUT_CLASS,
+    AUTH_PASSWORD_INPUT_CLASS,
+    AUTH_PASSWORD_TOGGLE_CLASS,
+} from "@/components/auth/auth-ui";
 import { getDashboardRouteByRole } from "@/lib/auth";
 import { loginService } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
@@ -342,7 +357,7 @@ async function getActivePrivacyPolicyDirect(
             }
         }
     } catch {
-        // Si falla active/current, intenta con el listado.
+        // Si falla active/current, se intenta consultar el listado.
     }
 
     try {
@@ -432,7 +447,9 @@ function isAcceptanceValid(value: unknown) {
     return false;
 }
 
-function isPolicyRequired(policy: PrivacyPolicy | null) {
+function isPolicyRequired(
+    policy: PrivacyPolicy | null,
+) {
     if (!policy) return false;
 
     if (typeof policy.mandatory === "boolean") {
@@ -442,7 +459,9 @@ function isPolicyRequired(policy: PrivacyPolicy | null) {
     return true;
 }
 
-function getPolicyContent(policy: PrivacyPolicy | null) {
+function getPolicyContent(
+    policy: PrivacyPolicy | null,
+) {
     if (!policy) return "";
 
     return (
@@ -541,9 +560,15 @@ export function LoginForm() {
     async function confirmAcceptedPolicy(
         accessToken: string,
     ): Promise<boolean> {
-        for (let attempt = 0; attempt < 3; attempt += 1) {
+        for (
+            let attempt = 0;
+            attempt < 3;
+            attempt += 1
+        ) {
             const accepted =
-                await hasAcceptedCurrentPolicy(accessToken);
+                await hasAcceptedCurrentPolicy(
+                    accessToken,
+                );
 
             if (accepted) {
                 return true;
@@ -574,7 +599,10 @@ export function LoginForm() {
         setModalError("");
         setPolicyChecked(false);
 
-        if (!username.trim() || !password.trim()) {
+        if (
+            !username.trim() ||
+            !password.trim()
+        ) {
             setError(
                 "Primero ingresa tu usuario y contraseña.",
             );
@@ -584,6 +612,7 @@ export function LoginForm() {
 
         try {
             setSubmitting(true);
+            setLoadingPolicy(true);
 
             const response =
                 (await loginService({
@@ -591,7 +620,8 @@ export function LoginForm() {
                     password,
                 })) as LoginApiResponse;
 
-            const session = buildSession(response);
+            const session =
+                buildSession(response);
 
             const activePolicy =
                 await getActivePrivacyPolicyDirect(
@@ -630,6 +660,7 @@ export function LoginForm() {
             );
         } finally {
             setSubmitting(false);
+            setLoadingPolicy(false);
         }
     }
 
@@ -659,7 +690,10 @@ export function LoginForm() {
             let session = pendingSession;
 
             if (!session) {
-                if (!username.trim() || !password.trim()) {
+                if (
+                    !username.trim() ||
+                    !password.trim()
+                ) {
                     setModalError(
                         "Primero ingresa tu usuario y contraseña.",
                     );
@@ -673,7 +707,8 @@ export function LoginForm() {
                         password,
                     })) as LoginApiResponse;
 
-                session = buildSession(response);
+                session =
+                    buildSession(response);
             }
 
             await acceptPrivacyPolicyDirect(
@@ -728,37 +763,28 @@ export function LoginForm() {
 
     return (
         <>
-            <div className="w-full rounded-[20px] border border-white/70 bg-white/90 p-3.5 shadow-[0_18px_60px_rgba(15,23,42,0.14)] backdrop-blur-md sm:rounded-[26px] sm:p-5 lg:p-6 2xl:rounded-[28px] 2xl:p-8">
-                <div className="mb-4 sm:mb-5 2xl:mb-7">
-                    <span className="inline-flex rounded-full bg-[#edf3ff] px-3 py-1 text-[11px] font-semibold text-[#4a6db3] shadow-sm">
-                        ATHENA
-                    </span>
-
-                    <h2 className="mt-3 text-[clamp(1.55rem,2.1vw,1.9rem)] font-bold leading-tight tracking-tight text-slate-950 sm:mt-4">
-                        Iniciar sesión
-                    </h2>
-
-                    <p className="mt-2 text-xs leading-5 text-slate-500 sm:mt-3 sm:text-sm">
-                        Accede con tu usuario y contraseña.
-                    </p>
-                </div>
+            <AuthCard>
+                <AuthFormHeader
+                    title="Iniciar sesión"
+                    description="Accede con tu usuario y contraseña."
+                />
 
                 <form
-                    className="space-y-3.5 sm:space-y-4 2xl:space-y-5"
+                    className={AUTH_FORM_STACK_CLASS}
                     onSubmit={handleSubmit}
                 >
                     {error ? (
-                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        <AuthAlert>
                             {error}
-                        </div>
+                        </AuthAlert>
                     ) : null}
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">
-                            Usuario
-                        </label>
-
+                    <AuthField
+                        label="Usuario"
+                        htmlFor="login-username"
+                    >
                         <input
+                            id="login-username"
                             type="text"
                             value={username}
                             onChange={(event) => {
@@ -772,26 +798,25 @@ export function LoginForm() {
                             }}
                             placeholder="Ingresa tu usuario"
                             autoComplete="username"
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-11 sm:rounded-2xl sm:px-4 2xl:h-12"
+                            className={AUTH_INPUT_CLASS}
                         />
-                    </div>
+                    </AuthField>
 
-                    <div className="space-y-2">
-                        <div className="flex flex-col gap-1.5 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between min-[360px]:gap-3">
-                            <label className="text-sm font-semibold text-slate-700">
-                                Contraseña
-                            </label>
-
+                    <AuthField
+                        label="Contraseña"
+                        htmlFor="login-password"
+                        action={
                             <Link
                                 href="/forgot-password"
-                                className="text-[11px] font-semibold leading-4 text-[#003d8f] hover:underline sm:text-xs"
+                                className={AUTH_ACTION_CLASS}
                             >
                                 ¿Olvidaste tu contraseña?
                             </Link>
-                        </div>
-
+                        }
+                    >
                         <div className="relative">
                             <input
+                                id="login-password"
                                 type={
                                     showPassword
                                         ? "text"
@@ -809,18 +834,22 @@ export function LoginForm() {
                                 }}
                                 placeholder="Ingresa tu contraseña"
                                 autoComplete="current-password"
-                                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-11 sm:rounded-2xl sm:px-4 sm:pr-11 2xl:h-12 2xl:pr-12"
+                                className={
+                                    AUTH_PASSWORD_INPUT_CLASS
+                                }
                             />
 
                             <button
                                 type="button"
-                                onClick={() =>
+                                onClick={() => {
                                     setShowPassword(
                                         (previous) =>
                                             !previous,
-                                    )
+                                    );
+                                }}
+                                className={
+                                    AUTH_PASSWORD_TOGGLE_CLASS
                                 }
-                                className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center text-slate-400 transition hover:text-slate-700 sm:h-11 sm:w-11 2xl:h-12 2xl:w-12"
                                 aria-label={
                                     showPassword
                                         ? "Ocultar contraseña"
@@ -834,30 +863,24 @@ export function LoginForm() {
                                 )}
                             </button>
                         </div>
-                    </div>
+                    </AuthField>
 
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-                        <div className="flex items-start gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-[#003d8f] shadow-sm sm:h-9 sm:w-9">
-                                <FileText className="h-4 w-4" />
-                            </div>
+                    <AuthInfoPanel
+                        icon={
+                            <FileText className="h-4 w-4" />
+                        }
+                        title="Política de privacidad"
+                    >
+                        Si tienes una política pendiente,
+                        se mostrará después de validar tus
+                        datos.
+                    </AuthInfoPanel>
 
-                            <div className="min-w-0">
-                                <p className="text-xs font-bold text-slate-800 sm:text-sm">
-                                    Política de privacidad
-                                </p>
-
-                                <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
-                                    Si tienes una política pendiente, se mostrará después de validar tus datos.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={submitting || loadingPolicy}
-                        className="flex h-10 w-full items-center justify-center rounded-xl bg-[linear-gradient(180deg,#003d8f_0%,#002a66_100%)] px-4 text-xs font-bold text-white shadow-lg shadow-blue-950/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70 sm:h-11 sm:rounded-2xl sm:text-sm 2xl:h-12"
+                    <AuthPrimaryButton
+                        disabled={
+                            submitting ||
+                            loadingPolicy
+                        }
                     >
                         {submitting ? (
                             <span className="flex items-center gap-2">
@@ -867,24 +890,25 @@ export function LoginForm() {
                         ) : (
                             "Entrar al sistema"
                         )}
-                    </button>
+                    </AuthPrimaryButton>
                 </form>
 
-                <div className="mt-4 text-center text-xs text-slate-500 sm:mt-5 sm:text-sm">    
+                <div className={AUTH_FOOTER_CLASS}>
                     ¿No tienes cuenta?{" "}
                     <Link
                         href="/register"
-                        className="font-bold text-[#003d8f] hover:underline"
+                        className={AUTH_FOOTER_LINK_CLASS}
                     >
                         Regístrate
                     </Link>
                 </div>
-            </div>
+            </AuthCard>
 
-            {showPrivacyModal && privacyPolicy ? (
+            {showPrivacyModal &&
+                privacyPolicy ? (
                 <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/75 p-3 sm:p-5">
-                    <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[26px] bg-white shadow-2xl">
-                        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6">
+                    <section className="flex h-[92dvh] max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[20px] bg-white shadow-2xl sm:rounded-[26px]">
+                        <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6">
                             <div className="min-w-0">
                                 <p className="text-xs font-black uppercase tracking-[0.22em] text-[#003d8f]">
                                     Política pendiente
@@ -897,7 +921,10 @@ export function LoginForm() {
 
                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                                     <span>
-                                        Versión {privacyPolicy.version}
+                                        Versión{" "}
+                                        {
+                                            privacyPolicy.version
+                                        }
                                     </span>
 
                                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
@@ -908,43 +935,56 @@ export function LoginForm() {
 
                             <button
                                 type="button"
-                                onClick={closePrivacyModal}
-                                disabled={acceptingPolicy}
+                                onClick={
+                                    closePrivacyModal
+                                }
+                                disabled={
+                                    acceptingPolicy
+                                }
                                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                                 aria-label="Cerrar política"
                             >
                                 <X className="h-5 w-5" />
                             </button>
-                        </div>
+                        </header>
 
                         <div className="flex-1 overflow-hidden bg-slate-100">
                             {privacyPolicyUrl ? (
                                 <iframe
                                     title="Política de privacidad"
-                                    src={privacyPolicyUrl}
+                                    src={
+                                        privacyPolicyUrl
+                                    }
                                     className="h-full w-full border-0 bg-white"
                                 />
                             ) : privacyPolicyContent ? (
-                                <div className="h-full overflow-y-auto whitespace-pre-line bg-white p-5 text-sm leading-7 text-slate-700 sm:p-7">
-                                    {privacyPolicyContent}
+                                <div className="h-full overflow-y-auto whitespace-pre-line bg-white p-4 text-sm leading-7 text-slate-700 sm:p-7">
+                                    {
+                                        privacyPolicyContent
+                                    }
                                 </div>
                             ) : (
-                                <div className="flex h-full items-center justify-center p-6 text-center">
-                                    <div className="max-w-md rounded-3xl bg-white p-6 shadow-sm">
+                                <div className="flex h-full items-center justify-center p-4 text-center sm:p-6">
+                                    <div className="max-w-md rounded-3xl bg-white p-5 shadow-sm sm:p-6">
                                         <FileText className="mx-auto h-10 w-10 text-slate-300" />
 
                                         <p className="mt-3 text-sm font-semibold text-slate-600">
-                                            No existe documento o contenido para esta política.
+                                            No existe
+                                            documento o
+                                            contenido para
+                                            esta política.
                                         </p>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
+                        <footer className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
                             {modalError ? (
-                                <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                                    {modalError}
+                                <div className="mb-3">
+                                    <AuthAlert>
+                                        {modalError}
+                                    </AuthAlert>
                                 </div>
                             ) : null}
 
@@ -952,36 +992,58 @@ export function LoginForm() {
                                 <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                                     <input
                                         type="checkbox"
-                                        checked={policyChecked}
-                                        disabled={acceptingPolicy}
-                                        onChange={(event) => {
+                                        checked={
+                                            policyChecked
+                                        }
+                                        disabled={
+                                            acceptingPolicy
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) => {
                                             setPolicyChecked(
-                                                event.target.checked,
+                                                event
+                                                    .target
+                                                    .checked,
                                             );
 
-                                            if (event.target.checked) {
-                                                setModalError("");
-                                                setError("");
+                                            if (
+                                                event
+                                                    .target
+                                                    .checked
+                                            ) {
+                                                setModalError(
+                                                    "",
+                                                );
+                                                setError(
+                                                    "",
+                                                );
                                             }
                                         }}
                                         className="mt-1 h-4 w-4 rounded border-slate-300 text-[#003d8f] focus:ring-[#003d8f]"
                                     />
 
                                     <span className="text-sm font-semibold leading-6 text-slate-700">
-                                        Acepto la política de privacidad.
+                                        Acepto la política
+                                        de privacidad.
                                     </span>
                                 </label>
 
                                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-xs leading-5 text-slate-500">
-                                        Debes aceptar para continuar.
+                                        Debes aceptar para
+                                        continuar.
                                     </p>
 
                                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
                                         <button
                                             type="button"
-                                            onClick={closePrivacyModal}
-                                            disabled={acceptingPolicy}
+                                            onClick={
+                                                closePrivacyModal
+                                            }
+                                            disabled={
+                                                acceptingPolicy
+                                            }
                                             className="h-11 rounded-2xl border border-slate-200 px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             Cancelar
@@ -1006,15 +1068,16 @@ export function LoginForm() {
                                             ) : (
                                                 <>
                                                     <CheckCircle2 className="h-4 w-4" />
-                                                    Aceptar y continuar
+                                                    Aceptar y
+                                                    continuar
                                                 </>
                                             )}
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        </footer>
+                    </section>
                 </div>
             ) : null}
         </>

@@ -7,13 +7,13 @@ export function Alerts({ error, notice }: AlertsProps) {
     return (
         <>
             {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold leading-5 text-red-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                     {error}
                 </div>
             ) : null}
 
             {notice ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                     {notice}
                 </div>
             ) : null}

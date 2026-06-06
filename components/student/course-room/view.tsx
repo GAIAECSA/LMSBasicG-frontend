@@ -124,16 +124,16 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
     ]);
 
     return (
-        <section className="min-h-screen overflow-x-hidden bg-[var(--background)] px-3 py-4 pt-16 text-[var(--foreground)] sm:px-5 sm:py-5 md:px-6 md:pt-6 lg:px-8 xl:px-10">
-            <div className="mx-auto w-full min-w-0 max-w-[1500px]">
-                <div className="mb-4 flex min-w-0 flex-col gap-3 sm:mb-5 lg:flex-row lg:items-center lg:justify-between">
+        <section className="min-h-screen overflow-x-hidden bg-[var(--background)] px-3 py-3 pt-16 text-[var(--foreground)] sm:px-4 sm:py-4 md:px-5 md:pt-4 lg:px-6 xl:px-7 [@media(max-height:760px)]:py-3">
+            <div className="mx-auto w-full min-w-0 max-w-[1450px]">
+                <div className="mb-3 flex min-w-0 flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <Breadcrumb courseName={room.courseName} />
 
                     <TopActions studentInitials={room.studentInitials} />
                 </div>
 
                 {room.errorMessage ? (
-                    <div className="mb-4 sm:mb-5">
+                    <div className="mb-3 sm:mb-4">
                         <Alert message={room.errorMessage} />
                     </div>
                 ) : null}
@@ -147,7 +147,7 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
                             isMdtCourse={isMdtCourse}
                         />
 
-                        <div className="mt-4 min-w-0 sm:mt-5">
+                        <div className="mt-3 min-w-0 sm:mt-4">
                             <Tabs
                                 activeTab={room.activeTab}
                                 onChange={room.setActiveTab}
@@ -157,7 +157,7 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
                             />
                         </div>
 
-                        <div className="mt-4 min-w-0 sm:mt-5">
+                        <div className="mt-3 min-w-0 sm:mt-4">
                             {room.activeTab === "summary" ? (
                                 <SummaryTab room={room} />
                             ) : null}
@@ -187,12 +187,12 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
                             ) : null}
 
                             {!isMdtCourse &&
-                                room.activeTab === "certificate" ? (
+                            room.activeTab === "certificate" ? (
                                 <CertificateTab room={room} />
                             ) : null}
 
                             {isMdtCourse &&
-                                room.activeTab === "mdtcertificate" ? (
+                            room.activeTab === "mdtcertificate" ? (
                                 <MdtCertificateTab
                                     room={room}
                                     isMdtCourse={isMdtCourse}
@@ -202,7 +202,7 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
                             ) : null}
 
                             {isMdtCourse &&
-                                room.activeTab === "mdtrequiredfiles" ? (
+                            room.activeTab === "mdtrequiredfiles" ? (
                                 <MdtRequiredFilesTab
                                     room={room}
                                     isMdtCourse={isMdtCourse}

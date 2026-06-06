@@ -24,17 +24,35 @@ export function FormModal({
     onClose,
     onSubmit,
 }: FormModalProps) {
+    function handleBackdropClick() {
+        if (mods.isSaving) return;
+
+        onClose();
+    }
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-            <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
-                <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-black text-white">
+        <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+            onClick={handleBackdropClick}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="form-modal-title"
+                className="flex max-h-[96dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[28px]"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="shrink-0 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-4 py-4 text-white sm:px-5 sm:py-5 lg:px-6">
+                    <div className="flex items-start justify-between gap-3 sm:gap-4">
+                        <div className="min-w-0 flex-1">
+                            <h2
+                                id="form-modal-title"
+                                className="break-words text-lg font-black leading-6 text-white [overflow-wrap:anywhere] sm:text-xl sm:leading-7"
+                            >
                                 {title}
                             </h2>
 
-                            <p className="mt-1 text-sm leading-6 text-blue-50">
+                            <p className="mt-1 break-words text-xs leading-5 text-blue-50 [overflow-wrap:anywhere] sm:text-sm sm:leading-6">
                                 {description}
                             </p>
                         </div>
@@ -42,34 +60,38 @@ export function FormModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white transition hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={mods.isSaving}
+                            aria-label="Cerrar modal"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white transition hover:bg-white/25 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-10 sm:rounded-2xl"
                         >
-                            <X className="h-5 w-5" />
+                            <X className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                     </div>
                 </div>
 
                 <form
                     onSubmit={onSubmit}
-                    className="max-h-[calc(92vh-96px)] space-y-5 overflow-y-auto p-6"
+                    className="flex min-h-0 flex-1 flex-col"
                 >
-                    {mods.formError ? (
-                        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                            {mods.formError}
-                        </div>
-                    ) : null}
+                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-5 sm:p-5 lg:p-6">
+                        {mods.formError ? (
+                            <div className="break-words rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
+                                {mods.formError}
+                            </div>
+                        ) : null}
 
-                    <div className="grid gap-4 md:grid-cols-[1fr_140px]">
-                        <div className="space-y-2">
-                            <label className="block text-[13px] font-bold text-slate-700">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 sm:text-[13px]">
                                 Nombre
                             </label>
 
                             <input
                                 value={mods.formTitle}
                                 onChange={(event) => {
-                                    mods.setFormTitle(event.target.value);
+                                    mods.setFormTitle(
+                                        event.target.value,
+                                    );
+
                                     mods.setFormError("");
                                 }}
                                 placeholder={
@@ -79,57 +101,46 @@ export function FormModal({
                                         )} introductorio`
                                         : "Ej: Unidad I. Presentación"
                                 }
-                                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                className="mt-1.5 h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:mt-2 sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm"
                                 disabled={mods.isSaving}
                             />
                         </div>
 
-                        {/* <div className="space-y-2">
-                            <label className="block text-[13px] font-bold text-slate-700">
-                                Orden
-                            </label>
-
-                            <input
-                                type="number"
-                                value={mods.formOrder}
-                                onChange={(event) =>
-                                    mods.setFormOrder(event.target.value)
+                        {itemType ? (
+                            <BlockFields
+                                itemType={itemType}
+                                blockForm={mods.blockForm}
+                                setBlockForm={
+                                    mods.setBlockForm
                                 }
-                                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                disabled={mods.isSaving}
                             />
-                        </div> */}
+                        ) : null}
                     </div>
 
-                    {itemType ? (
-                        <BlockFields
-                            itemType={itemType}
-                            blockForm={mods.blockForm}
-                            setBlockForm={mods.setBlockForm}
-                        />
-                    ) : null}
-
-                    <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                    <div className="grid shrink-0 grid-cols-1 gap-2 border-t border-slate-200 bg-white p-4 xs:grid-cols-2 sm:gap-3 sm:px-5 lg:flex lg:justify-end lg:px-6">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={mods.isSaving}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-5 sm:text-sm"
                         >
                             Cancelar
                         </button>
 
                         <button
                             type="submit"
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
                             disabled={mods.isSaving}
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-bold text-white shadow-sm transition hover:bg-[#0B163F] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-5 sm:text-sm"
                         >
                             {mods.isSaving ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <Save className="h-4 w-4" />
                             )}
-                            {submitLabel}
+
+                            {mods.isSaving
+                                ? "Guardando..."
+                                : submitLabel}
                         </button>
                     </div>
                 </form>

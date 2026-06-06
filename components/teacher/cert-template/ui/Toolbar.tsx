@@ -35,14 +35,17 @@ export function Toolbar({
     onGeneratePdf,
 }: ToolbarProps) {
     return (
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
                 <Link
                     href={backHref}
-                    className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    className="inline-flex h-10 w-fit max-w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
-                    <ArrowLeft className="h-4 w-4" />
-                    {backLabel}
+                    <ArrowLeft className="h-4 w-4 shrink-0" />
+
+                    <span className="truncate">
+                        {backLabel}
+                    </span>
                 </Link>
 
                 {isAdminRoute && routeCourseId <= 0 ? (
@@ -51,9 +54,10 @@ export function Toolbar({
                         onChange={(event) =>
                             onSelectCourse(event.target.value)
                         }
-                        className="h-11 min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:max-w-sm sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <option value="">Selecciona un curso</option>
+
                         {courseOptions.map((courseItem) => (
                             <option key={courseItem.id} value={courseItem.id}>
                                 {courseItem.name}
@@ -63,10 +67,14 @@ export function Toolbar({
                 ) : null}
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-                <label className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 text-sm font-bold text-[#172861] shadow-sm transition hover:bg-blue-50">
-                    <ImagePlus className="h-4 w-4" />
-                    {hasBackgroundImage ? "Cambiar fondo" : "Subir fondo"}
+            <div className="grid grid-cols-1 gap-2 xs:grid-cols-3 xl:flex xl:shrink-0">
+                <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm">
+                    <ImagePlus className="h-4 w-4 shrink-0" />
+
+                    <span className="truncate">
+                        {hasBackgroundImage ? "Cambiar fondo" : "Subir fondo"}
+                    </span>
+
                     <input
                         type="file"
                         accept="image/*"
@@ -84,10 +92,13 @@ export function Toolbar({
                             ? "Guardar plantilla"
                             : "Primero sube una imagen de fondo"
                     }
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
-                    <Save className="h-4 w-4" />
-                    {isSavingTemplate ? "Guardando..." : "Guardar"}
+                    <Save className="h-4 w-4 shrink-0" />
+
+                    <span className="truncate">
+                        {isSavingTemplate ? "Guardando..." : "Guardar"}
+                    </span>
                 </button>
 
                 <button
@@ -99,10 +110,13 @@ export function Toolbar({
                             ? "Generar PDF"
                             : "Primero sube una imagen de fondo"
                     }
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#172861] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#0B163F] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
-                    <Download className="h-4 w-4" />
-                    {isGenerating ? "Generando..." : "Generar PDF"}
+                    <Download className="h-4 w-4 shrink-0" />
+
+                    <span className="truncate">
+                        {isGenerating ? "Generando..." : "Generar PDF"}
+                    </span>
                 </button>
             </div>
         </div>

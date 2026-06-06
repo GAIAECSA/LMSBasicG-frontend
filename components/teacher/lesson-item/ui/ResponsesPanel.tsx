@@ -16,18 +16,18 @@ export function ResponsesPanel({ item, block }: ResponsesPanelProps) {
     if (!item.canShowResponsePanel) return null;
 
     return (
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6 [@media(max-height:760px)]:p-4">
             <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                        <Users className="h-6 w-6" />
+                <div className="min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 sm:h-12 sm:w-12 sm:rounded-2xl">
+                        <Users className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
 
-                    <h2 className="mt-4 text-lg font-black text-slate-950">
+                    <h2 className="mt-3 text-base font-black text-slate-950 sm:mt-4 sm:text-lg">
                         Respuestas recibidas
                     </h2>
 
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                         {item.itemType === "survey"
                             ? "Respuestas enviadas por estudiantes en esta encuesta."
                             : "Participaciones enviadas por estudiantes en este foro."}
@@ -38,49 +38,47 @@ export function ResponsesPanel({ item, block }: ResponsesPanelProps) {
                     type="button"
                     onClick={() => void item.loadActivityResponses(block)}
                     disabled={item.loadingResponses}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-10 sm:rounded-2xl"
                     aria-label="Actualizar respuestas"
                 >
                     <RefreshCw
-                        className={`h-4 w-4 ${item.loadingResponses ? "animate-spin" : ""
-                            }`}
+                        className={`h-4 w-4 ${item.loadingResponses ? "animate-spin" : ""}`}
                     />
                 </button>
             </div>
 
-            <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs">
                     Total
                 </p>
 
-                <p className="mt-1 text-2xl font-black text-slate-950">
+                <p className="mt-1 text-xl font-black text-slate-950 sm:text-2xl">
                     {item.activityResponses.length}
                 </p>
             </div>
 
             {item.loadingResponses ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-500 sm:rounded-2xl sm:p-4 sm:text-sm">
                     Cargando respuestas...
                 </div>
             ) : item.activityResponses.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm text-slate-500">
+                <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-xs text-slate-500 sm:rounded-2xl sm:p-5 sm:text-sm">
                     Todavía no existen respuestas para este bloque.
                 </div>
             ) : (
-                <div className="mt-4 max-h-[440px] space-y-3 overflow-y-auto pr-1">
+                <div className="mt-4 max-h-[320px] space-y-2 overflow-y-auto pr-1 sm:max-h-[440px] sm:space-y-3 [@media(max-height:760px)]:max-h-[260px]">
                     {item.activityResponses.map((response, index) => (
                         <article
-                            key={`${response.id ?? index}-${response.created_at ?? index
-                                }`}
-                            className="rounded-2xl border border-slate-200 bg-white p-4"
+                            key={`${response.id ?? index}-${response.created_at ?? index}`}
+                            className="rounded-xl border border-slate-200 bg-white p-3 sm:rounded-2xl sm:p-4"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="truncate text-sm font-black text-slate-950">
+                                    <p className="truncate text-xs font-black text-slate-950 sm:text-sm">
                                         {getActivityResponseStudent(response)}
                                     </p>
 
-                                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                                    <p className="mt-1 text-[10px] font-semibold text-slate-500 sm:text-xs">
                                         Matrícula #
                                         {response.enrollment?.id ??
                                             response.enrollment_id ??
@@ -89,29 +87,26 @@ export function ResponsesPanel({ item, block }: ResponsesPanelProps) {
                                     </p>
                                 </div>
 
-                                <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase text-blue-700">
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 sm:px-2.5 sm:py-1 sm:text-[10px]">
                                     #{response.id ?? index + 1}
                                 </span>
                             </div>
 
-                            <p className="mt-3 line-clamp-5 whitespace-pre-line text-xs font-semibold leading-5 text-slate-600">
+                            <p className="mt-2 line-clamp-4 whitespace-pre-line text-[11px] font-semibold leading-5 text-slate-600 sm:mt-3 sm:text-xs">
                                 {getActivityResponseText(response)}
                             </p>
 
                             <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold text-slate-400">
+                                <span className="text-[10px] font-bold text-slate-400 sm:text-[11px]">
                                     {formatDate(
-                                        response.updated_at ??
-                                        response.created_at,
+                                        response.updated_at ?? response.created_at,
                                     )}
                                 </span>
 
                                 <button
                                     type="button"
                                     onClick={() =>
-                                        window.alert(
-                                            getActivityResponseText(response),
-                                        )
+                                        window.alert(getActivityResponseText(response))
                                     }
                                     className="inline-flex h-8 items-center justify-center gap-1 rounded-xl bg-slate-100 px-3 text-[11px] font-black text-slate-700 transition hover:bg-slate-200"
                                 >

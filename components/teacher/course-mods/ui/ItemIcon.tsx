@@ -13,7 +13,10 @@ type ItemIconProps = {
     className: string;
 };
 
-export function ItemIcon({ type, className }: ItemIconProps) {
+export function ItemIcon({
+    type,
+    className,
+}: ItemIconProps) {
     if (type === "video") return <PlayCircle className={className} />;
     if (type === "quiz") return <ClipboardList className={className} />;
     if (type === "image") return <ImageIcon className={className} />;

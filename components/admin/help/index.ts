@@ -1,0 +1,1 @@
+export { HelpPageView } from "./view";

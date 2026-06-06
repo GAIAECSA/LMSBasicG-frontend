@@ -9,6 +9,15 @@ import {
     type FormEvent,
 } from "react";
 import {
+    LoaderCircle,
+    Pencil,
+    Plus,
+    RefreshCw,
+    Search,
+    Trash2,
+    X,
+} from "lucide-react";
+import {
     deleteUser,
     getAllUsers,
     registerUser,
@@ -97,7 +106,6 @@ function getRoleBadgeClass(roleId: number) {
     return "bg-orange-100 text-orange-700";
 }
 
-
 function normalizeResourceUrl(url: string) {
     if (!url) return "";
 
@@ -142,9 +150,7 @@ export default function UsersPage() {
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<UserWithIdnumber | null>(
-        null,
-    );
+    const [editingUser, setEditingUser] = useState<UserWithIdnumber | null>(null);
     const [form, setForm] = useState<UserFormState>(emptyForm);
 
     const [privacyPolicy, setPrivacyPolicy] = useState<PrivacyPolicy | null>(
@@ -200,9 +206,7 @@ export default function UsersPage() {
             setPrivacyPolicy(activePolicy);
         } catch {
             setPrivacyPolicy(null);
-            setPrivacyError(
-                "No se pudo cargar la política de privacidad activa.",
-            );
+            setPrivacyError("No se pudo cargar la política de privacidad activa.");
         } finally {
             setPrivacyLoading(false);
         }
@@ -306,9 +310,7 @@ export default function UsersPage() {
     ) => {
         const { name, value, type } = event.target;
         const checked =
-            type === "checkbox"
-                ? (event.target as HTMLInputElement).checked
-                : false;
+            type === "checkbox" ? (event.target as HTMLInputElement).checked : false;
 
         setForm((currentForm) => ({
             ...currentForm,
@@ -356,7 +358,11 @@ export default function UsersPage() {
             return "Espera mientras se carga la política de privacidad.";
         }
 
-        if (!editingUser && privacyPolicyIsRequired && !form.accepted_privacy_policy) {
+        if (
+            !editingUser &&
+            privacyPolicyIsRequired &&
+            !form.accepted_privacy_policy
+        ) {
             return "El usuario debe aceptar la política de privacidad para ser registrado manualmente.";
         }
 
@@ -465,58 +471,58 @@ export default function UsersPage() {
     };
 
     return (
-        <section className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
-                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                        <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
+        <section className="min-w-0 space-y-4 sm:space-y-5 lg:space-y-6 [@media(max-height:760px)]:space-y-4 [&_button:not(:disabled)]:cursor-pointer [&_button:not(:disabled)]:select-none [&_button:not(:disabled)]:transition-all [&_button:not(:disabled)]:duration-150 [&_button:not(:disabled)]:ease-out [&_button:not(:disabled):active]:translate-y-px [&_button:not(:disabled):active]:scale-[0.97] [&_button:not(:disabled):active]:brightness-95 [&_button:not(:disabled):active]:shadow-inner">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-5 xl:gap-6">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-blue-100 sm:text-xs sm:tracking-[0.25em] lg:text-sm">
                             Gestión de usuarios
                         </p>
 
-                        <h2 className="mt-3 text-2xl font-bold md:text-3xl">
+                        <h2 className="mt-2 text-xl font-bold sm:mt-3 sm:text-2xl lg:text-3xl [@media(max-height:760px)]:text-xl">
                             Usuarios registrados
                         </h2>
 
-                        <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-50">
-                            Administra los usuarios creados en la plataforma,
-                            revisa sus datos principales, consulta su rol y
-                            realiza acciones de edición o eliminación.
+                        <p className="mt-2 max-w-2xl text-xs leading-5 text-blue-50 sm:text-sm sm:leading-6 [@media(max-height:760px)]:text-xs [@media(max-height:760px)]:leading-5">
+                            Administra los usuarios creados en la plataforma, revisa sus datos
+                            principales, consulta su rol y realiza acciones de edición o
+                            eliminación.
                         </p>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:min-w-[620px]">
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:min-w-[440px] xl:min-w-[560px] 2xl:min-w-[620px]">
+                        <div className="min-w-0 rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Total
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1.5 text-xl font-bold sm:mt-2 sm:text-2xl xl:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.total}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                        <div className="min-w-0 rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Admin
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1.5 text-xl font-bold sm:mt-2 sm:text-2xl xl:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.admins}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                        <div className="min-w-0 rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Docentes
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1.5 text-xl font-bold sm:mt-2 sm:text-2xl xl:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.teachers}
                             </p>
                         </div>
 
-                        <div className="rounded-2xl bg-white/15 p-4 ring-1 ring-white/20">
-                            <p className="text-xs font-bold uppercase tracking-wide text-white/75">
+                        <div className="min-w-0 rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+                            <p className="truncate text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
                                 Estudiantes
                             </p>
-                            <p className="mt-2 text-3xl font-bold">
+                            <p className="mt-1.5 text-xl font-bold sm:mt-2 sm:text-2xl xl:text-3xl [@media(max-height:760px)]:text-xl">
                                 {isLoading ? "..." : stats.students}
                             </p>
                         </div>
@@ -526,7 +532,7 @@ export default function UsersPage() {
 
             {(errorMessage || successMessage) && !isModalOpen ? (
                 <div
-                    className={`rounded-2xl border px-5 py-4 text-sm font-semibold ${errorMessage
+                    className={`rounded-xl border px-4 py-3 text-xs font-semibold leading-5 sm:rounded-2xl sm:px-5 sm:py-4 sm:text-sm ${errorMessage
                         ? "border-red-200 bg-red-50 text-red-700"
                         : "border-emerald-200 bg-emerald-50 text-emerald-700"
                         }`}
@@ -535,25 +541,26 @@ export default function UsersPage() {
                 </div>
             ) : null}
 
-            <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-950">
+                        <h3 className="text-base font-bold text-slate-950 sm:text-lg">
                             Lista de usuarios
                         </h3>
 
-                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                            Busca por nombre, usuario, cédula, correo, teléfono,
-                            departamento, rol o ID.
+                        <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)] sm:text-sm">
+                            Busca por nombre, usuario, cédula, correo, teléfono, departamento,
+                            rol o ID.
                         </p>
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row">
+                    <div className="grid gap-2.5 xs:grid-cols-2 sm:gap-3">
                         <button
                             type="button"
                             onClick={openCreateModal}
-                            className="h-12 rounded-2xl bg-[#172861] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F]"
+                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-bold text-white shadow-sm transition hover:bg-[#0B163F] sm:h-11 sm:rounded-2xl sm:px-5 sm:text-sm [@media(max-height:760px)]:h-10"
                         >
+                            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
                             Nuevo usuario
                         </button>
 
@@ -561,14 +568,23 @@ export default function UsersPage() {
                             type="button"
                             onClick={() => void loadUsers(true)}
                             disabled={isRefreshing}
-                            className="h-12 rounded-2xl bg-orange-500 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-5 sm:text-sm [@media(max-height:760px)]:h-10"
                         >
+                            <RefreshCw
+                                className={`h-4 w-4 shrink-0 ${isRefreshing ? "animate-spin" : ""
+                                    }`}
+                                aria-hidden="true"
+                            />
                             {isRefreshing ? "Actualizando..." : "Actualizar"}
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-5">
+                <div className="relative mt-4 w-full lg:max-w-[520px] [@media(max-height:760px)]:mt-3">
+                    <Search
+                        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                        aria-hidden="true"
+                    />
                     <input
                         type="search"
                         value={searchTerm}
@@ -577,35 +593,35 @@ export default function UsersPage() {
                             setCurrentPage(1);
                         }}
                         placeholder="Buscar usuario, cédula, nombre, correo, rol o ID"
-                        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 lg:max-w-[440px]"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:text-sm"
                     />
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-[var(--border)] bg-white shadow-sm">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
+            <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm sm:rounded-3xl">
+                <div className="hidden overflow-x-auto lg:block">
+                    <table className="w-full min-w-[900px] table-fixed divide-y divide-slate-200">
                         <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[29%] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                     Usuario
                                 </th>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[14%] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                     Cédula
                                 </th>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[25%] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                     Correo
                                 </th>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="hidden w-[13%] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 2xl:table-cell">
                                     Teléfono
                                 </th>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="hidden w-[15%] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600 2xl:table-cell">
                                     Departamento
                                 </th>
-                                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[14%] px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-600">
                                     Rol
                                 </th>
-                                <th className="px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-slate-600">
+                                <th className="w-[112px] px-3 py-3 text-right text-xs font-bold uppercase tracking-wide text-slate-600 2xl:w-[228px]">
                                     Acciones
                                 </th>
                             </tr>
@@ -623,98 +639,131 @@ export default function UsersPage() {
                                 </tr>
                             ) : paginatedUsers.length === 0 ? (
                                 <tr>
-                                    <td
-                                        colSpan={7}
-                                        className="px-5 py-12 text-center"
-                                    >
+                                    <td colSpan={7} className="px-5 py-12 text-center">
                                         <p className="text-sm font-bold text-slate-800">
                                             No hay usuarios para mostrar.
                                         </p>
                                         <p className="mt-1 text-sm text-slate-500">
-                                            Crea un usuario nuevo o cambia el
-                                            texto de búsqueda.
+                                            Crea un usuario nuevo o cambia el texto de búsqueda.
                                         </p>
                                     </td>
                                 </tr>
                             ) : (
                                 paginatedUsers.map((user) => (
-                                    <tr
-                                        key={user.id}
-                                        className="transition hover:bg-blue-50/40"
-                                    >
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#172861] text-sm font-bold text-white">
-                                                    {(user.firstname || "U")
-                                                        .charAt(0)
-                                                        .toUpperCase()}
+                                    <tr key={user.id} className="transition hover:bg-blue-50/40">
+                                        <td className="min-w-0 px-4 py-3 align-middle">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-sm font-bold text-white">
+                                                    {(user.firstname || "U").charAt(0).toUpperCase()}
                                                 </div>
 
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-950">
-                                                        {user.firstname}{" "}
-                                                        {user.lastname}
+                                                <div className="min-w-0">
+                                                    <p
+                                                        title={`${user.firstname || ""} ${user.lastname || ""}`.trim()}
+                                                        className="truncate text-sm font-bold text-slate-950"
+                                                    >
+                                                        {user.firstname} {user.lastname}
                                                     </p>
-                                                    <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                                    <p
+                                                        title={`@${user.username || ""}`}
+                                                        className="mt-0.5 truncate text-xs font-medium text-slate-500"
+                                                    >
                                                         @{user.username}
                                                     </p>
                                                 </div>
                                             </div>
                                         </td>
 
-                                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                                        <td className="whitespace-nowrap px-4 py-3 align-middle text-sm font-semibold text-slate-700">
                                             {user.idnumber || "Sin cédula"}
                                         </td>
 
-                                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">
-                                            {user.email}
+                                        <td className="min-w-0 px-4 py-3 align-middle">
+                                            <p
+                                                title={user.email || ""}
+                                                className="truncate text-sm font-semibold text-slate-700"
+                                            >
+                                                {user.email}
+                                            </p>
+
+                                            <p className="mt-1 truncate text-xs font-medium text-slate-500 2xl:hidden">
+                                                {user.phone_number || "Sin teléfono"}
+                                                {" · "}
+                                                {user.departament || "Sin departamento"}
+                                            </p>
                                         </td>
 
-                                        <td className="px-5 py-4 text-sm font-semibold text-slate-500">
-                                            {user.phone_number ||
-                                                "Sin teléfono"}
+                                        <td className="hidden px-4 py-3 align-middle text-sm font-semibold text-slate-500 2xl:table-cell">
+                                            <p
+                                                className="truncate"
+                                                title={user.phone_number || "Sin teléfono"}
+                                            >
+                                                {user.phone_number || "Sin teléfono"}
+                                            </p>
                                         </td>
 
-                                        <td className="px-5 py-4 text-sm font-semibold text-slate-500">
-                                            {user.departament ||
-                                                "Sin departamento"}
+                                        <td className="hidden min-w-0 px-4 py-3 align-middle text-sm font-semibold text-slate-500 2xl:table-cell">
+                                            <p
+                                                className="truncate"
+                                                title={user.departament || "Sin departamento"}
+                                            >
+                                                {user.departament || "Sin departamento"}
+                                            </p>
                                         </td>
 
-                                        <td className="px-5 py-4">
+                                        <td className="px-4 py-3 align-middle">
                                             <span
-                                                className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getRoleBadgeClass(
+                                                className={`inline-flex max-w-full rounded-full px-3 py-1 text-xs font-bold ${getRoleBadgeClass(
                                                     user.role_id,
                                                 )}`}
                                             >
-                                                {getRoleLabel(user.role_id)}
+                                                <span className="truncate">
+                                                    {getRoleLabel(user.role_id)}
+                                                </span>
                                             </span>
                                         </td>
 
-                                        <td className="px-5 py-4">
-                                            <div className="flex justify-end gap-2">
+                                        <td className="px-3 py-3 align-middle">
+                                            <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     type="button"
-                                                    onClick={() =>
-                                                        openEditModal(user)
-                                                    }
-                                                    className="rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                                                    onClick={() => openEditModal(user)}
+                                                    aria-label={`Editar usuario ${user.firstname} ${user.lastname}`}
+                                                    title="Editar usuario"
+                                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-200 text-blue-700 transition hover:bg-blue-50 2xl:w-auto 2xl:gap-2 2xl:px-3"
                                                 >
-                                                    Editar
+                                                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                                                    <span className="hidden text-xs font-bold 2xl:inline">
+                                                        Editar
+                                                    </span>
                                                 </button>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() =>
-                                                        void handleDelete(user)
-                                                    }
-                                                    disabled={
+                                                    onClick={() => void handleDelete(user)}
+                                                    disabled={deletingId === user.id}
+                                                    aria-label={`Eliminar usuario ${user.firstname} ${user.lastname}`}
+                                                    title={
                                                         deletingId === user.id
+                                                            ? "Eliminando usuario..."
+                                                            : "Eliminar usuario"
                                                     }
-                                                    className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 2xl:w-auto 2xl:gap-2 2xl:px-3"
                                                 >
-                                                    {deletingId === user.id
-                                                        ? "Eliminando..."
-                                                        : "Eliminar"}
+                                                    {deletingId === user.id ? (
+                                                        <LoaderCircle
+                                                            className="h-4 w-4 animate-spin"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                    )}
+
+                                                    <span className="hidden text-xs font-bold 2xl:inline">
+                                                        {deletingId === user.id
+                                                            ? "Eliminando..."
+                                                            : "Eliminar"}
+                                                    </span>
                                                 </button>
                                             </div>
                                         </td>
@@ -725,39 +774,147 @@ export default function UsersPage() {
                     </table>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm font-semibold text-slate-500">
-                        Mostrando {paginatedUsers.length} de{" "}
-                        {filteredUsers.length} registros
+                <div className="divide-y divide-slate-100 lg:hidden">
+                    {isLoading ? (
+                        <div className="px-4 py-12 text-center text-sm font-semibold text-slate-500">
+                            Cargando usuarios...
+                        </div>
+                    ) : paginatedUsers.length === 0 ? (
+                        <div className="px-4 py-12 text-center">
+                            <p className="text-sm font-bold text-slate-800">
+                                No hay usuarios para mostrar.
+                            </p>
+                            <p className="mt-1 text-sm text-slate-500">
+                                Crea un usuario nuevo o cambia el texto de búsqueda.
+                            </p>
+                        </div>
+                    ) : (
+                        paginatedUsers.map((user) => (
+                            <article key={user.id} className="space-y-3 p-4 sm:space-y-4 sm:p-5">
+                                <div className="flex min-w-0 items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white sm:h-11 sm:w-11 sm:rounded-2xl">
+                                        {(user.firstname || "U").charAt(0).toUpperCase()}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0">
+                                                <p className="break-words text-sm font-bold text-slate-950">
+                                                    {user.firstname} {user.lastname}
+                                                </p>
+                                                <p className="mt-0.5 break-all text-xs font-medium text-slate-500">
+                                                    @{user.username}
+                                                </p>
+                                            </div>
+
+                                            <span
+                                                className={`inline-flex w-fit shrink-0 rounded-full px-3 py-1 text-xs font-bold ${getRoleBadgeClass(
+                                                    user.role_id,
+                                                )}`}
+                                            >
+                                                {getRoleLabel(user.role_id)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <dl className="grid gap-3 rounded-xl bg-slate-50 p-3 text-xs sm:grid-cols-2 sm:rounded-2xl sm:text-sm">
+                                    <div className="min-w-0">
+                                        <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                            Cédula
+                                        </dt>
+                                        <dd className="mt-1 break-words font-semibold text-slate-700">
+                                            {user.idnumber || "Sin cédula"}
+                                        </dd>
+                                    </div>
+
+                                    <div className="min-w-0">
+                                        <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                            Teléfono
+                                        </dt>
+                                        <dd className="mt-1 break-words font-semibold text-slate-700">
+                                            {user.phone_number || "Sin teléfono"}
+                                        </dd>
+                                    </div>
+
+                                    <div className="min-w-0 sm:col-span-2">
+                                        <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                            Correo
+                                        </dt>
+                                        <dd className="mt-1 break-all font-semibold text-slate-700">
+                                            {user.email}
+                                        </dd>
+                                    </div>
+
+                                    <div className="min-w-0 sm:col-span-2">
+                                        <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                            Departamento
+                                        </dt>
+                                        <dd className="mt-1 break-words font-semibold text-slate-700">
+                                            {user.departament || "Sin departamento"}
+                                        </dd>
+                                    </div>
+                                </dl>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => openEditModal(user)}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 px-3 py-2.5 text-xs font-bold text-blue-700 transition hover:bg-blue-50"
+                                    >
+                                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                                        Editar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleDelete(user)}
+                                        disabled={deletingId === user.id}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2.5 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {deletingId === user.id ? (
+                                            <LoaderCircle
+                                                className="h-4 w-4 animate-spin"
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                        {deletingId === user.id ? "Eliminando..." : "Eliminar"}
+                                    </button>
+                                </div>
+                            </article>
+                        ))
+                    )}
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:px-5 sm:py-4 md:flex-row md:items-center md:justify-between">
+                    <p className="text-center text-xs font-semibold text-slate-500 sm:text-sm md:text-left">
+                        Mostrando {paginatedUsers.length} de {filteredUsers.length}{" "}
+                        registros
                     </p>
 
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:gap-2">
                         <button
                             type="button"
-                            onClick={() =>
-                                setCurrentPage((page) =>
-                                    Math.max(1, page - 1),
-                                )
-                            }
+                            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                             disabled={activePage === 1}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-xl border border-slate-200 px-2.5 py-2 text-[11px] font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
                         >
                             Anterior
                         </button>
 
-                        <span className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+                        <span className="whitespace-nowrap rounded-xl bg-slate-100 px-2.5 py-2 text-center text-[11px] font-bold text-slate-700 sm:px-4 sm:text-sm">
                             Página {activePage} de {totalPages}
                         </span>
 
                         <button
                             type="button"
                             onClick={() =>
-                                setCurrentPage((page) =>
-                                    Math.min(totalPages, page + 1),
-                                )
+                                setCurrentPage((page) => Math.min(totalPages, page + 1))
                             }
                             disabled={activePage === totalPages}
-                            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-xl border border-slate-200 px-2.5 py-2 text-[11px] font-bold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
                         >
                             Siguiente
                         </button>
@@ -766,9 +923,9 @@ export default function UsersPage() {
             </div>
 
             {isModalOpen ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-6">
-                    <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-                        <div className="bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-6 py-5 text-white">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-[1px] sm:items-center sm:px-4 sm:py-4 lg:py-6">
+                    <div className="flex max-h-[96dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-3xl [@media(max-height:760px)]:max-h-[96dvh]">
+                        <div className="shrink-0 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-4 py-3.5 text-white sm:px-6 sm:py-5 [@media(max-height:760px)]:py-3">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-100">
@@ -776,34 +933,33 @@ export default function UsersPage() {
                                     </p>
 
                                     <h3 className="mt-2 text-xl font-bold">
-                                        {editingUser
-                                            ? "Editar usuario"
-                                            : "Crear nuevo usuario"}
+                                        {editingUser ? "Editar usuario" : "Crear nuevo usuario"}
                                     </h3>
 
                                     <p className="mt-1 text-sm text-blue-50">
-                                        Completa los datos principales del
-                                        usuario.
+                                        Completa los datos principales del usuario.
                                     </p>
                                 </div>
 
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="rounded-full bg-white/15 px-3 py-1 text-sm font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25"
+                                    aria-label="Cerrar formulario"
+                                    title="Cerrar"
+                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/20 transition hover:bg-white/25"
                                 >
-                                    X
+                                    <X className="h-4 w-4" aria-hidden="true" />
                                 </button>
                             </div>
                         </div>
 
                         <form
                             onSubmit={handleSubmit}
-                            className="max-h-[calc(92vh-116px)] space-y-5 overflow-y-auto p-6"
+                            className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-5 sm:p-6 [@media(max-height:760px)]:space-y-3 [@media(max-height:760px)]:p-4"
                         >
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4 [@media(max-height:760px)]:gap-3">
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Usuario
                                     </label>
                                     <input
@@ -811,12 +967,12 @@ export default function UsersPage() {
                                         value={form.username}
                                         onChange={handleInputChange}
                                         placeholder="Ej: sebastian"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Cédula
                                     </label>
                                     <input
@@ -826,12 +982,12 @@ export default function UsersPage() {
                                         inputMode="numeric"
                                         maxLength={10}
                                         placeholder="Ej: 0999999999"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Contraseña
                                     </label>
                                     <input
@@ -840,16 +996,14 @@ export default function UsersPage() {
                                         value={form.password}
                                         onChange={handleInputChange}
                                         placeholder={
-                                            editingUser
-                                                ? "Dejar vacío para no cambiar"
-                                                : "Contraseña"
+                                            editingUser ? "Dejar vacío para no cambiar" : "Contraseña"
                                         }
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Nombre
                                     </label>
                                     <input
@@ -857,12 +1011,12 @@ export default function UsersPage() {
                                         value={form.firstname}
                                         onChange={handleInputChange}
                                         placeholder="Nombre"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Apellido
                                     </label>
                                     <input
@@ -870,12 +1024,12 @@ export default function UsersPage() {
                                         value={form.lastname}
                                         onChange={handleInputChange}
                                         placeholder="Apellido"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Correo
                                     </label>
                                     <input
@@ -884,12 +1038,12 @@ export default function UsersPage() {
                                         value={form.email}
                                         onChange={handleInputChange}
                                         placeholder="correo@ejemplo.com"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Teléfono
                                     </label>
                                     <input
@@ -897,12 +1051,12 @@ export default function UsersPage() {
                                         value={form.phone_number}
                                         onChange={handleInputChange}
                                         placeholder="0999999999"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Departamento
                                     </label>
                                     <input
@@ -910,17 +1064,17 @@ export default function UsersPage() {
                                         value={form.departament}
                                         onChange={handleInputChange}
                                         placeholder="Ej: Académico"
-                                        className="h-11 w-full rounded-2xl border border-slate-200 px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                        className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-bold text-slate-700">
+                                    <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
                                         Rol
                                     </label>
 
                                     {editingUser ? (
-                                        <div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700">
+                                        <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9">
                                             {getRoleLabel(editingUser.role_id)}
                                         </div>
                                     ) : (
@@ -928,13 +1082,10 @@ export default function UsersPage() {
                                             name="role_id"
                                             value={form.role_id}
                                             onChange={handleInputChange}
-                                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
                                         >
                                             {modalRoleOptions.map((role) => (
-                                                <option
-                                                    key={role.id}
-                                                    value={role.id}
-                                                >
+                                                <option key={role.id} value={role.id}>
                                                     {role.label}
                                                 </option>
                                             ))}
@@ -943,15 +1094,14 @@ export default function UsersPage() {
 
                                     {editingUser ? (
                                         <p className="mt-1 text-xs font-semibold text-slate-500">
-                                            El rol no se modifica desde este
-                                            formulario.
+                                            El rol no se modifica desde este formulario.
                                         </p>
                                     ) : null}
                                 </div>
                             </div>
 
                             {!editingUser ? (
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl sm:p-4">
                                     {privacyLoading ? (
                                         <p className="text-sm font-semibold text-slate-500">
                                             Cargando política de privacidad...
@@ -976,19 +1126,14 @@ export default function UsersPage() {
                                                     {privacyPolicy.version}
                                                 </span>
                                                 , vigente desde{" "}
-                                                {formatPolicyDate(
-                                                    privacyPolicy.effective_date,
-                                                )}
-                                                .{" "}
+                                                {formatPolicyDate(privacyPolicy.effective_date)}.{" "}
                                                 {privacyPolicyUrl ? (
                                                     <a
                                                         href={privacyPolicyUrl}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                         className="font-bold text-[#172861] underline-offset-4 hover:underline"
-                                                        onClick={(event) =>
-                                                            event.stopPropagation()
-                                                        }
+                                                        onClick={(event) => event.stopPropagation()}
                                                     >
                                                         Ver documento
                                                     </a>
@@ -1015,12 +1160,12 @@ export default function UsersPage() {
                                 </div>
                             ) : null}
 
-                            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                            <div className="sticky bottom-0 -mx-4 -mb-4 flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-4 pb-4 pt-3 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:gap-3 sm:px-6 sm:pb-6 sm:pt-4">
                                 <button
                                     type="button"
                                     onClick={closeModal}
                                     disabled={isSubmitting}
-                                    className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="h-10 w-full rounded-xl border border-slate-200 px-4 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:rounded-2xl sm:px-5 sm:text-sm"
                                 >
                                     Cancelar
                                 </button>
@@ -1028,7 +1173,7 @@ export default function UsersPage() {
                                 <button
                                     type="submit"
                                     disabled={isSubmitting || (!editingUser && privacyLoading)}
-                                    className="rounded-2xl bg-[#172861] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="h-10 w-full rounded-xl bg-[#172861] px-4 text-xs font-bold text-white shadow-sm transition hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:rounded-2xl sm:px-5 sm:text-sm"
                                 >
                                     {isSubmitting
                                         ? "Guardando..."

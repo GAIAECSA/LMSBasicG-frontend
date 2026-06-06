@@ -14,15 +14,7 @@ export function ModuleAccordion({
     moduleIndex,
     room,
 }: ModuleAccordionProps) {
-    /*
-        Mientras el estudiante todavía no interactúa con el índice,
-        se abre únicamente el primer módulo.
-
-        Después de cualquier interacción, openModules se convierte
-        en la fuente de verdad.
-    */
-    const hasControlledModuleState =
-        Object.keys(room.openModules).length > 0;
+    const hasControlledModuleState = Object.keys(room.openModules).length > 0;
 
     const isOpen = hasControlledModuleState
         ? Boolean(room.openModules[moduleItem.id])
@@ -44,13 +36,6 @@ export function ModuleAccordion({
                 ? Boolean(current[moduleItem.id])
                 : moduleIndex === 0;
 
-            /*
-                Si el estudiante presiona nuevamente el módulo abierto,
-                se permite cerrarlo.
-
-                Si abre otro módulo, el estado anterior se reemplaza
-                completamente. Así nunca quedan dos módulos abiertos.
-            */
             if (isCurrentlyOpen) {
                 return {
                     [moduleItem.id]: false,
@@ -64,44 +49,43 @@ export function ModuleAccordion({
     }
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--muted)]">
+        <div className="min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--muted)] sm:rounded-2xl">
             <button
                 type="button"
                 onClick={handleToggleModule}
-                className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+                className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-3 text-left transition hover:bg-white/50 sm:px-4"
             >
-                <span>
-                    <span className="block text-xs font-black uppercase text-[var(--primary)]">
+                <span className="min-w-0">
+                    <span className="block text-[10px] font-black uppercase text-[var(--primary)] sm:text-xs">
                         Módulo {moduleIndex + 1}
                     </span>
 
-                    <span className="block text-sm font-black text-[var(--foreground)]">
+                    <span className="mt-0.5 line-clamp-2 break-all text-xs font-black leading-4 text-[var(--foreground)] [overflow-wrap:anywhere] sm:text-sm sm:leading-5">
                         {moduleItem.name}
                     </span>
                 </span>
 
-                <span className="flex items-center gap-2 text-xs font-black text-[var(--muted-foreground)]">
+                <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-black text-[var(--muted-foreground)] sm:text-xs">
                     {completed}/{moduleBlocks.length}
 
                     <ChevronDown
-                        className={`h-4 w-4 transition ${isOpen ? "" : "-rotate-90"
-                            }`}
+                        className={`h-4 w-4 transition ${
+                            isOpen ? "" : "-rotate-90"
+                        }`}
                     />
                 </span>
             </button>
 
             {isOpen ? (
-                <div className="space-y-3 border-t border-[var(--border)] bg-white p-3">
-                    {moduleItem.lessons.map(
-                        (lessonItem, lessonIndex) => (
-                            <LessonAccordion
-                                key={lessonItem.id}
-                                lessonItem={lessonItem}
-                                lessonIndex={lessonIndex}
-                                room={room}
-                            />
-                        ),
-                    )}
+                <div className="space-y-2.5 border-t border-[var(--border)] bg-white p-2.5 sm:space-y-3 sm:p-3">
+                    {moduleItem.lessons.map((lessonItem, lessonIndex) => (
+                        <LessonAccordion
+                            key={lessonItem.id}
+                            lessonItem={lessonItem}
+                            lessonIndex={lessonIndex}
+                            room={room}
+                        />
+                    ))}
                 </div>
             ) : null}
         </div>

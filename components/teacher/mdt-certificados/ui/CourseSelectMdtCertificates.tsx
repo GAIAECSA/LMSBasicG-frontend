@@ -1,3 +1,8 @@
+import {
+    AlertCircle,
+    Award,
+    Layers3,
+} from "lucide-react";
 import type { Course } from "@/services/courses.service";
 
 type CourseSelectMdtCertificatesProps = {
@@ -14,59 +19,74 @@ export function CourseSelectMdtCertificates({
     onSelectCourse,
 }: CourseSelectMdtCertificatesProps) {
     return (
-        <section className="space-y-6">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-6 text-white shadow-lg">
-                <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.25em] text-blue-100">
-                        {isAdminRoute
-                            ? "Panel del administrador"
-                            : "Panel del profesor"}
-                    </p>
-
-                    <h2 className="mt-3 text-2xl font-bold md:text-3xl">
-                        Gestión de certificados MDT
-                    </h2>
-
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-50">
-                        Selecciona primero un curso para administrar los
-                        certificados MDT generados para los estudiantes.
-                    </p>
+        <section className="space-y-3 sm:space-y-4">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-blue-100 sm:text-xs">
+                    <Award className="h-3.5 w-3.5" />
+                    Certificados MDT
                 </div>
+
+                <h1 className="mt-3 text-xl font-black tracking-tight sm:text-2xl lg:text-3xl">
+                    Selecciona un curso
+                </h1>
+
+                <p className="mt-2 max-w-3xl text-xs font-semibold leading-5 text-blue-50 sm:text-sm sm:leading-6">
+                    {isAdminRoute
+                        ? "Selecciona el curso para administrar los certificados MDT de sus estudiantes."
+                        : "Selecciona el curso para revisar y administrar sus certificados MDT."}
+                </p>
             </div>
 
             {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                    {error}
+                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span className="break-words [overflow-wrap:anywhere]">
+                        {error}
+                    </span>
                 </div>
             ) : null}
 
-            <div className="rounded-3xl border border-[var(--border)] bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-950">
-                    Seleccionar curso
-                </h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
+                <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#172861] sm:h-11 sm:w-11 sm:rounded-2xl">
+                        <Layers3 className="h-5 w-5" />
+                    </div>
 
-                <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-                    Al seleccionar un curso se cargarán los certificados MDT
-                    disponibles para su revisión o gestión.
-                </p>
+                    <div className="min-w-0">
+                        <h2 className="text-base font-black text-slate-950 sm:text-lg">
+                            Curso MDT
+                        </h2>
+
+                        <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
+                            Al seleccionar un curso se abrirá su listado de certificados.
+                        </p>
+                    </div>
+                </div>
 
                 <select
                     value=""
-                    onChange={(event) => onSelectCourse(event.target.value)}
-                    className="mt-5 h-12 w-full rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                    onChange={(event) =>
+                        onSelectCourse(event.target.value)
+                    }
+                    className="mt-4 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
-                    <option value="">Selecciona un curso</option>
+                    <option value="">
+                        Selecciona un curso
+                    </option>
 
-                    {courseOptions.map((courseItem) => (
-                        <option key={courseItem.id} value={courseItem.id}>
-                            {courseItem.name}
+                    {courseOptions.map((course) => (
+                        <option
+                            key={course.id}
+                            value={course.id}
+                        >
+                            {course.name}
                         </option>
                     ))}
                 </select>
 
                 {courseOptions.length === 0 ? (
-                    <p className="mt-3 text-sm font-semibold text-slate-500">
-                        No hay cursos registrados para mostrar.
+                    <p className="mt-3 text-xs font-semibold text-slate-500 sm:text-sm">
+                        No hay cursos disponibles para mostrar.
                     </p>
                 ) : null}
             </div>

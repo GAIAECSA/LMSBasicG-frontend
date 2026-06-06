@@ -1,7 +1,9 @@
-import type { Dispatch, SetStateAction } from "react";
+import type {
+    Dispatch,
+    SetStateAction,
+} from "react";
 import type {
     BlockFormState,
-    LessonCompletionType,
     LessonItemType,
 } from "../types";
 
@@ -20,28 +22,26 @@ export function BlockFields({
         itemType === "quiz" || itemType === "homework";
 
     return (
-        <div className="space-y-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            <div className="grid gap-4 md:grid-cols-2">
-
-                <TextInput
-                    label="Fecha disponible"
-                    type="datetime-local"
-                    placeholder=""
-                    value={blockForm.date_available}
-                    onChange={(value) =>
-                        setBlockForm((current) => ({
-                            ...current,
-                            date_available: value,
-                        }))
-                    }
-                />
-            </div>
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:space-y-4 sm:rounded-3xl sm:p-4">
+            <TextInput
+                label="Fecha disponible"
+                type="datetime-local"
+                placeholder=""
+                value={blockForm.date_available}
+                onChange={(value) =>
+                    setBlockForm((current) => ({
+                        ...current,
+                        date_available: value,
+                    }))
+                }
+            />
 
             <div
-                className={`grid gap-3 ${showFinalGradeOption
-                        ? "md:grid-cols-2"
-                        : "md:grid-cols-1"
-                    }`}
+                className={`grid gap-2 sm:gap-3 ${
+                    showFinalGradeOption
+                        ? "sm:grid-cols-2"
+                        : "sm:grid-cols-1"
+                }`}
             >
                 <CheckInput
                     label="Mostrar"
@@ -67,7 +67,6 @@ export function BlockFields({
                     />
                 ) : null}
             </div>
-
         </div>
     );
 }
@@ -88,8 +87,8 @@ function TextInput({
     onChange: (value: string) => void;
 }) {
     return (
-        <div className="space-y-2">
-            <label className="block text-[13px] font-black text-slate-700">
+        <div>
+            <label className="block text-xs font-black text-slate-700 sm:text-[13px]">
                 {label}
             </label>
 
@@ -98,11 +97,11 @@ function TextInput({
                 value={value}
                 placeholder={placeholder}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:mt-2 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
             />
 
             {description ? (
-                <p className="text-xs font-semibold text-slate-500">
+                <p className="mt-1.5 text-[10px] font-semibold leading-4 text-slate-500 sm:text-xs">
                     {description}
                 </p>
             ) : null}
@@ -122,12 +121,12 @@ function CheckInput({
     onChange: (checked: boolean) => void;
 }) {
     return (
-        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50/40">
+        <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50/40 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
             <input
                 type="checkbox"
                 checked={checked}
                 onChange={(event) => onChange(event.target.checked)}
-                className="mt-1 h-4 w-4 accent-blue-700"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-blue-700 sm:mt-1"
             />
 
             <span>
@@ -136,7 +135,7 @@ function CheckInput({
                 </span>
 
                 {description ? (
-                    <span className="mt-1 block text-xs font-semibold leading-5 text-slate-500">
+                    <span className="mt-1 block text-[10px] font-semibold leading-4 text-slate-500 sm:text-xs sm:leading-5">
                         {description}
                     </span>
                 ) : null}

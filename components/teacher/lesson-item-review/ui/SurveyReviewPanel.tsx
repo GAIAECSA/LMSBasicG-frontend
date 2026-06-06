@@ -172,9 +172,9 @@ function AnswerBadge({ answer }: { answer: string }) {
 
     return (
         <span
-            className={`inline-flex min-w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ring-1 ${meta.className}`}
+            className={`inline-flex min-w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black ring-1 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs ${meta.className}`}
         >
-            <span className="text-lg leading-none">{meta.emoji}</span>
+            <span className="text-base leading-none sm:text-lg">{meta.emoji}</span>
             {meta.label}
         </span>
     );
@@ -202,7 +202,7 @@ export function SurveyReviewPanel({
 
     if (rows.length === 0) {
         return (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-bold text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-xs font-bold leading-5 text-slate-500 sm:rounded-2xl sm:p-8 sm:text-sm">
                 No existen estudiantes matriculados para esta encuesta.
             </div>
         );
@@ -210,14 +210,14 @@ export function SurveyReviewPanel({
 
     if (submittedRows.length === 0) {
         return (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-                <Clock3 className="mx-auto h-9 w-9 text-slate-400" />
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center sm:rounded-2xl sm:p-8">
+                <Clock3 className="mx-auto h-8 w-8 text-slate-400 sm:h-9 sm:w-9" />
 
-                <p className="mt-3 text-sm font-black text-slate-700">
+                <p className="mt-3 text-xs font-black leading-5 text-slate-700 sm:text-sm">
                     Todavía no existen respuestas registradas.
                 </p>
 
-                <p className="mt-1 text-sm font-semibold text-slate-500">
+                <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
                     Las respuestas aparecerán cuando los estudiantes
                     completen la encuesta.
                 </p>
@@ -226,33 +226,33 @@ export function SurveyReviewPanel({
     }
 
     return (
-        <div className="space-y-4">
-            <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-3 sm:space-y-4 [@media(max-height:760px)]:space-y-3">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-3 sm:rounded-2xl sm:px-5 sm:py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#172861] shadow-sm">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#172861] shadow-sm sm:h-11 sm:w-11">
                             <ClipboardList className="h-5 w-5" />
                         </div>
 
                         <div>
-                            <h2 className="text-base font-black text-slate-950">
+                            <h2 className="text-sm font-black text-slate-950 sm:text-base">
                                 Vista general de respuestas
                             </h2>
 
-                            <p className="mt-1 text-sm font-semibold text-slate-500">
+                            <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
                                 Revisa las respuestas registradas por cada
                                 estudiante.
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-black text-blue-700 ring-1 ring-blue-100 sm:gap-2 sm:px-3 sm:py-2 sm:text-xs">
                             <Users className="h-4 w-4" />
                             {submittedRows.length} de {rows.length} respondieron
                         </span>
 
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-black text-blue-700 ring-1 ring-blue-100 sm:gap-2 sm:px-3 sm:py-2 sm:text-xs">
                             <ClipboardList className="h-4 w-4" />
                             {questions.length} pregunta
                             {questions.length === 1 ? "" : "s"}
@@ -262,43 +262,43 @@ export function SurveyReviewPanel({
             </div>
 
             {questions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-6 text-sm font-bold text-amber-800">
+                <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-xs font-bold leading-5 text-amber-800 sm:rounded-2xl sm:p-6 sm:text-sm">
                     Existen respuestas registradas, pero no se pudieron
                     recuperar las preguntas de la encuesta.
                 </div>
             ) : (
                 <>
-                    <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white md:block">
-                        <table className="min-w-[980px] w-full border-collapse text-left">
+                    <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block sm:rounded-2xl">
+                        <table className="w-full min-w-[900px] border-collapse text-left">
                             <thead className="bg-slate-50">
                                 <tr className="border-b border-slate-200">
-                                    <th className="sticky left-0 z-10 min-w-[230px] bg-slate-50 px-4 py-4 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="sticky left-0 z-10 min-w-[210px] bg-slate-50 px-3 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 lg:px-4 lg:py-4 lg:text-xs lg:tracking-[0.12em]">
                                         Estudiante
                                     </th>
 
-                                    <th className="min-w-[130px] px-4 py-4 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="min-w-[120px] px-3 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 lg:px-4 lg:py-4 lg:text-xs lg:tracking-[0.12em]">
                                         Estado
                                     </th>
 
                                     {questions.map((question, index) => (
                                         <th
                                             key={question.id}
-                                            className="min-w-[210px] px-4 py-4 align-top"
+                                            className="min-w-[190px] px-3 py-3 align-top lg:px-4 lg:py-4"
                                         >
-                                            <p className="text-xs font-black uppercase tracking-[0.12em] text-blue-700">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-blue-700 lg:text-xs lg:tracking-[0.12em]">
                                                 Pregunta {index + 1}
                                             </p>
 
                                             <p
                                                 title={question.question}
-                                                className="mt-1 line-clamp-2 text-xs font-bold leading-5 text-slate-600"
+                                                className="mt-1 line-clamp-2 text-[10px] font-bold leading-4 text-slate-600 lg:text-xs lg:leading-5"
                                             >
                                                 {question.question}
                                             </p>
                                         </th>
                                     ))}
 
-                                    <th className="min-w-[170px] px-4 py-4 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+                                    <th className="min-w-[150px] px-3 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 lg:px-4 lg:py-4 lg:text-xs lg:tracking-[0.12em]">
                                         Fecha de envío
                                     </th>
                                 </tr>
@@ -313,26 +313,26 @@ export function SurveyReviewPanel({
                                             key={row.id}
                                             className="transition hover:bg-slate-50"
                                         >
-                                            <td className="sticky left-0 z-10 bg-white px-4 py-4">
-                                                <p className="text-sm font-black text-slate-950">
+                                            <td className="sticky left-0 z-10 bg-white px-3 py-3 lg:px-4 lg:py-4">
+                                                <p className="break-words text-xs font-black leading-5 text-slate-950 [overflow-wrap:anywhere] lg:text-sm">
                                                     {row.studentName}
                                                 </p>
 
                                                 {row.studentEmail ? (
-                                                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                                                    <p className="mt-1 break-words text-[10px] font-semibold leading-4 text-slate-500 [overflow-wrap:anywhere] lg:text-xs">
                                                         {row.studentEmail}
                                                     </p>
                                                 ) : null}
                                             </td>
 
-                                            <td className="px-4 py-4">
+                                            <td className="px-3 py-3 lg:px-4 lg:py-4">
                                                 {row.hasSubmission ? (
-                                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-700 ring-1 ring-emerald-100">
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100 lg:gap-1.5 lg:px-3 lg:py-1.5 lg:text-xs">
                                                         <CheckCircle2 className="h-3.5 w-3.5" />
                                                         Respondida
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-500 ring-1 ring-slate-200">
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500 ring-1 ring-slate-200 lg:gap-1.5 lg:px-3 lg:py-1.5 lg:text-xs">
                                                         <Clock3 className="h-3.5 w-3.5" />
                                                         Pendiente
                                                     </span>
@@ -342,7 +342,7 @@ export function SurveyReviewPanel({
                                             {questions.map((question) => (
                                                 <td
                                                     key={`${row.id}-${question.id}`}
-                                                    className="px-4 py-4"
+                                                    className="px-3 py-3 lg:px-4 lg:py-4"
                                                 >
                                                     <AnswerBadge
                                                         answer={getText(
@@ -354,7 +354,7 @@ export function SurveyReviewPanel({
                                                 </td>
                                             ))}
 
-                                            <td className="px-4 py-4 text-xs font-bold text-slate-500">
+                                            <td className="px-3 py-3 text-[10px] font-bold text-slate-500 lg:px-4 lg:py-4 lg:text-xs">
                                                 {getSubmittedDate(row)}
                                             </td>
                                         </tr>
@@ -364,47 +364,47 @@ export function SurveyReviewPanel({
                         </table>
                     </div>
 
-                    <div className="space-y-3 md:hidden">
+                    <div className="space-y-2.5 md:hidden">
                         {rows.map((row) => {
                             const answers = getAnswers(row);
 
                             return (
                                 <article
                                     key={row.id}
-                                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-2xl sm:p-4"
                                 >
-                                    <div className="flex items-start justify-between gap-3">
+                                    <div className="flex min-w-0 flex-col gap-2 xs:flex-row xs:items-start xs:justify-between xs:gap-3">
                                         <div>
-                                            <p className="text-sm font-black text-slate-950">
+                                            <p className="break-words text-xs font-black leading-5 text-slate-950 [overflow-wrap:anywhere] lg:text-sm">
                                                 {row.studentName}
                                             </p>
 
-                                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                            <p className="mt-1 break-words text-[10px] font-semibold leading-4 text-slate-500 [overflow-wrap:anywhere] lg:text-xs">
                                                 {getSubmittedDate(row)}
                                             </p>
                                         </div>
 
                                         {row.hasSubmission ? (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-100">
+                                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100 sm:text-[11px]">
                                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                                 Respondida
                                             </span>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-500 ring-1 ring-slate-200">
+                                            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-500 ring-1 ring-slate-200 sm:text-[11px]">
                                                 <Clock3 className="h-3.5 w-3.5" />
                                                 Pendiente
                                             </span>
                                         )}
                                     </div>
 
-                                    <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                                    <div className="mt-3 space-y-2.5 border-t border-slate-100 pt-3 sm:mt-4 sm:space-y-3 sm:pt-4">
                                         {questions.map(
                                             (question, index) => (
                                                 <div
                                                     key={`${row.id}-${question.id}`}
                                                     className="flex flex-col gap-2"
                                                 >
-                                                    <p className="text-xs font-black text-slate-600">
+                                                    <p className="break-words text-[11px] font-black leading-5 text-slate-600 [overflow-wrap:anywhere] sm:text-xs">
                                                         {index + 1}.{" "}
                                                         {question.question}
                                                     </p>

@@ -1,4 +1,4 @@
-import TeacherMdtRequiredFilesPage from "@/app/(dashboard)/teacher/courses/[courseId]/mdt-required-files/page";
+import { MdtRequiredFilesView } from "@/components/teacher/mdt-required-files";
 
 type AdminMdtRequiredFilesCoursePageProps = {
     params: Promise<{
@@ -6,8 +6,8 @@ type AdminMdtRequiredFilesCoursePageProps = {
     }>;
 };
 
-export default async function AdminMdtRequiredFilesCoursePage({
+export default function AdminMdtRequiredFilesCoursePage({
     params,
 }: AdminMdtRequiredFilesCoursePageProps) {
-    return <TeacherMdtRequiredFilesPage params={params} />;
+    return <MdtRequiredFilesView params={params} />;
 }

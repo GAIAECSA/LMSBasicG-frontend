@@ -76,7 +76,7 @@ export function useCertTemplate({
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
     const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
-    const [isAddFieldsOpen, setIsAddFieldsOpen] = useState(true);
+    const [isAddFieldsOpen, setIsAddFieldsOpen] = useState(false);
 
     const courseOptions = useMemo(
         () =>

@@ -14,6 +14,9 @@ import { SurveySection } from "./ui/SurveySection";
 import { ForumSection } from "./ui/ForumSection";
 import { SidePanel } from "./ui/SidePanel";
 
+const PAGE_CONTAINER_CLASS =
+    "mx-auto w-full max-w-[1480px] min-w-0 space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3";
+
 export function LessonItemEditorPage({
     courseId,
     itemId,
@@ -24,9 +27,9 @@ export function LessonItemEditorPage({
     const formId = "lesson-item-editor-form";
 
     /*
-        Para las imágenes, el botón de guardado se muestra
-        dentro de FileSection, debajo del archivo seleccionado.
-    */
+     * Para el contenido informativo, el botón de guardado se muestra
+     * dentro de su propia sección.
+     */
     const saveInsideContentSection = [
         "text",
         "image",
@@ -41,14 +44,26 @@ export function LessonItemEditorPage({
         "video",
     ].includes(item.itemType);
 
+    const hideToolbarSaveButton = [
+        "quiz",
+        "homework",
+        "survey",
+        "forum",
+    ].includes(item.itemType);
+
     if (item.loading) {
         return (
-            <section className="space-y-6">
+            <section className={PAGE_CONTAINER_CLASS}>
                 <Toolbar
                     backHref={item.backHref}
                     reviewHref={reviewHref}
                     itemType={item.itemType}
-                    formId={saveInsideContentSection ? undefined : formId}
+                    formId={
+                        saveInsideContentSection ||
+                            hideToolbarSaveButton
+                            ? undefined
+                            : formId
+                    }
                     saving={item.saving}
                 />
             </section>
@@ -56,7 +71,12 @@ export function LessonItemEditorPage({
     }
 
     if (!item.loading && item.error && !item.block) {
-        return <ErrorState error={item.error} backHref={item.backHref} />;
+        return (
+            <ErrorState
+                error={item.error}
+                backHref={item.backHref}
+            />
+        );
     }
 
     if (!item.block) {
@@ -69,12 +89,17 @@ export function LessonItemEditorPage({
     }
 
     return (
-        <section className="space-y-6">
+        <section className={PAGE_CONTAINER_CLASS}>
             <Toolbar
                 backHref={item.backHref}
                 reviewHref={reviewHref}
                 itemType={item.itemType}
-                formId={saveInsideContentSection ? undefined : formId}
+                formId={
+                    saveInsideContentSection ||
+                        hideToolbarSaveButton
+                        ? undefined
+                        : formId
+                }
                 saving={item.saving}
             />
 
@@ -86,18 +111,21 @@ export function LessonItemEditorPage({
                 reviewHref={reviewHref}
             />
 
-            <Alerts error={item.error} notice={item.notice} />
+            <Alerts
+                error={item.error}
+                notice={item.notice}
+            />
 
             <form
                 id={formId}
                 onSubmit={item.handleSubmit}
                 className={
                     isInformativeContent
-                        ? "grid gap-6"
-                        : "grid gap-6 xl:grid-cols-[1fr_330px]"
+                        ? "grid min-w-0 gap-3 sm:gap-4 lg:gap-5"
+                        : "grid min-w-0 gap-3 sm:gap-4 lg:gap-5 xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]"
                 }
             >
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-3 sm:space-y-4 lg:space-y-5">
                     <TextSection item={item} />
                     <FileSection item={item} />
                     <VideoSection item={item} />

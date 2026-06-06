@@ -197,19 +197,19 @@ export function VideoSection({ item }: VideoSectionProps) {
     }
 
     return (
-        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-6 py-5">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-[28px]">
+            <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-4 py-4 sm:px-6 sm:py-5 [@media(max-height:760px)]:py-3">
                 <div className="flex items-center gap-3">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#172861] text-white shadow-sm">
-                        <Video className="h-6 w-6" />
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-white shadow-sm sm:h-12 sm:w-12 sm:rounded-2xl">
+                        <Video className="h-5 w-5 sm:h-6 sm:w-6" />
                     </span>
 
                     <div>
-                        <h2 className="text-xl font-black text-slate-950">
+                        <h2 className="text-lg font-black text-slate-950 sm:text-xl">
                             Video de la lección
                         </h2>
 
-                        <p className="mt-1 text-sm font-medium text-slate-500">
+                        <p className="mt-1 text-xs font-medium leading-5 text-slate-500 sm:text-sm">
                             Agrega un enlace de YouTube, Vimeo, Microsoft
                             Stream o un archivo de video público.
                         </p>
@@ -217,8 +217,8 @@ export function VideoSection({ item }: VideoSectionProps) {
                 </div>
             </div>
 
-            <div className="space-y-5 p-6">
-                <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+            <div className="space-y-4 p-4 sm:space-y-5 sm:p-6 [@media(max-height:760px)]:space-y-3 [@media(max-height:760px)]:p-4">
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px] sm:gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                     <div className="space-y-2">
                         <label className="block text-[13px] font-bold text-slate-700">
                             URL del video
@@ -230,7 +230,7 @@ export function VideoSection({ item }: VideoSectionProps) {
                                 handleVideoUrlChange(event.target.value)
                             }
                             placeholder="https://www.youtube.com/watch?v=..."
-                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-10"
                         />
                     </div>
 
@@ -247,7 +247,7 @@ export function VideoSection({ item }: VideoSectionProps) {
                                     video_provider: event.target.value,
                                 }))
                             }
-                            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-10"
                         >
                             <option value="youtube">YouTube</option>
                             <option value="vimeo">Vimeo</option>
@@ -267,7 +267,7 @@ export function VideoSection({ item }: VideoSectionProps) {
                 </div>
 
                 {preview.type !== "empty" ? (
-                    <div className="max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-sm">
+                    <div className="max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm sm:rounded-3xl">
                         <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
                             <div className="flex items-center gap-2">
                                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
@@ -316,7 +316,7 @@ export function VideoSection({ item }: VideoSectionProps) {
                         ) : null}
 
                         {preview.type === "external" ? (
-                            <div className="flex min-h-[170px] flex-col items-center justify-center px-6 py-8 text-center">
+                            <div className="flex min-h-[130px] flex-col items-center justify-center px-4 py-5 text-center sm:min-h-[170px] sm:px-6 sm:py-8 [@media(max-height:760px)]:min-h-[120px]">
                                 <Video className="h-9 w-9 text-slate-400" />
 
                                 <p className="mt-3 text-sm font-black text-slate-700">
@@ -342,7 +342,7 @@ export function VideoSection({ item }: VideoSectionProps) {
                             item.saving ||
                             !item.form.video_url.trim()
                         }
-                        className="inline-flex h-12 min-w-[190px] items-center justify-center gap-2 rounded-2xl bg-[#172861] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none"
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-black text-white shadow-sm transition hover:bg-[#0f1d48] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none sm:h-12 sm:w-auto sm:min-w-[190px] sm:rounded-2xl sm:px-5 sm:text-sm"
                     >
                         <Save className="h-4 w-4" />
 

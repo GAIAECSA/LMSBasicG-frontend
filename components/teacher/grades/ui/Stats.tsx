@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
     BookOpen,
     ClipboardList,
@@ -26,23 +27,23 @@ export function Stats({
     generatedCertificatesCount,
 }: StatsProps) {
     return (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4 [@media(max-height:760px)]:hidden">
             <StatCard
-                icon={<BookOpen className="h-5 w-5" />}
+                icon={<BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />}
                 iconClassName="bg-blue-50 text-[#172861]"
                 label="Curso actual"
                 value={course?.name || `Curso #${currentCourseId}`}
             />
 
             <StatCard
-                icon={<Layers3 className="h-5 w-5" />}
+                icon={<Layers3 className="h-4 w-4 sm:h-5 sm:w-5" />}
                 iconClassName="bg-emerald-50 text-emerald-700"
                 label="Matrículas con respuestas"
                 value={groupedGradesLength}
             />
 
             <StatCard
-                icon={<ClipboardList className="h-5 w-5" />}
+                icon={<ClipboardList className="h-4 w-4 sm:h-5 sm:w-5" />}
                 iconClassName="bg-orange-50 text-orange-700"
                 label="Respuestas recibidas"
                 value={gradesLength}
@@ -50,7 +51,7 @@ export function Stats({
             />
 
             <StatCard
-                icon={<FileCheck2 className="h-5 w-5" />}
+                icon={<FileCheck2 className="h-4 w-4 sm:h-5 sm:w-5" />}
                 iconClassName="bg-slate-100 text-slate-700"
                 label="Certificados generados"
                 value={generatedCertificatesCount}
@@ -66,31 +67,35 @@ function StatCard({
     value,
     subtitle,
 }: {
-    icon: React.ReactNode;
+    icon: ReactNode;
     iconClassName: string;
     label: string;
     value: string | number;
     subtitle?: string;
 }) {
     return (
-        <div className="rounded-3xl border border-[var(--border)] bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-3">
+        <div className="min-w-0 rounded-2xl border border-[var(--border)] bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-2xl ${iconClassName}`}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${iconClassName}`}
                 >
                     {icon}
                 </div>
 
-                <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-xs sm:tracking-[0.12em]">
                         {label}
                     </p>
-                    <p className="mt-1 text-sm font-bold text-slate-950">
+
+                    <p
+                        title={String(value)}
+                        className="mt-1 truncate text-xs font-bold text-slate-950 sm:text-sm"
+                    >
                         {value}
                     </p>
 
                     {subtitle ? (
-                        <p className="mt-0.5 text-[11px] font-bold text-slate-400">
+                        <p className="mt-0.5 truncate text-[10px] font-bold text-slate-400 sm:text-[11px]">
                             {subtitle}
                         </p>
                     ) : null}

@@ -17,52 +17,29 @@ export function SurveySection({ item }: SurveySectionProps) {
     const totalQuestions = item.form.survey_questions.length;
 
     return (
-        <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-[24px]">
+            <div className="border-b border-slate-100 px-4 py-4 sm:px-5 lg:px-6 [@media(max-height:760px)]:py-3">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-start gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
                             <ListChecks className="h-5 w-5" />
                         </div>
 
                         <div>
-                            <h2 className="text-lg font-black text-slate-950">
+                            <h2 className="text-base font-black text-slate-950 sm:text-lg">
                                 Configuración de la encuesta
                             </h2>
 
-                            <p className="mt-1 text-sm font-semibold text-slate-500">
-                                Agrega las preguntas de forma rápida. Todas usarán
-                                automáticamente una escala de Likert del 1 al 5.
+                            <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
+                                Todas usarán automáticamente una escala de Likert del 1 al 5.
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            type="submit"
-                            disabled={item.saving}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <Save className="h-4 w-4" />
-
-                            {item.saving
-                                ? "Guardando..."
-                                : "Guardar encuesta"}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={item.handleAddSurveyQuestion}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
-                        >
-                            <Plus className="h-4 w-4" />
-                            Agregar pregunta
-                        </button>
-                    </div>
                 </div>
             </div>
 
-            <div className="space-y-5 px-5 py-5 sm:px-6">
+            <div className="space-y-4 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-5 [@media(max-height:760px)]:space-y-3">
                 <div>
                     <label
                         htmlFor="survey-instructions"
@@ -82,7 +59,7 @@ export function SurveySection({ item }: SurveySectionProps) {
                         }
                         rows={2}
                         placeholder="Ej.: Selecciona una respuesta según tu experiencia en esta lección..."
-                        className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                        className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold leading-5 text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
                     />
                 </div>
 
@@ -93,7 +70,7 @@ export function SurveySection({ item }: SurveySectionProps) {
                                 Preguntas de la encuesta
                             </h3>
 
-                            <p className="mt-1 text-sm font-semibold text-slate-500">
+                            <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
                                 Escribe un enunciado por cada fila.
                             </p>
                         </div>
@@ -133,7 +110,7 @@ export function SurveySection({ item }: SurveySectionProps) {
                     ) : (
                         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[760px] border-collapse text-left">
+                                <table className="w-full min-w-[680px] border-collapse text-left">
                                     <thead className="bg-slate-50">
                                         <tr className="border-b border-slate-200">
                                             <th className="w-[70px] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.1em] text-slate-500">
@@ -189,7 +166,7 @@ export function SurveySection({ item }: SurveySectionProps) {
                                                                 )
                                                             }
                                                             placeholder="Ej.: El contenido presentado fue claro y comprensible."
-                                                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                                            className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-10 sm:text-sm"
                                                         />
                                                     </td>
 
@@ -246,7 +223,7 @@ export function SurveySection({ item }: SurveySectionProps) {
                                 <button
                                     type="button"
                                     onClick={item.handleAddSurveyQuestion}
-                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition hover:bg-blue-50"
+                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-black text-blue-700 transition hover:bg-blue-50 active:scale-[0.97] sm:px-4 sm:text-sm"
                                 >
                                     <Plus className="h-4 w-4" />
                                     Agregar fila
@@ -257,11 +234,11 @@ export function SurveySection({ item }: SurveySectionProps) {
                 </div>
 
                 {totalQuestions > 0 ? (
-                    <div className="flex justify-end border-t border-slate-100 pt-4">
+                    <div className="flex justify-stretch border-t border-slate-100 pt-3 sm:justify-end sm:pt-4">
                         <button
                             type="submit"
                             disabled={item.saving}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-5 text-sm font-black text-white shadow-sm transition hover:bg-[#0f1d48] disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-black text-white shadow-sm transition hover:bg-[#0f1d48] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-auto sm:px-5 sm:text-sm"
                         >
                             <Save className="h-4 w-4" />
 

@@ -1,10 +1,15 @@
 import Link from "next/link";
 import {
+    ArrowRight,
     ClipboardCheck,
     Pencil,
     Trash2,
 } from "lucide-react";
-import type { DragState, LessonItemView, LessonView } from "../types";
+import type {
+    DragState,
+    LessonItemView,
+    LessonView,
+} from "../types";
 import type { CourseModsState } from "../hook";
 import { getItemLabel } from "../utils";
 import { ItemIcon } from "./ItemIcon";
@@ -31,11 +36,19 @@ function readBoolean(value: unknown, fallback = false) {
     if (typeof value === "string") {
         const normalized = value.trim().toLowerCase();
 
-        if (["true", "1", "yes", "si", "sí"].includes(normalized)) {
+        if (
+            ["true", "1", "yes", "si", "sí"].includes(
+                normalized,
+            )
+        ) {
             return true;
         }
 
-        if (["false", "0", "no"].includes(normalized)) {
+        if (
+            ["false", "0", "no"].includes(
+                normalized,
+            )
+        ) {
             return false;
         }
     }
@@ -46,7 +59,10 @@ function readBoolean(value: unknown, fallback = false) {
 function getContentRecord(value: unknown): AnyRecord {
     if (!value) return {};
 
-    if (typeof value === "object" && !Array.isArray(value)) {
+    if (
+        typeof value === "object" &&
+        !Array.isArray(value)
+    ) {
         return value as AnyRecord;
     }
 
@@ -72,9 +88,9 @@ function getContentRecord(value: unknown): AnyRecord {
 }
 
 /*
-    Permite mostrar bloques activos e inactivos.
-    Únicamente mantiene ocultos los bloques especiales MDT.
-*/
+ * Permite mostrar bloques activos e inactivos.
+ * Únicamente mantiene ocultos los bloques especiales MDT.
+ */
 function shouldShowItemInModules(item: LessonItemView) {
     const record = toRecord(item);
     const rawRecord = toRecord(item.raw);
@@ -130,7 +146,12 @@ function getItemIsActive(item: LessonItemView) {
 }
 
 function isReviewableItem(type: LessonItemView["type"]) {
-    return ["homework", "quiz", "survey", "forum"].includes(type);
+    return [
+        "homework",
+        "quiz",
+        "survey",
+        "forum",
+    ].includes(type);
 }
 
 function getReviewLabel(type: LessonItemView["type"]) {
@@ -143,15 +164,30 @@ function getReviewLabel(type: LessonItemView["type"]) {
 }
 
 function getReviewHelpText(type: LessonItemView["type"]) {
-    if (type === "homework") return "Revisar archivos enviados";
-    if (type === "quiz") return "Revisar evaluación";
-    if (type === "survey") return "Ver respuestas";
-    if (type === "forum") return "Ver participaciones";
+    if (type === "homework") {
+        return "Revisar archivos enviados";
+    }
+
+    if (type === "quiz") {
+        return "Revisar evaluación";
+    }
+
+    if (type === "survey") {
+        return "Ver respuestas";
+    }
+
+    if (type === "forum") {
+        return "Ver participaciones";
+    }
 
     return "Abrir contenido";
 }
 
-export function ItemRow({ mods, lesson, item }: ItemRowProps) {
+export function ItemRow({
+    mods,
+    lesson,
+    item,
+}: ItemRowProps) {
     if (!shouldShowItemInModules(item)) {
         return null;
     }
@@ -164,96 +200,161 @@ export function ItemRow({ mods, lesson, item }: ItemRowProps) {
         lessonId: lesson.id,
     };
 
-    const itemIsDragging = mods.isDraggingItem(itemDragState);
-    const itemIsOver = mods.isDragOverItem(itemDragState);
+    const itemIsDragging =
+        mods.isDraggingItem(itemDragState);
 
-    const editorHref = `${mods.itemEditorBasePath}/${item.id}`;
-    const reviewHref = `${mods.itemEditorBasePath}/${item.id}/review`;
+    const itemIsOver =
+        mods.isDragOverItem(itemDragState);
 
-    const reviewable = isReviewableItem(item.type);
+    /*
+     * Esta es la misma ruta que anteriormente se abría
+     * al presionar el nombre de la actividad.
+     */
+    const editorHref =
+        `${mods.itemEditorBasePath}/${item.id}`;
+
+    const reviewHref =
+        `${mods.itemEditorBasePath}/${item.id}/review`;
+
+    const reviewable =
+        isReviewableItem(item.type);
 
     return (
         <div
             draggable
-            className={`group cursor-grab rounded-2xl border px-4 py-3 shadow-sm transition active:cursor-grabbing ${itemIsActive ? "bg-white" : "bg-amber-50/70"
-                } ${itemIsDragging ? "opacity-50" : ""} ${itemIsOver
+            className={`group min-w-0 cursor-grab rounded-xl border px-3 py-2.5 shadow-sm transition active:cursor-grabbing sm:rounded-2xl sm:px-4 sm:py-3 ${itemIsActive
+                    ? "bg-white"
+                    : "bg-amber-50/70"
+                } ${itemIsDragging
+                    ? "opacity-50"
+                    : ""
+                } ${itemIsOver
                     ? "border-blue-500 ring-4 ring-blue-100"
                     : itemIsActive
                         ? "border-slate-200 hover:border-blue-100 hover:shadow-md"
                         : "border-amber-200 hover:border-amber-300 hover:shadow-md"
                 }`}
-            onDragStart={(event) => mods.handleDragStart(event, itemDragState)}
+            onDragStart={(event) =>
+                mods.handleDragStart(
+                    event,
+                    itemDragState,
+                )
+            }
             onDragEnd={mods.resetDragState}
-            onDragOver={(event) => mods.handleDragOver(event, itemDragState)}
-            onDrop={(event) => mods.handleDrop(event, itemDragState)}
+            onDragOver={(event) =>
+                mods.handleDragOver(
+                    event,
+                    itemDragState,
+                )
+            }
+            onDrop={(event) =>
+                mods.handleDrop(
+                    event,
+                    itemDragState,
+                )
+            }
         >
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                     <span
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm ${reviewable
-                            ? "bg-blue-50 text-[#172861] ring-1 ring-blue-100"
-                            : "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm sm:h-10 sm:w-10 sm:rounded-2xl ${reviewable
+                                ? "bg-blue-50 text-[#172861] ring-1 ring-blue-100"
+                                : "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
                             }`}
                     >
-                        <ItemIcon type={item.type} className="h-5 w-5" />
+                        <ItemIcon
+                            type={item.type}
+                            className="h-4 w-4 sm:h-5 sm:w-5"
+                        />
                     </span>
 
                     <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Link
-                                href={editorHref}
-                                className="block truncate text-sm font-black text-slate-950 transition hover:text-[#172861] hover:underline"
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                            {/*
+                              El nombre ahora es informativo.
+                              Ya no es necesario presionarlo para entrar.
+                            */}
+                            <p
+                                title={item.title}
+                                className="max-w-full truncate text-xs font-black text-slate-950 sm:text-sm"
                             >
                                 {item.title}
-                            </Link>
+                            </p>
 
                             <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${reviewable
-                                    ? "bg-blue-50 text-blue-700"
-                                    : "bg-slate-100 text-slate-600"
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] sm:px-2.5 sm:py-1 sm:text-[10px] ${reviewable
+                                        ? "bg-blue-50 text-blue-700"
+                                        : "bg-slate-100 text-slate-600"
                                     }`}
                             >
                                 {getItemLabel(item.type)}
                             </span>
 
                             <span
-                                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${itemIsActive
-                                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                                    : "bg-amber-100 text-amber-800 ring-1 ring-amber-200"
+                                className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] ring-1 sm:px-2.5 sm:py-1 sm:text-[10px] ${itemIsActive
+                                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                        : "bg-amber-100 text-amber-800 ring-amber-200"
                                     }`}
                             >
-                                {itemIsActive ? "Activo" : "Inactivo"}
+                                {itemIsActive
+                                    ? "Activo"
+                                    : "Inactivo"}
                             </span>
                         </div>
 
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                        <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500 sm:text-xs">
                             {getReviewHelpText(item.type)}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex shrink-0 flex-wrap items-center gap-2 xl:justify-end">
+                <div className="grid grid-cols-2 gap-1.5 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end sm:gap-2">
+                    {/*
+                      Nuevo botón visible para ingresar a la actividad.
+                    */}
+                    <Link
+                        href={editorHref}
+                        title="Entrar a la actividad"
+                        className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-[10px] font-black !text-blue-700 shadow-sm transition hover:bg-blue-100 active:scale-[0.97] sm:h-10 sm:px-4 sm:text-xs"
+                    >
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+
+                        <span className="truncate">
+                            Entrar
+                        </span>
+                    </Link>
+
                     {reviewable ? (
                         <Link
                             href={reviewHref}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-xs font-black !text-white shadow-sm transition hover:bg-[#0f1d48]"
-                            title={getReviewLabel(item.type)}
+                            className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-[#172861] px-3 text-[10px] font-black !text-white shadow-sm transition hover:bg-[#0f1d48] active:scale-[0.97] sm:h-10 sm:px-4 sm:text-xs"
+                            title={getReviewLabel(
+                                item.type,
+                            )}
                         >
-                            <ClipboardCheck className="h-4 w-4 text-white" />
+                            <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-white sm:h-4 sm:w-4" />
 
-                            <span className="text-white">
-                                {getReviewLabel(item.type)}
+                            <span className="truncate text-white">
+                                {getReviewLabel(
+                                    item.type,
+                                )}
                             </span>
                         </Link>
                     ) : null}
 
                     <button
                         type="button"
-                        onClick={() => mods.openEditItemModal(item)}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100"
-                        title="Editar"
+                        onClick={() =>
+                            mods.openEditItemModal(item)
+                        }
+                        className="flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-[10px] font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100 active:scale-[0.96] sm:w-9 sm:px-0"
+                        title="Editar actividad"
                     >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+
+                        <span className="sm:hidden">
+                            Editar
+                        </span>
                     </button>
 
                     <button
@@ -265,10 +366,14 @@ export function ItemRow({ mods, lesson, item }: ItemRowProps) {
                                 title: item.title,
                             })
                         }
-                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-700 ring-1 ring-red-100 transition hover:bg-red-100"
-                        title="Eliminar"
+                        className="flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-red-50 px-3 text-[10px] font-black text-red-700 ring-1 ring-red-100 transition hover:bg-red-100 active:scale-[0.96] sm:w-9 sm:px-0"
+                        title="Eliminar actividad"
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+
+                        <span className="sm:hidden">
+                            Eliminar
+                        </span>
                     </button>
                 </div>
             </div>

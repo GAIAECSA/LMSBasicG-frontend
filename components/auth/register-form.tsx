@@ -1,8 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import {
+    useEffect,
+    useState,
+    type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+
+import {
+    AuthAlert,
+    AuthCard,
+    AuthField,
+    AuthFormHeader,
+    AuthPrimaryButton,
+    AUTH_ACTION_CLASS,
+    AUTH_FOOTER_CLASS,
+    AUTH_FOOTER_LINK_CLASS,
+    AUTH_FORM_GRID_CLASS,
+    AUTH_FORM_STACK_CLASS,
+    AUTH_INPUT_CLASS,
+} from "@/components/auth/auth-ui";
 import { getDashboardRouteByRole } from "@/lib/auth";
 import { registerService } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,26 +50,42 @@ export function RegisterForm() {
     const router = useRouter();
     const { user, loading } = useAuth();
 
-    const [form, setForm] = useState<RegisterFormState>(INITIAL_FORM);
-    const [showPassword, setShowPassword] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
+    const [form, setForm] =
+        useState<RegisterFormState>(INITIAL_FORM);
+
+    const [showPassword, setShowPassword] =
+        useState(false);
+
+    const [submitting, setSubmitting] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
+
+    const [success, setSuccess] =
+        useState("");
 
     useEffect(() => {
         if (!loading && user) {
-            router.replace(getDashboardRouteByRole(user.role));
+            router.replace(
+                getDashboardRouteByRole(user.role),
+            );
         }
     }, [loading, user, router]);
 
-    function updateField<K extends keyof RegisterFormState>(
+    function updateField<
+        K extends keyof RegisterFormState,
+    >(
         key: K,
         value: RegisterFormState[K],
     ) {
-        setForm((prev) => ({
-            ...prev,
+        setForm((previousForm) => ({
+            ...previousForm,
             [key]: value,
         }));
+
+        setError("");
+        setSuccess("");
     }
 
     function validateForm() {
@@ -63,19 +98,29 @@ export function RegisterForm() {
             !form.phone_number.trim() ||
             !form.password.trim()
         ) {
-            throw new Error("Completa todos los campos.");
+            throw new Error(
+                "Completa todos los campos.",
+            );
         }
 
-        if (form.idnumber.trim().length !== 10) {
-            throw new Error("La cédula debe tener 10 dígitos.");
+        if (
+            form.idnumber.trim().length !== 10
+        ) {
+            throw new Error(
+                "La cédula debe tener 10 dígitos.",
+            );
         }
 
         if (form.password.length < 6) {
-            throw new Error("La contraseña debe tener al menos 6 caracteres.");
+            throw new Error(
+                "La contraseña debe tener al menos 6 caracteres.",
+            );
         }
     }
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleSubmit(
+        event: FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
 
         setError("");
@@ -91,18 +136,20 @@ export function RegisterForm() {
                 firstname: form.firstname.trim(),
                 lastname: form.lastname.trim(),
                 email: form.email.trim(),
-                phone_number: form.phone_number.trim(),
+                phone_number:
+                    form.phone_number.trim(),
                 password: form.password,
             };
 
-            const response = await registerService(payload);
+            const response =
+                await registerService(payload);
 
             setSuccess(
                 response.message ||
                 "Usuario registrado correctamente.",
             );
 
-            setTimeout(() => {
+            window.setTimeout(() => {
                 router.push("/login");
             }, 1500);
         } catch (err) {
@@ -117,216 +164,242 @@ export function RegisterForm() {
     }
 
     return (
-        <div className="rounded-[22px] border border-white/70 bg-white/90 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.14)] backdrop-blur-md sm:rounded-[28px] sm:p-6 lg:p-8">
-            <div className="mb-6 sm:mb-7">
-                <span className="inline-flex rounded-full bg-[#edf3ff] px-3 py-1 text-[11px] font-semibold text-[#4a6db3] shadow-sm">
-                    LMS BasicG
-                </span>
+        <AuthCard>
+            <AuthFormHeader
+                title="Crear cuenta"
+                description="Registra tu usuario con los datos requeridos."
+            />
 
-                <h2 className="mt-4 text-[28px] font-bold leading-tight tracking-tight text-slate-950 sm:text-[34px] sm:leading-none">
-                    Crear cuenta
-                </h2>
-
-                <p className="mt-3 text-[13px] leading-6 text-slate-500 sm:text-sm">
-                    Registra tu usuario con los datos requeridos.
-                </p>
-            </div>
-
-            <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit}>
+            <form
+                className={AUTH_FORM_STACK_CLASS}
+                onSubmit={handleSubmit}
+            >
                 {error ? (
-                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <AuthAlert>
                         {error}
-                    </div>
+                    </AuthAlert>
                 ) : null}
 
                 {success ? (
-                    <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    <AuthAlert variant="success">
                         {success}
-                    </div>
+                    </AuthAlert>
                 ) : null}
 
-                <div className="grid gap-4 md:grid-cols-2 md:gap-5">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="username"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Usuario
-                        </label>
-
+                <div className={AUTH_FORM_GRID_CLASS}>
+                    <AuthField
+                        label="Usuario"
+                        htmlFor="register-username"
+                    >
                         <input
-                            id="username"
+                            id="register-username"
                             type="text"
                             placeholder="Tu nombre de usuario"
                             value={form.username}
-                            onChange={(event) =>
-                                updateField("username", event.target.value)
+                            onChange={(event) => {
+                                updateField(
+                                    "username",
+                                    event.target.value,
+                                );
+                            }}
+                            autoComplete="username"
+                            className={
+                                AUTH_INPUT_CLASS
                             }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                         />
-                    </div>
+                    </AuthField>
 
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="idnumber"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Cédula
-                        </label>
-
+                    <AuthField
+                        label="Cédula"
+                        htmlFor="register-idnumber"
+                    >
                         <input
-                            id="idnumber"
+                            id="register-idnumber"
                             type="text"
                             inputMode="numeric"
                             maxLength={10}
                             placeholder="Ingrese su cédula"
                             value={form.idnumber}
-                            onChange={(event) =>
+                            onChange={(event) => {
                                 updateField(
                                     "idnumber",
                                     event.target.value
-                                        .replace(/\D/g, "")
+                                        .replace(
+                                            /\D/g,
+                                            "",
+                                        )
                                         .slice(0, 10),
-                                )
+                                );
+                            }}
+                            autoComplete="off"
+                            className={
+                                AUTH_INPUT_CLASS
                             }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                         />
-                    </div>
+                    </AuthField>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 md:gap-5">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="firstname"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Nombres
-                        </label>
-
+                <div className={AUTH_FORM_GRID_CLASS}>
+                    <AuthField
+                        label="Nombres"
+                        htmlFor="register-firstname"
+                    >
                         <input
-                            id="firstname"
+                            id="register-firstname"
                             type="text"
                             placeholder="Tus nombres"
                             value={form.firstname}
-                            onChange={(event) =>
-                                updateField("firstname", event.target.value)
+                            onChange={(event) => {
+                                updateField(
+                                    "firstname",
+                                    event.target.value,
+                                );
+                            }}
+                            autoComplete="given-name"
+                            className={
+                                AUTH_INPUT_CLASS
                             }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                         />
-                    </div>
+                    </AuthField>
 
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="lastname"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Apellidos
-                        </label>
-
+                    <AuthField
+                        label="Apellidos"
+                        htmlFor="register-lastname"
+                    >
                         <input
-                            id="lastname"
+                            id="register-lastname"
                             type="text"
                             placeholder="Tus apellidos"
                             value={form.lastname}
-                            onChange={(event) =>
-                                updateField("lastname", event.target.value)
+                            onChange={(event) => {
+                                updateField(
+                                    "lastname",
+                                    event.target.value,
+                                );
+                            }}
+                            autoComplete="family-name"
+                            className={
+                                AUTH_INPUT_CLASS
                             }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                         />
-                    </div>
+                    </AuthField>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 md:gap-5">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="register-email"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Correo electrónico
-                        </label>
-
+                <div className={AUTH_FORM_GRID_CLASS}>
+                    <AuthField
+                        label="Correo electrónico"
+                        htmlFor="register-email"
+                    >
                         <input
                             id="register-email"
                             type="email"
                             placeholder="ejemplo@correo.com"
                             value={form.email}
-                            onChange={(event) =>
-                                updateField("email", event.target.value)
+                            onChange={(event) => {
+                                updateField(
+                                    "email",
+                                    event.target.value,
+                                );
+                            }}
+                            autoComplete="email"
+                            className={
+                                AUTH_INPUT_CLASS
                             }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                         />
-                    </div>
+                    </AuthField>
 
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="phone_number"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Teléfono
-                        </label>
-
+                    <AuthField
+                        label="Teléfono"
+                        htmlFor="register-phone-number"
+                    >
                         <input
-                            id="phone_number"
+                            id="register-phone-number"
                             type="tel"
+                            inputMode="tel"
                             placeholder="0999999999"
                             value={form.phone_number}
-                            onChange={(event) =>
-                                updateField("phone_number", event.target.value)
+                            onChange={(event) => {
+                                updateField(
+                                    "phone_number",
+                                    event.target.value,
+                                );
+                            }}
+                            autoComplete="tel"
+                            className={
+                                AUTH_INPUT_CLASS
                             }
-                            className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                         />
-                    </div>
+                    </AuthField>
                 </div>
 
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                        <label
-                            htmlFor="register-password"
-                            className="block text-[13px] font-semibold text-slate-700"
-                        >
-                            Contraseña
-                        </label>
-
+                <AuthField
+                    label="Contraseña"
+                    htmlFor="register-password"
+                    action={
                         <button
                             type="button"
-                            onClick={() => setShowPassword((prev) => !prev)}
-                            className="text-xs font-medium text-[#4a6db3] transition hover:text-[#2d4f91]"
+                            onClick={() => {
+                                setShowPassword(
+                                    (
+                                        previousShowPassword,
+                                    ) =>
+                                        !previousShowPassword,
+                                );
+                            }}
+                            className={AUTH_ACTION_CLASS}
                         >
-                            {showPassword ? "Ocultar" : "Mostrar"}
+                            {showPassword
+                                ? "Ocultar"
+                                : "Mostrar"}
                         </button>
-                    </div>
-
+                    }
+                >
                     <input
                         id="register-password"
-                        type={showPassword ? "text" : "password"}
+                        type={
+                            showPassword
+                                ? "text"
+                                : "password"
+                        }
                         placeholder="Crea tu contraseña"
                         value={form.password}
-                        onChange={(event) =>
-                            updateField("password", event.target.value)
+                        onChange={(event) => {
+                            updateField(
+                                "password",
+                                event.target.value,
+                            );
+                        }}
+                        autoComplete="new-password"
+                        className={
+                            AUTH_INPUT_CLASS
                         }
-                        className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-[#4d7ce5] focus:ring-4 focus:ring-[#d9e6ff] sm:h-12"
                     />
-                </div>
+                </AuthField>
 
-                <button
-                    type="submit"
+                <AuthPrimaryButton
                     disabled={submitting}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#003d8f_0%,#002a66_100%)] px-4 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(0,61,143,0.28)] transition-all hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(0,61,143,0.33)] disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                    {submitting ? "Creando cuenta..." : "Crear cuenta"}
-                </button>
+                    {submitting ? (
+                        <span className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Creando cuenta...
+                        </span>
+                    ) : (
+                        "Crear cuenta"
+                    )}
+                </AuthPrimaryButton>
             </form>
 
-            <div className="mt-4 text-center text-sm text-slate-500 sm:mt-5">
+            <div className={AUTH_FOOTER_CLASS}>
                 ¿Ya tienes cuenta?{" "}
                 <Link
                     href="/login"
-                    className="font-semibold text-[#3a63c8] transition hover:text-[#244aab]"
+                    className={AUTH_FOOTER_LINK_CLASS}
                 >
                     Inicia sesión
                 </Link>
             </div>
-        </div>
+        </AuthCard>
     );
 }
 

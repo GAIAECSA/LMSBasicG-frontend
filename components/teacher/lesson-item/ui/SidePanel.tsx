@@ -85,21 +85,10 @@ function getResponseNumber(response: ActivityResponse, index: number) {
 }
 
 function getReviewDescription(itemType: LessonItemState["itemType"]) {
-    if (itemType === "forum") {
-        return "Revisa la participación de los estudiantes en el foro.";
-    }
-
-    if (itemType === "survey") {
-        return "Revisa las respuestas enviadas por los estudiantes.";
-    }
-
-    if (itemType === "quiz") {
-        return "Revisa los intentos y respuestas de los estudiantes.";
-    }
-
-    if (itemType === "homework") {
-        return "Revisa las entregas enviadas por los estudiantes.";
-    }
+    if (itemType === "forum") return "Revisa la participación de los estudiantes en el foro.";
+    if (itemType === "survey") return "Revisa las respuestas enviadas por los estudiantes.";
+    if (itemType === "quiz") return "Revisa los intentos y respuestas de los estudiantes.";
+    if (itemType === "homework") return "Revisa las entregas enviadas por los estudiantes.";
 
     return "Revisa la información registrada por los estudiantes.";
 }
@@ -118,18 +107,18 @@ function ResponsesPanel({ item, block }: ResponsesPanelProps) {
     if (!item.canShowResponsePanel) return null;
 
     return (
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6 [@media(max-height:760px)]:p-4">
             <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                        <Users className="h-6 w-6" />
+                <div className="min-w-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 sm:h-12 sm:w-12 sm:rounded-2xl">
+                        <Users className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
 
-                    <h2 className="mt-4 text-lg font-black text-slate-950">
+                    <h2 className="mt-3 text-base font-black text-slate-950 sm:mt-4 sm:text-lg">
                         Respuestas recibidas
                     </h2>
 
-                    <p className="mt-1 text-sm font-medium leading-6 text-slate-500">
+                    <p className="mt-1 text-xs font-medium leading-5 text-slate-500 sm:text-sm sm:leading-6">
                         Respuestas enviadas por estudiantes en esta actividad.
                     </p>
                 </div>
@@ -138,65 +127,62 @@ function ResponsesPanel({ item, block }: ResponsesPanelProps) {
                     type="button"
                     onClick={() => void item.loadActivityResponses(block)}
                     disabled={item.loadingResponses}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:w-10 sm:rounded-2xl"
                     aria-label="Actualizar respuestas"
                 >
                     <RefreshCw
-                        className={`h-4 w-4 ${item.loadingResponses ? "animate-spin" : ""
-                            }`}
+                        className={`h-4 w-4 ${item.loadingResponses ? "animate-spin" : ""}`}
                     />
                 </button>
             </div>
 
-            <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+            <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500 sm:text-xs">
                     Total
                 </p>
 
-                <p className="mt-1 text-2xl font-black text-slate-950">
+                <p className="mt-1 text-xl font-black text-slate-950 sm:text-2xl">
                     {item.activityResponses.length}
                 </p>
             </div>
 
             {item.loadingResponses ? (
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500">
+                <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-500 sm:rounded-2xl sm:p-4 sm:text-sm">
                     Cargando respuestas...
                 </div>
             ) : item.activityResponses.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-sm font-semibold text-slate-500">
+                <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center text-xs font-semibold text-slate-500 sm:rounded-2xl sm:p-5 sm:text-sm">
                     Todavía no existen respuestas para este bloque.
                 </div>
             ) : (
-                <div className="mt-4 max-h-[440px] space-y-3 overflow-y-auto pr-1">
+                <div className="mt-4 max-h-[320px] space-y-2 overflow-y-auto pr-1 sm:max-h-[440px] sm:space-y-3 [@media(max-height:760px)]:max-h-[260px]">
                     {item.activityResponses.map((response, index) => (
                         <article
                             key={getResponseKey(response, index)}
-                            className="rounded-2xl border border-slate-200 bg-white p-4"
+                            className="rounded-xl border border-slate-200 bg-white p-3 sm:rounded-2xl sm:p-4"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="truncate text-sm font-black text-slate-950">
+                                    <p className="truncate text-xs font-black text-slate-950 sm:text-sm">
                                         {getActivityResponseStudent(response)}
                                     </p>
 
-                                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                                        Matrícula #
-                                        {getResponseEnrollment(response)}
+                                    <p className="mt-1 text-[10px] font-semibold text-slate-500 sm:text-xs">
+                                        Matrícula #{getResponseEnrollment(response)}
                                     </p>
                                 </div>
 
-                                <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black uppercase text-blue-700">
+                                <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700 sm:px-2.5 sm:py-1 sm:text-[10px]">
                                     #{getResponseNumber(response, index)}
                                 </span>
                             </div>
 
-                            <p className="mt-3 line-clamp-5 whitespace-pre-line text-xs font-semibold leading-5 text-slate-600">
-                                {getActivityResponseText(response) ||
-                                    "Sin contenido."}
+                            <p className="mt-2 line-clamp-4 whitespace-pre-line text-[11px] font-semibold leading-5 text-slate-600 sm:mt-3 sm:text-xs">
+                                {getActivityResponseText(response) || "Sin contenido."}
                             </p>
 
                             <div className="mt-3 flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-bold text-slate-400">
+                                <span className="text-[10px] font-bold text-slate-400 sm:text-[11px]">
                                     {getResponseDate(response)}
                                 </span>
 
@@ -204,8 +190,7 @@ function ResponsesPanel({ item, block }: ResponsesPanelProps) {
                                     type="button"
                                     onClick={() =>
                                         window.alert(
-                                            getActivityResponseText(response) ||
-                                            "Sin contenido.",
+                                            getActivityResponseText(response) || "Sin contenido.",
                                         )
                                     }
                                     className="inline-flex h-8 items-center justify-center gap-1 rounded-xl bg-slate-100 px-3 text-[11px] font-black text-slate-700 transition hover:bg-slate-200"
@@ -224,23 +209,23 @@ function ResponsesPanel({ item, block }: ResponsesPanelProps) {
 
 export function SidePanel({ item, block, reviewHref }: SidePanelProps) {
     return (
-        <aside className="space-y-5">
-            <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                    <ClipboardCheck className="h-6 w-6" />
+        <aside className="space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6 [@media(max-height:760px)]:p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 sm:h-12 sm:w-12 sm:rounded-2xl">
+                    <ClipboardCheck className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
 
-                <h2 className="mt-4 text-lg font-black text-slate-950">
+                <h2 className="mt-3 text-base font-black text-slate-950 sm:mt-4 sm:text-lg">
                     Revisión
                 </h2>
 
-                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                <p className="mt-2 text-xs font-medium leading-5 text-slate-500 sm:text-sm sm:leading-6">
                     {getReviewDescription(item.itemType)}
                 </p>
 
                 <Link
                     href={reviewHref}
-                    className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#172861] px-4 text-sm font-black !text-white shadow-sm transition hover:bg-[#0f1d48]"
+                    className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-black !text-white shadow-sm transition hover:bg-[#0f1d48] sm:mt-5 sm:h-11 sm:rounded-2xl sm:text-sm"
                 >
                     <ClipboardCheck className="h-4 w-4" />
                     {getReviewButtonLabel(item.itemType)}

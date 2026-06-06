@@ -4,7 +4,6 @@ import type { CertificateTemplateWorkspaceProps } from "./types";
 import { useCertTemplate } from "./hook";
 import { Loading } from "./ui/Loading";
 import { CourseSelect } from "./ui/CourseSelect";
-import { Header } from "./ui/Header";
 import { Toolbar } from "./ui/Toolbar";
 import { Alerts } from "./ui/Alerts";
 import { Canvas } from "./ui/Canvas";
@@ -17,8 +16,8 @@ export function CertificateTemplateWorkspace({
 
     if (cert.isLoadingTemplate) {
         return (
-            <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
+            <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+                <div className="mx-auto w-full max-w-[1480px]">
                     <Loading numericCourseId={cert.numericCourseId} />
                 </div>
             </div>
@@ -27,8 +26,8 @@ export function CertificateTemplateWorkspace({
 
     if (cert.numericCourseId <= 0) {
         return (
-            <div className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
+            <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+                <div className="mx-auto w-full max-w-[1480px]">
                     <CourseSelect
                         isAdminRoute={cert.isAdminRoute}
                         courseOptions={cert.courseOptions}
@@ -42,10 +41,10 @@ export function CertificateTemplateWorkspace({
 
     if (!cert.template) {
         return (
-            <section className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-[1500px]">
-                    <div className="rounded-[2rem] border border-[var(--border)] bg-white p-8 text-center shadow-sm">
-                        <p className="text-sm font-semibold text-slate-600">
+            <section className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+                <div className="mx-auto w-full max-w-[1480px]">
+                    <div className="rounded-2xl border border-[var(--border)] bg-white p-5 text-center shadow-sm sm:rounded-[2rem] sm:p-8">
+                        <p className="text-xs font-semibold leading-5 text-slate-600 sm:text-sm">
                             No se pudo cargar la plantilla del certificado.
                         </p>
                     </div>
@@ -55,20 +54,9 @@ export function CertificateTemplateWorkspace({
     }
 
     return (
-        <section className="min-h-screen bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
-            <div className="mx-auto w-full max-w-[1500px] space-y-6">
-                <Header
-                    isAdminRoute={cert.isAdminRoute}
-                    selectedCourseName={cert.selectedCourseName}
-                    fieldsCount={
-                        cert.hasBackgroundImage ? cert.template.fields.length : 0
-                    }
-                    qrEnabled={
-                        cert.hasBackgroundImage && Boolean(cert.qrConfig.enabled)
-                    }
-                />
-
-                <div className="rounded-[2rem] border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5 md:p-6">
+        <section className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
+            <div className="mx-auto w-full max-w-[1480px] space-y-3 sm:space-y-4 [@media(max-height:760px)]:space-y-3">
+                <div className="rounded-2xl border border-[var(--border)] bg-white p-3 shadow-sm sm:rounded-[2rem] sm:p-4 lg:p-5 [@media(max-height:760px)]:p-3">
                     <Toolbar
                         backHref={cert.backHref}
                         backLabel={cert.backLabel}
@@ -112,6 +100,7 @@ export function CertificateTemplateWorkspace({
                     onPointerUp={cert.handlePointerUp}
                     onFieldPointerDown={cert.handlePointerDown}
                     onQrPointerDown={cert.handleQrPointerDown}
+                    onUpdateField={cert.updateField}
                 />
             </div>
         </section>
