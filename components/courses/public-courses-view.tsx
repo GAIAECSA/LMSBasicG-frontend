@@ -430,94 +430,47 @@ export function PublicCoursesView() {
                  * Compacta únicamente la portada en laptops con poca altura,
                  * por ejemplo 1280 × 720 o 1366 × 768.
                  */
-                @media (min-width: 1024px) and (max-height: 760px) {
-                    .athena-public-header-inner {
-                        height: 64px !important;
-                    }
+                /*
+ * En laptops de poca altura se mantiene una separación cómoda.
+ * La página puede desplazarse verticalmente para evitar comprimir
+ * títulos, tarjetas y botones.
+ */
+@media (min-width: 1024px) and (max-height: 760px) {
+    .athena-public-header-inner {
+        height: 68px !important;
+    }
 
-                    .athena-public-logo {
-                        height: 44px !important;
-                        width: 44px !important;
-                        border-radius: 14px !important;
-                    }
+    .athena-public-main {
+        padding-top: 24px !important;
+        padding-bottom: 56px !important;
+    }
 
-                    .athena-public-brand {
-                        font-size: 20px !important;
-                    }
+    .athena-hero {
+        min-height: 0 !important;
+        gap: 30px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
 
-                    .athena-public-main {
-                        padding-top: 14px !important;
-                        padding-bottom: 48px !important;
-                    }
+    .athena-feature-image,
+    .athena-feature-empty {
+        height: 360px !important;
+    }
 
-                    .athena-hero {
-                        min-height: 0 !important;
-                        gap: 24px !important;
-                        padding-top: 0 !important;
-                        padding-bottom: 0 !important;
-                    }
+    .athena-routes {
+        margin-top: 30px !important;
+        gap: 16px !important;
+    }
 
-                    .athena-hero-kicker {
-                        margin-bottom: 12px !important;
-                        padding: 6px 14px !important;
-                        font-size: 10px !important;
-                    }
+    .athena-route-card {
+        min-height: 88px !important;
+        padding: 18px !important;
+    }
 
-                    .athena-hero-title {
-                        font-size: 52px !important;
-                    }
-
-                    .athena-hero-copy {
-                        margin-top: 14px !important;
-                        font-size: 14px !important;
-                        line-height: 1.55 !important;
-                    }
-
-                    .athena-hero-actions {
-                        margin-top: 16px !important;
-                        gap: 10px !important;
-                    }
-
-                    .athena-hero-actions > * {
-                        height: 46px !important;
-                        padding-left: 18px !important;
-                        padding-right: 18px !important;
-                    }
-
-                    .athena-students {
-                        margin-top: 15px !important;
-                    }
-
-                    .athena-feature-frame {
-                        border-width: 6px !important;
-                        border-radius: 28px !important;
-                    }
-
-                    .athena-feature-image,
-                    .athena-feature-empty {
-                        height: 306px !important;
-                    }
-
-                    .athena-feature-content {
-                        height: 166px !important;
-                        padding: 12px !important;
-                    }
-
-                    .athena-routes {
-                        margin-top: 18px !important;
-                        gap: 14px !important;
-                    }
-
-                    .athena-route-card {
-                        min-height: 74px !important;
-                        gap: 14px !important;
-                        padding: 15px !important;
-                    }
-
-                    .athena-courses {
-                        margin-top: 28px !important;
-                    }
-                }
+    .athena-courses {
+        margin-top: 38px !important;
+    }
+}             
             `}</style>
 
             <section
@@ -552,7 +505,7 @@ export function PublicCoursesView() {
                             </div>
                         </button>
 
-                        <nav className="hidden items-center gap-5 text-xs font-black text-slate-700 lg:flex xl:gap-7 xl:text-sm 2xl:gap-11">
+                        <nav className="hidden items-center gap-6 text-sm font-black text-slate-700 xl:flex 2xl:gap-11">
                             <button
                                 type="button"
                                 onClick={() => scrollToSection("cursos")}
@@ -599,15 +552,14 @@ export function PublicCoursesView() {
                 <main className="athena-public-main mx-auto max-w-[1360px] px-4 pb-12 pt-5 sm:px-5 sm:pb-14 sm:pt-7 lg:px-6 lg:pb-16 lg:pt-8 xl:px-8 2xl:px-0">
                     <section
                         id="informacion"
-                        className="athena-hero scroll-mt-24 grid min-h-0 items-center gap-7 py-2 sm:gap-8 sm:py-4 lg:min-h-[400px] lg:grid-cols-[0.82fr_1.18fr] lg:gap-8 xl:min-h-[440px] xl:grid-cols-[0.78fr_1.22fr] xl:gap-10"
+                        className="athena-hero scroll-mt-24 grid min-h-0 items-center gap-8 py-3 sm:gap-10 sm:py-5 lg:gap-10 lg:py-6 2xl:min-h-[440px] 2xl:grid-cols-[0.78fr_1.22fr] 2xl:gap-12"
                     >
                         <div className="relative">
                             <div className="athena-hero-kicker mb-4 inline-flex rounded-full bg-blue-100 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-blue-700 sm:mb-5 sm:px-5 sm:text-xs sm:tracking-[0.26em] lg:mb-6">
                                 Sistema virtual de aprendizaje
                             </div>
 
-                            <h1 className="athena-hero-title max-w-[620px] text-[42px] font-black leading-[0.95] tracking-[-0.04em] text-slate-950 xs:text-[48px] sm:text-[56px] md:text-[64px] xl:text-[70px]">
-                                Aprende con{" "}
+                            <h1 className="athena-hero-title max-w-[620px] text-[38px] font-black leading-[0.98] tracking-[-0.04em] text-slate-950 sm:text-[54px] md:text-[62px] lg:text-[66px] 2xl:text-[70px]">                                Aprende con{" "}
                                 <span className="block text-blue-700">ATHENA</span>
                             </h1>
 
@@ -654,108 +606,106 @@ export function PublicCoursesView() {
                             </div>
                         </div>
 
-                        <div className="relative lg:flex lg:justify-end">
+                        <div className="relative 2xl:flex 2xl:justify-end">
                             <div className="absolute -right-14 top-10 hidden h-[340px] w-[340px] rounded-full bg-blue-200/40 blur-3xl lg:block" />
 
-                            <div className="athena-feature-frame relative w-full max-w-[790px] overflow-hidden rounded-[24px] border-4 border-white bg-white shadow-[0_30px_90px_rgba(15,23,42,0.15)] sm:rounded-[30px] sm:border-[6px] lg:rounded-[34px] lg:border-[8px]">
-                                {featuredCourse ? (
-                                    <div className="athena-feature-image relative h-[300px] overflow-hidden rounded-[18px] bg-slate-100 sm:h-[340px] sm:rounded-[22px] lg:h-[360px] xl:h-[380px] xl:rounded-[25px]">
-                                        <img
-                                            src={resolveImageUrl(getCourseImageUrl(featuredCourse))}
-                                            alt={getCourseName(featuredCourse)}
-                                            className="absolute inset-0 h-full w-full object-cover"
-                                            onError={(event) => {
-                                                event.currentTarget.src = EMPTY_IMAGE;
-                                            }}
-                                        />
+                            <div className="athena-feature-frame relative w-full overflow-hidden rounded-[24px] border-4 border-white bg-white shadow-[0_30px_90px_rgba(15,23,42,0.15)] sm:rounded-[30px] sm:border-[6px] lg:rounded-[34px] lg:border-[8px] 2xl:max-w-[790px]">                                {featuredCourse ? (
+                                <div className="athena-feature-image relative h-[320px] overflow-hidden rounded-[18px] bg-slate-100 sm:h-[380px] sm:rounded-[22px] lg:h-[420px] 2xl:h-[380px] 2xl:rounded-[25px]">                                    <img
+                                    src={resolveImageUrl(getCourseImageUrl(featuredCourse))}
+                                    alt={getCourseName(featuredCourse)}
+                                    className="absolute inset-0 h-full w-full object-cover"
+                                    onError={(event) => {
+                                        event.currentTarget.src = EMPTY_IMAGE;
+                                    }}
+                                />
 
-                                        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/25 via-slate-950/5 to-white/20" />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/25 via-slate-950/5 to-white/20" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
 
-                                        <div className="absolute left-3 top-3 flex max-w-[calc(100%-62px)] flex-wrap gap-2 sm:left-5 sm:top-5 sm:gap-3">
-                                            <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase text-slate-800 shadow-sm sm:px-5 sm:py-2 sm:text-xs">
-                                                {getCourseLevel(featuredCourse)}
+                                    <div className="absolute left-3 top-3 flex max-w-[calc(100%-62px)] flex-wrap gap-2 sm:left-5 sm:top-5 sm:gap-3">
+                                        <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase text-slate-800 shadow-sm sm:px-5 sm:py-2 sm:text-xs">
+                                            {getCourseLevel(featuredCourse)}
+                                        </span>
+
+                                        {hasDiscount(featuredCourse) ? (
+                                            <span className="rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-sm sm:px-5 sm:py-2 sm:text-xs">
+                                                En oferta
+                                            </span>
+                                        ) : null}
+
+                                        {getCourseDurationHours(featuredCourse) > 0 ? (
+                                            <span className="rounded-full bg-blue-700 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-sm sm:px-5 sm:py-2 sm:text-xs">
+                                                {getCourseDurationHours(featuredCourse)} horas
+                                            </span>
+                                        ) : null}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 text-blue-700 shadow-sm sm:right-5 sm:top-5 sm:h-12 sm:w-12 sm:rounded-2xl"
+                                        aria-label="Guardar curso"
+                                    >
+                                        ♡
+                                    </button>
+
+                                    <div className="absolute bottom-3 left-3 w-[465px] max-w-[calc(100%-24px)] sm:bottom-4 sm:left-5 sm:max-w-[calc(100%-40px)]">
+                                        <div className="athena-feature-content flex h-[176px] flex-col overflow-hidden rounded-[18px] border border-white/60 bg-white/90 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.20)] backdrop-blur-xl sm:h-[190px] sm:rounded-[22px] sm:p-4 lg:h-[200px] lg:rounded-[24px]">
+                                            <span className="w-fit rounded-full bg-blue-50 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">
+                                                Curso destacado
                                             </span>
 
-                                            {hasDiscount(featuredCourse) ? (
-                                                <span className="rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-sm sm:px-5 sm:py-2 sm:text-xs">
-                                                    En oferta
-                                                </span>
-                                            ) : null}
+                                            <h2 className="mt-2 line-clamp-1 text-base font-black leading-[1.2] tracking-[-0.02em] text-slate-950 sm:text-[20px]">
+                                                {getCourseName(featuredCourse)}
+                                            </h2>
 
-                                            {getCourseDurationHours(featuredCourse) > 0 ? (
-                                                <span className="rounded-full bg-blue-700 px-3 py-1.5 text-[10px] font-black uppercase text-white shadow-sm sm:px-5 sm:py-2 sm:text-xs">
-                                                    {getCourseDurationHours(featuredCourse)} horas
-                                                </span>
-                                            ) : null}
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/95 text-blue-700 shadow-sm sm:right-5 sm:top-5 sm:h-12 sm:w-12 sm:rounded-2xl"
-                                            aria-label="Guardar curso"
-                                        >
-                                            ♡
-                                        </button>
-
-                                        <div className="absolute bottom-3 left-3 w-[465px] max-w-[calc(100%-24px)] sm:bottom-4 sm:left-5 sm:max-w-[calc(100%-40px)]">
-                                            <div className="athena-feature-content flex h-[176px] flex-col overflow-hidden rounded-[18px] border border-white/60 bg-white/90 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.20)] backdrop-blur-xl sm:h-[190px] sm:rounded-[22px] sm:p-4 lg:h-[200px] lg:rounded-[24px]">
-                                                <span className="w-fit rounded-full bg-blue-50 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-blue-700">
-                                                    Curso destacado
-                                                </span>
-
-                                                <h2 className="mt-2 line-clamp-1 text-base font-black leading-[1.2] tracking-[-0.02em] text-slate-950 sm:text-[20px]">
-                                                    {getCourseName(featuredCourse)}
-                                                </h2>
-
-                                                <p className="mt-1.5 line-clamp-2 h-[34px] max-w-[430px] text-[10px] font-medium leading-[16px] text-slate-600 sm:mt-2 sm:h-[38px] sm:text-[11px] sm:leading-[18px]">
-                                                    {getCourseDescription(featuredCourse) ||
-                                                        "Curso disponible en la plataforma ATHENA."}
-                                                </p>
-
-                                                <div className="mt-auto flex items-end justify-between gap-3">
-                                                    <div className="rounded-xl bg-white px-3 py-1.5 shadow-sm sm:rounded-2xl sm:px-4 sm:py-2">
-                                                        <p className="text-[10px] font-black uppercase text-slate-400">
-                                                            Inversión
-                                                        </p>
-                                                        <p className="mt-0.5 text-base font-black text-slate-950">
-                                                            {getMainPriceLabel(featuredCourse)}
-                                                        </p>
-                                                    </div>
-
-                                                    <Link
-                                                        href="/login"
-                                                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-black !text-white shadow-sm transition hover:bg-blue-800 sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm"
-                                                    >
-                                                        Ver detalles
-                                                        <ArrowIcon />
-                                                    </Link>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="athena-feature-empty flex h-[300px] items-center justify-center rounded-[18px] bg-gradient-to-br from-blue-50 to-white p-6 sm:h-[340px] sm:rounded-[22px] sm:p-8 lg:h-[360px] xl:h-[420px] xl:rounded-[25px]">
-                                        <div className="max-w-sm text-center">
-                                            <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
-                                                <img
-                                                    src={HEADER_LOGO}
-                                                    alt="Logo ATHENA"
-                                                    className="h-full w-full object-contain"
-                                                />
-                                            </div>
-
-                                            <h3 className="mt-5 text-2xl font-black text-slate-950">
-                                                Catálogo ATHENA
-                                            </h3>
-
-                                            <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
-                                                Aquí se mostrarán los cursos publicados con matrícula
-                                                abierta.
+                                            <p className="mt-1.5 line-clamp-2 h-[34px] max-w-[430px] text-[10px] font-medium leading-[16px] text-slate-600 sm:mt-2 sm:h-[38px] sm:text-[11px] sm:leading-[18px]">
+                                                {getCourseDescription(featuredCourse) ||
+                                                    "Curso disponible en la plataforma ATHENA."}
                                             </p>
+
+                                            <div className="mt-auto flex items-end justify-between gap-3">
+                                                <div className="rounded-xl bg-white px-3 py-1.5 shadow-sm sm:rounded-2xl sm:px-4 sm:py-2">
+                                                    <p className="text-[10px] font-black uppercase text-slate-400">
+                                                        Inversión
+                                                    </p>
+                                                    <p className="mt-0.5 text-base font-black text-slate-950">
+                                                        {getMainPriceLabel(featuredCourse)}
+                                                    </p>
+                                                </div>
+
+                                                <Link
+                                                    href="/login"
+                                                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-700 px-3 text-xs font-black !text-white shadow-sm transition hover:bg-blue-800 sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-5 sm:text-sm"
+                                                >
+                                                    Ver detalles
+                                                    <ArrowIcon />
+                                                </Link>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
+                            ) : (
+                                <div className="athena-feature-empty flex h-[300px] items-center justify-center rounded-[18px] bg-gradient-to-br from-blue-50 to-white p-6 sm:h-[340px] sm:rounded-[22px] sm:p-8 lg:h-[360px] xl:h-[420px] xl:rounded-[25px]">
+                                    <div className="max-w-sm text-center">
+                                        <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm">
+                                            <img
+                                                src={HEADER_LOGO}
+                                                alt="Logo ATHENA"
+                                                className="h-full w-full object-contain"
+                                            />
+                                        </div>
+
+                                        <h3 className="mt-5 text-2xl font-black text-slate-950">
+                                            Catálogo ATHENA
+                                        </h3>
+
+                                        <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
+                                            Aquí se mostrarán los cursos publicados con matrícula
+                                            abierta.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             </div>
                         </div>
                     </section>
@@ -873,7 +823,7 @@ export function PublicCoursesView() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="mt-7 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:gap-5 xl:grid-cols-4 2xl:grid-cols-5">
+                            <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4">
                                 {visibleCourses.map((course) => (
                                     <article
                                         key={course.id}

@@ -1,5 +1,15 @@
 import AthenaLoadingBackground from "@/components/ui/AthenaLoadingBackground";
 
-export function Loading() {
-    return <AthenaLoadingBackground />;
+type LoadingProps = {
+    label?: string;
+};
+
+export function Loading({
+    label = "Cargando información...",
+}: LoadingProps) {
+    return (
+        <AthenaLoadingBackground
+            label={label}
+        />
+    );
 }

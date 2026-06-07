@@ -8,12 +8,14 @@ type AthenaLoadingBackgroundProps = {
     children?: ReactNode;
     className?: string;
     contentClassName?: string;
+    label?: string;
 };
 
 export function AthenaLoadingBackground({
     children,
     className = "",
     contentClassName = "",
+    label = "Cargando información...",
 }: AthenaLoadingBackgroundProps) {
     return (
         <div
@@ -39,7 +41,7 @@ export function AthenaLoadingBackground({
                         <Loader2 className="h-5 w-5 animate-spin text-[#172861]" />
 
                         <span>
-                            Cargando información...
+                            {label}
                         </span>
                     </div>
                 )}
