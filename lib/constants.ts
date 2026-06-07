@@ -114,7 +114,7 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
         },
         {
             label: "Mis cursos",
-            href: "/teacher/courses",
+            href: "/student/courses",
         },
         {
             label: "Evaluación",
@@ -262,7 +262,7 @@ export function getSidebarItemsByRoute(
     return [
         {
             label: "Mis cursos",
-            href: "/teacher/courses",
+            href: "/student/courses",
         },
         {
             label: "Curso actual",
