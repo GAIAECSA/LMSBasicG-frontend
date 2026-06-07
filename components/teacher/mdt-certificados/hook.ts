@@ -14,6 +14,7 @@ import {
     usePathname,
     useRouter,
 } from "next/navigation";
+import { notify } from "@/lib/notify";
 import {
     createMdtCertificate,
     deleteMdtCertificate,
@@ -25,26 +26,33 @@ import {
     getEnrollmentsByCourseAndRole,
     type Enrollment,
 } from "@/services/enrollments.service";
-import {
-    ACCEPTED_CERTIFICATE_FILES,
-    STUDENT_ROLE_ID,
-} from "./constants";
+import { STUDENT_ROLE_ID } from "./constants";
 import type {
     CourseStudent,
     DeleteModalState,
-    EditModalState,
     MdtCertificatesTeacherViewProps,
     UploadType,
-    UpdateMdtCertificatePayload,
 } from "./types";
 import {
     adaptCourseStudent,
     getErrorMessage,
     getFileKey,
     getIdNumberFromFileName,
-    normalizeIdNumber,
+    isPdfFile,
     normalizeSearch,
 } from "./utils";
+
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
 
 export function useMdtCertificatesTeacher({
     initialCourseId = 0,
@@ -55,20 +63,26 @@ export function useMdtCertificatesTeacher({
 
     const isAdminRoute = pathname.startsWith("/admin/");
 
-    const filesInputRef =
-        useRef<HTMLInputElement | null>(null);
+    const certificatesRequestRef = useRef<{
+        courseId: number;
+        promise: Promise<boolean>;
+    } | null>(null);
 
-    const multipleFilesInputRef =
-        useRef<HTMLInputElement | null>(null);
+    const studentsRequestRef = useRef<{
+        courseId: number;
+        promise: Promise<boolean>;
+    } | null>(null);
+
+    const refreshMutationRef = useRef(false);
+    const uploadMutationRef = useRef(false);
+    const certificateMutationRef = useRef<number | null>(null);
+    const hasCompletedInitialLoadRef = useRef(initialCourseId <= 0);
 
     const [uploadModalOpen, setUploadModalOpen] =
         useState(false);
 
     const [deleteModal, setDeleteModal] =
         useState<DeleteModalState | null>(null);
-
-    const [editModal, setEditModal] =
-        useState<EditModalState | null>(null);
 
     const [courseId, setCourseId] = useState(() =>
         initialCourseId > 0 ? String(initialCourseId) : "",
@@ -97,6 +111,10 @@ export function useMdtCertificatesTeacher({
 
     const [showDeleted, setShowDeleted] = useState(true);
 
+    const [initialLoading, setInitialLoading] = useState(
+        initialCourseId > 0,
+    );
+
     const [loading, setLoading] = useState(false);
 
     const [loadingStudents, setLoadingStudents] =
@@ -104,13 +122,8 @@ export function useMdtCertificatesTeacher({
 
     const [uploading, setUploading] = useState(false);
 
-    const [editing, setEditing] = useState(false);
-
     const [processingId, setProcessingId] =
         useState<number | null>(null);
-
-    const [successMessage, setSuccessMessage] =
-        useState("");
 
     const [errorMessage, setErrorMessage] =
         useState("");
@@ -185,51 +198,95 @@ export function useMdtCertificatesTeacher({
             });
     }, [certificates, searchTerm, showDeleted]);
 
+    const isMutating =
+        uploading || processingId !== null;
+
+    const isBusy =
+        initialLoading ||
+        loading ||
+        loadingStudents ||
+        isMutating;
+
     const loadCertificates = useCallback(
         async (requestedCourseId?: number) => {
             const validCourseId =
                 requestedCourseId ?? numericCourseId;
-
-            setErrorMessage("");
-            setSuccessMessage("");
 
             if (
                 !Number.isFinite(validCourseId) ||
                 validCourseId <= 0
             ) {
                 setCertificates([]);
-                setErrorMessage(
-                    "Ingrese un ID de curso válido.",
-                );
+                setInitialLoading(false);
+                hasCompletedInitialLoadRef.current = true;
+                notify.warning("Ingrese un ID de curso válido.");
 
-                return;
+                return false;
             }
 
-            try {
-                setLoading(true);
+            const activeRequest = certificatesRequestRef.current;
 
-                const data =
-                    await getMdtCertificatesByCourseId(
-                        validCourseId,
+            if (activeRequest) {
+                return activeRequest.promise;
+            }
+
+            const request = (async () => {
+                setLoading(true);
+                setErrorMessage("");
+
+                if (!hasCompletedInitialLoadRef.current) {
+                    setInitialLoading(true);
+                }
+
+                try {
+                    const data =
+                        await getMdtCertificatesByCourseId(
+                            validCourseId,
+                        );
+
+                    setCertificates(
+                        Array.isArray(data) ? data : [],
                     );
 
-                setCertificates(
-                    Array.isArray(data) ? data : [],
-                );
-            } catch (error) {
-                setCertificates([]);
-                setErrorMessage(
-                    getErrorMessage(error),
-                );
+                    return true;
+                } catch (error) {
+                    setCertificates([]);
+                    setErrorMessage(
+                        getErrorMessage(error),
+                    );
+
+                    return false;
+                } finally {
+                    setLoading(false);
+                    setInitialLoading(false);
+                    hasCompletedInitialLoadRef.current = true;
+                }
+            })();
+
+            certificatesRequestRef.current = {
+                courseId: validCourseId,
+                promise: request,
+            };
+
+            try {
+                return await request;
             } finally {
-                setLoading(false);
+                if (
+                    certificatesRequestRef.current?.promise ===
+                    request
+                ) {
+                    certificatesRequestRef.current = null;
+                }
             }
         },
         [numericCourseId],
     );
 
     const loadStudents = useCallback(
-        async (requestedCourseId?: number) => {
+        async (
+            requestedCourseId?: number,
+            showErrorToast = false,
+        ) => {
             const validCourseId =
                 requestedCourseId ?? numericCourseId;
 
@@ -238,40 +295,79 @@ export function useMdtCertificatesTeacher({
                 validCourseId <= 0
             ) {
                 setStudents([]);
-                return;
+
+                if (showErrorToast) {
+                    notify.warning("Ingrese un ID de curso válido.");
+                }
+
+                return false;
             }
 
-            try {
+            const activeRequest = studentsRequestRef.current;
+
+            if (activeRequest) {
+                return activeRequest.promise;
+            }
+
+            const request = (async () => {
                 setLoadingStudents(true);
 
-                const data =
-                    await getEnrollmentsByCourseAndRole(
-                        validCourseId,
-                        STUDENT_ROLE_ID,
-                    );
+                try {
+                    const data =
+                        await getEnrollmentsByCourseAndRole(
+                            validCourseId,
+                            STUDENT_ROLE_ID,
+                        );
 
-                const adaptedStudents = Array.isArray(data)
-                    ? data
-                          .map((enrollment) =>
-                              adaptCourseStudent(
-                                  enrollment as Enrollment,
-                              ),
-                          )
-                          .filter((student) => {
-                              return (
-                                  student.enrollmentId > 0 ||
-                                  student.userId > 0 ||
-                                  student.idnumber.trim()
-                                      .length > 0
-                              );
-                          })
-                    : [];
+                    const adaptedStudents = Array.isArray(data)
+                        ? data
+                              .map((enrollment) =>
+                                  adaptCourseStudent(
+                                      enrollment as Enrollment,
+                                  ),
+                              )
+                              .filter((student) => {
+                                  return (
+                                      student.enrollmentId > 0 ||
+                                      student.userId > 0 ||
+                                      student.idnumber.trim()
+                                          .length > 0
+                                  );
+                              })
+                        : [];
 
-                setStudents(adaptedStudents);
-            } catch {
-                setStudents([]);
+                    setStudents(adaptedStudents);
+
+                    return true;
+                } catch (error) {
+                    setStudents([]);
+
+                    if (showErrorToast) {
+                        notify.error(
+                            getErrorMessage(error),
+                        );
+                    }
+
+                    return false;
+                } finally {
+                    setLoadingStudents(false);
+                }
+            })();
+
+            studentsRequestRef.current = {
+                courseId: validCourseId,
+                promise: request,
+            };
+
+            try {
+                return await request;
             } finally {
-                setLoadingStudents(false);
+                if (
+                    studentsRequestRef.current?.promise ===
+                    request
+                ) {
+                    studentsRequestRef.current = null;
+                }
             }
         },
         [numericCourseId],
@@ -295,11 +391,7 @@ export function useMdtCertificatesTeacher({
     ]);
 
     useEffect(() => {
-        if (
-            !uploadModalOpen &&
-            !editModal &&
-            !deleteModal
-        ) {
+        if (!uploadModalOpen && !deleteModal) {
             return;
         }
 
@@ -307,14 +399,12 @@ export function useMdtCertificatesTeacher({
             if (
                 event.key !== "Escape" ||
                 uploading ||
-                editing ||
                 processingId !== null
             ) {
                 return;
             }
 
             setUploadModalOpen(false);
-            setEditModal(null);
             setDeleteModal(null);
         }
 
@@ -331,8 +421,6 @@ export function useMdtCertificatesTeacher({
         };
     }, [
         deleteModal,
-        editModal,
-        editing,
         processingId,
         uploadModalOpen,
         uploading,
@@ -343,25 +431,25 @@ export function useMdtCertificatesTeacher({
     ) {
         event.preventDefault();
 
-        setErrorMessage("");
-        setSuccessMessage("");
+        if (uploadMutationRef.current) {
+            notify.warning(
+                "La carga de certificados ya está en proceso.",
+            );
+            return;
+        }
 
         if (
             !Number.isFinite(numericCourseId) ||
             numericCourseId <= 0
         ) {
-            setErrorMessage(
-                "Ingrese un ID de curso válido.",
-            );
-
+            notify.warning("Ingrese un ID de curso válido.");
             return;
         }
 
         if (!certificateType.trim()) {
-            setErrorMessage(
+            notify.warning(
                 "Seleccione el tipo de certificado.",
             );
-
             return;
         }
 
@@ -369,10 +457,9 @@ export function useMdtCertificatesTeacher({
             uploadType === "individual" &&
             !selectedStudent
         ) {
-            setErrorMessage(
+            notify.warning(
                 "Seleccione un estudiante del curso.",
             );
-
             return;
         }
 
@@ -381,10 +468,9 @@ export function useMdtCertificatesTeacher({
             selectedStudent &&
             !selectedStudent.idnumber.trim()
         ) {
-            setErrorMessage(
+            notify.warning(
                 "El estudiante seleccionado no tiene número de identificación registrado.",
             );
-
             return;
         }
 
@@ -392,10 +478,9 @@ export function useMdtCertificatesTeacher({
             uploadType === "individual" &&
             !file
         ) {
-            setErrorMessage(
+            notify.warning(
                 "Seleccione el certificado del estudiante.",
             );
-
             return;
         }
 
@@ -403,10 +488,9 @@ export function useMdtCertificatesTeacher({
             uploadType === "bulk" &&
             bulkFiles.length === 0
         ) {
-            setErrorMessage(
+            notify.warning(
                 "Seleccione uno o varios certificados para subir.",
             );
-
             return;
         }
 
@@ -420,7 +504,7 @@ export function useMdtCertificatesTeacher({
                 );
 
             if (filesWithoutIdNumber.length > 0) {
-                setErrorMessage(
+                notify.warning(
                     `Los archivos deben llamarse con la cédula. Ejemplo: 1312345678.pdf. Revise: ${filesWithoutIdNumber
                         .map(
                             (currentFile) =>
@@ -429,14 +513,20 @@ export function useMdtCertificatesTeacher({
                         .slice(0, 3)
                         .join(", ")}`,
                 );
-
                 return;
             }
         }
 
-        try {
-            setUploading(true);
+        uploadMutationRef.current = true;
+        setUploading(true);
 
+        const dismissLoadingToast = createLoadingToast(
+            uploadType === "individual"
+                ? "Subiendo certificado..."
+                : `Subiendo ${bulkFiles.length} certificado(s)...`,
+        );
+
+        try {
             if (uploadType === "individual") {
                 await createMdtCertificate({
                     file: file as File,
@@ -447,7 +537,8 @@ export function useMdtCertificatesTeacher({
                         certificateType.trim(),
                 });
 
-                setSuccessMessage(
+                dismissLoadingToast();
+                notify.success(
                     "Certificado subido correctamente.",
                 );
             } else {
@@ -464,148 +555,97 @@ export function useMdtCertificatesTeacher({
                     });
                 }
 
-                setSuccessMessage(
+                dismissLoadingToast();
+                notify.success(
                     `${bulkFiles.length} certificado(s) subido(s) correctamente.`,
                 );
             }
 
-            clearFiles();
+            resetFiles();
             setSelectedEnrollmentId("");
             setUploadModalOpen(false);
 
             await loadCertificates(numericCourseId);
         } catch (error) {
-            setErrorMessage(
-                getErrorMessage(error),
-            );
+            notify.error(getErrorMessage(error));
         } finally {
+            dismissLoadingToast();
             setUploading(false);
-        }
-    }
-
-    async function updateCertificate(
-        event: FormEvent<HTMLFormElement>,
-    ) {
-        event.preventDefault();
-
-        if (!editModal) return;
-
-        const cleanCertificateType =
-            editModal.certificateType.trim();
-
-        const cleanIdNumber =
-            normalizeIdNumber(editModal.idNumber);
-
-        setErrorMessage("");
-        setSuccessMessage("");
-
-        if (!cleanCertificateType) {
-            setErrorMessage(
-                "Seleccione el tipo de certificado.",
-            );
-
-            return;
-        }
-
-        if (!cleanIdNumber) {
-            setErrorMessage(
-                "Ingrese la identificación del estudiante.",
-            );
-
-            return;
-        }
-
-        if (
-            !Number.isFinite(numericCourseId) ||
-            numericCourseId <= 0
-        ) {
-            setErrorMessage(
-                "No se pudo identificar el curso.",
-            );
-
-            return;
-        }
-
-        try {
-            setEditing(true);
-            setProcessingId(
-                editModal.certificate.id,
-            );
-
-            const payload = {
-                course_id: numericCourseId,
-                id_number: cleanIdNumber,
-                certificate_type:
-                    cleanCertificateType,
-                ...(editModal.file
-                    ? {
-                          file: editModal.file,
-                      }
-                    : {}),
-            } as UpdateMdtCertificatePayload;
-
-            await updateMdtCertificate(
-                editModal.certificate.id,
-                payload,
-            );
-
-            setSuccessMessage(
-                "Certificado actualizado correctamente.",
-            );
-
-            setEditModal(null);
-
-            await loadCertificates(numericCourseId);
-        } catch (error) {
-            setErrorMessage(
-                getErrorMessage(error),
-            );
-        } finally {
-            setEditing(false);
-            setProcessingId(null);
+            uploadMutationRef.current = false;
         }
     }
 
     async function toggleCertificateState(
         certificate: MdtCertificate,
     ) {
-        setErrorMessage("");
-        setSuccessMessage("");
+        if (certificateMutationRef.current !== null) {
+            notify.warning(
+                "Espera a que finalice la acción actual.",
+            );
+            return;
+        }
+
+        certificateMutationRef.current = certificate.id;
         setProcessingId(certificate.id);
 
+        const nextDeleted = !certificate.deleted;
+        const dismissLoadingToast = createLoadingToast(
+            nextDeleted
+                ? "Ocultando certificado..."
+                : "Restaurando certificado...",
+        );
+
         try {
-            await updateMdtCertificate(
-                certificate.id,
-                {
-                    deleted: !certificate.deleted,
-                } as UpdateMdtCertificatePayload,
+            const updatedCertificate =
+                await updateMdtCertificate(
+                    certificate.id,
+                    {
+                        deleted: nextDeleted,
+                    },
+                );
+
+            setCertificates((current) =>
+                current.map((item) =>
+                    item.id === updatedCertificate.id
+                        ? updatedCertificate
+                        : item,
+                ),
             );
 
-            setSuccessMessage(
+            dismissLoadingToast();
+            notify.success(
                 certificate.deleted
                     ? "Certificado restaurado correctamente."
                     : "Certificado ocultado correctamente.",
             );
-
-            await loadCertificates(numericCourseId);
         } catch (error) {
-            setErrorMessage(
-                getErrorMessage(error),
-            );
+            notify.error(getErrorMessage(error));
         } finally {
+            dismissLoadingToast();
             setProcessingId(null);
+            certificateMutationRef.current = null;
         }
     }
 
     async function confirmDeleteCertificate() {
         if (!deleteModal) return;
 
+        if (certificateMutationRef.current !== null) {
+            notify.warning(
+                "Espera a que finalice la acción actual.",
+            );
+            return;
+        }
+
         const certificateId =
             deleteModal.certificate.id;
 
-        setErrorMessage("");
-        setSuccessMessage("");
+        certificateMutationRef.current = certificateId;
         setProcessingId(certificateId);
+
+        const dismissLoadingToast = createLoadingToast(
+            "Eliminando certificado...",
+        );
 
         try {
             const deletedCertificate =
@@ -622,17 +662,17 @@ export function useMdtCertificatesTeacher({
                 ),
             );
 
-            setSuccessMessage(
+            setDeleteModal(null);
+            dismissLoadingToast();
+            notify.success(
                 "Certificado eliminado correctamente.",
             );
-
-            setDeleteModal(null);
         } catch (error) {
-            setErrorMessage(
-                getErrorMessage(error),
-            );
+            notify.error(getErrorMessage(error));
         } finally {
+            dismissLoadingToast();
             setProcessingId(null);
+            certificateMutationRef.current = null;
         }
     }
 
@@ -648,28 +688,17 @@ export function useMdtCertificatesTeacher({
         event.target.value = "";
     }
 
-    function selectEditFile(
-        event: ChangeEvent<HTMLInputElement>,
-    ) {
-        const selectedFile =
-            event.target.files?.[0] ?? null;
-
-        setEditModal((current) => {
-            if (!current) return current;
-
-            return {
-                ...current,
-                file: selectedFile,
-            };
-        });
-
-        event.target.value = "";
-    }
-
     function dropFiles(
         event: DragEvent<HTMLDivElement>,
     ) {
         event.preventDefault();
+
+        if (uploadMutationRef.current) {
+            notify.warning(
+                "Espera a que finalice la carga actual.",
+            );
+            return;
+        }
 
         const currentFiles = Array.from(
             event.dataTransfer.files ?? [],
@@ -679,12 +708,29 @@ export function useMdtCertificatesTeacher({
     }
 
     function assignFiles(currentFiles: File[]) {
+        if (uploadMutationRef.current) {
+            notify.warning(
+                "Espera a que finalice la carga actual.",
+            );
+            return;
+        }
+
         const validFiles = currentFiles.filter(
-            (currentFile) =>
-                /\.(pdf|jpg|jpeg|png|webp)$/i.test(
-                    currentFile.name,
-                ),
+            isPdfFile,
         );
+
+        if (currentFiles.length > validFiles.length) {
+            notify.warning(
+                "Se omitieron archivos con formatos no permitidos.",
+            );
+        }
+
+        if (validFiles.length === 0) {
+            notify.warning(
+                "Seleccione únicamente archivos PDF.",
+            );
+            return;
+        }
 
         const firstFile = validFiles[0] ?? null;
 
@@ -722,6 +768,8 @@ export function useMdtCertificatesTeacher({
     function removeCapturedFile(
         currentFile: File,
     ) {
+        if (uploadMutationRef.current) return;
+
         if (uploadType === "individual") {
             setFile(null);
             return;
@@ -736,23 +784,23 @@ export function useMdtCertificatesTeacher({
         );
     }
 
-    function clearFiles() {
+    function resetFiles() {
         setFile(null);
         setBulkFiles([]);
 
-        if (filesInputRef.current) {
-            filesInputRef.current.value = "";
-        }
+    }
 
-        if (multipleFilesInputRef.current) {
-            multipleFilesInputRef.current.value =
-                "";
-        }
+    function clearFiles() {
+        if (uploadMutationRef.current) return;
+
+        resetFiles();
     }
 
     function changeUploadType(
         nextUploadType: UploadType,
     ) {
+        if (uploadMutationRef.current) return;
+
         setUploadType(nextUploadType);
         clearFiles();
 
@@ -762,35 +810,23 @@ export function useMdtCertificatesTeacher({
     }
 
     function openUploadModal() {
-        setErrorMessage("");
-        setSuccessMessage("");
+        if (isMutating) {
+            notify.warning(
+                "Espera a que finalice la acción actual.",
+            );
+            return;
+        }
+
         clearFiles();
 
         if (
             Number.isFinite(numericCourseId) &&
             numericCourseId > 0
         ) {
-            void loadStudents(numericCourseId);
+            void loadStudents(numericCourseId, true);
         }
 
         setUploadModalOpen(true);
-    }
-
-    function openEditModal(
-        certificate: MdtCertificate,
-    ) {
-        setErrorMessage("");
-        setSuccessMessage("");
-
-        setEditModal({
-            certificate,
-            certificateType:
-                certificate.certificate_type ||
-                "MDT",
-            idNumber:
-                certificate.id_number || "",
-            file: null,
-        });
     }
 
     function closeUploadModal() {
@@ -799,26 +835,62 @@ export function useMdtCertificatesTeacher({
         setUploadModalOpen(false);
     }
 
-    function closeEditModal() {
-        if (editing) return;
-
-        setEditModal(null);
-    }
-
     function closeDeleteModal() {
         if (processingId !== null) return;
 
         setDeleteModal(null);
     }
 
-    function consultAll() {
-        void loadCertificates();
-        void loadStudents();
+    async function consultAll() {
+        if (refreshMutationRef.current || isMutating) {
+            notify.warning(
+                "Espera a que finalice la acción actual.",
+            );
+            return;
+        }
+
+        if (
+            !Number.isFinite(numericCourseId) ||
+            numericCourseId <= 0
+        ) {
+            notify.warning("Ingrese un ID de curso válido.");
+            return;
+        }
+
+        refreshMutationRef.current = true;
+        const dismissLoadingToast = createLoadingToast(
+            "Actualizando certificados...",
+        );
+
+        try {
+            const [certificatesLoaded, studentsLoaded] =
+                await Promise.all([
+                    loadCertificates(numericCourseId),
+                    loadStudents(numericCourseId),
+                ]);
+
+            if (certificatesLoaded && studentsLoaded) {
+                notify.success(
+                    "Certificados actualizados correctamente.",
+                );
+            } else {
+                notify.error(
+                    "No se pudo actualizar toda la información.",
+                );
+            }
+        } finally {
+            dismissLoadingToast();
+            refreshMutationRef.current = false;
+        }
     }
 
     function changeAdminCourse() {
-        setErrorMessage("");
-        setSuccessMessage("");
+        if (isMutating) {
+            notify.warning(
+                "Espera a que finalice la acción actual.",
+            );
+            return;
+        }
 
         router.push("/admin/mdt-certificados");
     }
@@ -845,40 +917,32 @@ export function useMdtCertificatesTeacher({
         setSearchTerm,
         showDeleted,
         setShowDeleted,
+        initialLoading,
         loading,
         loadingStudents,
         uploading,
-        editing,
         processingId,
-        successMessage,
+        isBusy,
+        isMutating,
         errorMessage,
         uploadModalOpen,
         deleteModal,
         setDeleteModal,
-        editModal,
-        setEditModal,
-        filesInputRef,
-        multipleFilesInputRef,
         loadCertificates,
         loadStudents,
         submitUpload,
-        updateCertificate,
         toggleCertificateState,
         confirmDeleteCertificate,
         selectFiles,
-        selectEditFile,
         dropFiles,
         removeCapturedFile,
         clearFiles,
         changeUploadType,
         openUploadModal,
-        openEditModal,
         closeUploadModal,
-        closeEditModal,
         closeDeleteModal,
         consultAll,
         changeAdminCourse,
-        acceptedFiles: ACCEPTED_CERTIFICATE_FILES,
     };
 }
 

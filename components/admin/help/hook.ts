@@ -2,10 +2,15 @@
 
 import {
     type FormEvent,
+    useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+
 import { useAuth } from "@/hooks/useAuth";
+import { notify } from "@/lib/notify";
+
 import {
     DEFAULT_SUPPORT_FORM,
     SUPPORT_EMAIL,
@@ -20,51 +25,237 @@ import {
     getUserFullName,
 } from "./utils";
 
-export function useHelpPage() {
-    const { user } = useAuth();
+function getErrorMessage(
+    error: unknown,
+    fallback: string,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
 
-    const [form, setForm] =
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    return fallback;
+}
+
+async function copyTextToClipboard(
+    value: string,
+) {
+    if (
+        typeof navigator !==
+        "undefined" &&
+        navigator.clipboard?.writeText
+    ) {
+        await navigator.clipboard.writeText(
+            value,
+        );
+
+        return;
+    }
+
+    if (
+        typeof document ===
+        "undefined"
+    ) {
+        throw new Error(
+            "El portapapeles no está disponible en este navegador.",
+        );
+    }
+
+    const textarea =
+        document.createElement(
+            "textarea",
+        );
+
+    textarea.value =
+        value;
+
+    textarea.setAttribute(
+        "readonly",
+        "",
+    );
+
+    textarea.style.position =
+        "fixed";
+
+    textarea.style.top =
+        "-1000px";
+
+    textarea.style.left =
+        "-1000px";
+
+    document.body.appendChild(
+        textarea,
+    );
+
+    textarea.select();
+
+    const copied =
+        document.execCommand(
+            "copy",
+        );
+
+    document.body.removeChild(
+        textarea,
+    );
+
+    if (!copied) {
+        throw new Error(
+            "No se pudo copiar la solicitud.",
+        );
+    }
+}
+
+export function useHelpPage() {
+    const { user } =
+        useAuth();
+
+    const [
+        form,
+        setForm,
+    ] =
         useState<SupportFormState>(
             DEFAULT_SUPPORT_FORM,
         );
 
-    const [copied, setCopied] =
+    const [
+        copied,
+        setCopied,
+    ] =
         useState(false);
 
-    const [error, setError] =
+    const [
+        isCopying,
+        setIsCopying,
+    ] =
+        useState(false);
+
+    const [
+        error,
+        setError,
+    ] =
         useState("");
 
-    const userName = useMemo(
-        () => getUserFullName(user),
-        [user],
-    );
+    const copiedTimeoutRef =
+        useRef<number | null>(
+            null,
+        );
 
-    const userEmail = useMemo(
-        () => getUserEmail(user),
-        [user],
-    );
+    const userName =
+        useMemo(
+            () =>
+                getUserFullName(
+                    user,
+                ),
+            [user],
+        );
 
-    const supportMessage = useMemo(
-        () =>
-            buildSupportMessage({
+    const userEmail =
+        useMemo(
+            () =>
+                getUserEmail(
+                    user,
+                ),
+            [user],
+        );
+
+    const supportMessage =
+        useMemo(
+            () =>
+                buildSupportMessage(
+                    {
+                        form,
+                        userName,
+                        userEmail,
+                    },
+                ),
+            [
                 form,
-                userName,
                 userEmail,
-            }),
-        [form, userEmail, userName],
-    );
+                userName,
+            ],
+        );
+
+    useEffect(() => {
+        return () => {
+            if (
+                copiedTimeoutRef.current !==
+                null
+            ) {
+                window.clearTimeout(
+                    copiedTimeoutRef.current,
+                );
+            }
+        };
+    }, []);
+
+    function clearCopiedTimeout() {
+        if (
+            copiedTimeoutRef.current ===
+            null
+        ) {
+            return;
+        }
+
+        window.clearTimeout(
+            copiedTimeoutRef.current,
+        );
+
+        copiedTimeoutRef.current =
+            null;
+    }
+
+    function scheduleCopiedReset() {
+        clearCopiedTimeout();
+
+        copiedTimeoutRef.current =
+            window.setTimeout(
+                () => {
+                    setCopied(
+                        false,
+                    );
+
+                    copiedTimeoutRef.current =
+                        null;
+                },
+                3500,
+            );
+    }
+
+    function clearFeedback() {
+        clearCopiedTimeout();
+
+        setError(
+            "",
+        );
+
+        setCopied(
+            false,
+        );
+    }
 
     function handleChange(
-        field: keyof SupportFormState,
+        field:
+            keyof SupportFormState,
         value: string,
     ) {
-        setForm((current) => ({
-            ...current,
-            [field]: value,
-        }));
+        setForm(
+            (current) => ({
+                ...current,
+                [field]:
+                    value,
+            }),
+        );
 
-        setError("");
-        setCopied(false);
+        clearFeedback();
     }
 
     function handleCategoryChange(
@@ -76,73 +267,144 @@ export function useHelpPage() {
         );
     }
 
-    function validateForm() {
+    function getValidationError() {
         if (
-            !form.subject.trim() ||
+            !form.subject.trim()
+        ) {
+            return "Ingresa el asunto de la solicitud.";
+        }
+
+        if (
             !form.message.trim()
         ) {
-            throw new Error(
-                "Completa el asunto y el detalle antes de continuar.",
-            );
+            return "Describe el problema o la ayuda que necesitas.";
         }
+
+        return "";
+    }
+
+    function showValidationError(
+        message: string,
+    ) {
+        setError(
+            message,
+        );
+
+        notify.warning(
+            "Completa los campos requeridos.",
+            message,
+        );
     }
 
     async function handleCopy() {
+        if (
+            isCopying
+        ) {
+            return;
+        }
+
+        clearFeedback();
+
+        const validationError =
+            getValidationError();
+
+        if (
+            validationError
+        ) {
+            showValidationError(
+                validationError,
+            );
+
+            return;
+        }
+
         try {
-            setError("");
-            setCopied(false);
+            setIsCopying(
+                true,
+            );
 
-            validateForm();
-
-            await navigator.clipboard.writeText(
+            await copyTextToClipboard(
                 supportMessage,
             );
 
-            setCopied(true);
-        } catch (currentError) {
+            setCopied(
+                true,
+            );
+
+            scheduleCopiedReset();
+
+            notify.success(
+                "Solicitud copiada.",
+                "El texto fue guardado en el portapapeles.",
+            );
+        } catch (
+        currentError
+        ) {
+            const message =
+                getErrorMessage(
+                    currentError,
+                    "No se pudo copiar la solicitud.",
+                );
+
             setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo copiar la solicitud.",
+                message,
+            );
+
+            notify.error(
+                "No se pudo copiar la solicitud.",
+                message,
+            );
+        } finally {
+            setIsCopying(
+                false,
             );
         }
     }
 
     function handleSubmit(
-        event: FormEvent<HTMLFormElement>,
+        event:
+            FormEvent<HTMLFormElement>,
     ) {
         event.preventDefault();
 
-        try {
-            setError("");
-            setCopied(false);
+        clearFeedback();
 
-            validateForm();
+        const validationError =
+            getValidationError();
 
-            const subject =
-                encodeURIComponent(
-                    `[Soporte LMS] ${form.subject}`,
-                );
-
-            const body =
-                encodeURIComponent(
-                    supportMessage,
-                );
-
-            window.location.href =
-                `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-        } catch (currentError) {
-            setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo preparar la solicitud.",
+        if (
+            validationError
+        ) {
+            showValidationError(
+                validationError,
             );
+
+            return;
         }
+
+        const subject =
+            encodeURIComponent(
+                `[Soporte LMS] ${form.subject.trim()}`,
+            );
+
+        const body =
+            encodeURIComponent(
+                supportMessage,
+            );
+
+        notify.success(
+            "Solicitud preparada.",
+            "Se abrirá tu aplicación de correo para completar el envío.",
+        );
+
+        window.location.href =
+            `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
     }
 
     return {
         form,
         copied,
+        isCopying,
         error,
         userName,
         handleChange,
@@ -153,4 +415,6 @@ export function useHelpPage() {
 }
 
 export type HelpPageState =
-    ReturnType<typeof useHelpPage>;
+    ReturnType<
+        typeof useHelpPage
+    >;

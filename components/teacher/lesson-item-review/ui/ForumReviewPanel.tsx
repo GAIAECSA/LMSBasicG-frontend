@@ -1,7 +1,6 @@
 import {
     CalendarClock,
     MessageSquareText,
-    Trash2,
 } from "lucide-react";
 import type { ReviewStudentRow } from "../types";
 import {
@@ -11,10 +10,6 @@ import {
 
 type ForumReviewPanelProps = {
     row: ReviewStudentRow | null;
-    deletingId?: number | string | null;
-    onDeleteParticipation?: (
-        participationId: number | string,
-    ) => void;
 };
 
 type AnyRecord = Record<string, unknown>;
@@ -179,8 +174,6 @@ function extractForumParticipations(
 
 export function ForumReviewPanel({
     row,
-    deletingId = null,
-    onDeleteParticipation,
 }: ForumReviewPanelProps) {
     if (!row) {
         return (
@@ -243,14 +236,6 @@ export function ForumReviewPanel({
             <div className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3 [@media(max-height:760px)]:mt-3">
                 {participations.map(
                     (participation, index) => {
-                        const isDeleting =
-                            participation.id !==
-                                null &&
-                            String(deletingId) ===
-                                String(
-                                    participation.id,
-                                );
-
                         return (
                             <article
                                 key={`${participation.id ?? index}-${participation.createdAt || index}`}
@@ -274,35 +259,6 @@ export function ForumReviewPanel({
                                         </div>
                                     </div>
 
-                                    {participation.id !==
-                                        null &&
-                                    onDeleteParticipation ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                if (
-                                                    participation.id ===
-                                                    null
-                                                ) {
-                                                    return;
-                                                }
-
-                                                onDeleteParticipation(
-                                                    participation.id,
-                                                );
-                                            }}
-                                            disabled={
-                                                isDeleting
-                                            }
-                                            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-
-                                            {isDeleting
-                                                ? "Eliminando..."
-                                                : "Eliminar"}
-                                        </button>
-                                    ) : null}
                                 </div>
 
                                 <div className="mt-3 rounded-xl bg-white p-3 ring-1 ring-slate-200 sm:mt-4 sm:rounded-2xl sm:p-4">

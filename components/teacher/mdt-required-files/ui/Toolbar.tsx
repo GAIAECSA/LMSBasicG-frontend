@@ -9,6 +9,7 @@ import {
 type ToolbarProps = {
     searchTerm: string;
     isLoading: boolean;
+    isBusy: boolean;
     courseId: number;
     lessonsCount: number;
     visibleCount: number;
@@ -21,6 +22,7 @@ type ToolbarProps = {
 export function Toolbar({
     searchTerm,
     isLoading,
+    isBusy,
     courseId,
     lessonsCount,
     visibleCount,
@@ -46,7 +48,7 @@ export function Toolbar({
                     <button
                         type="button"
                         onClick={onRefresh}
-                        disabled={isLoading || !courseId}
+                        disabled={isBusy || !courseId}
                         className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         {isLoading ? (
@@ -61,7 +63,7 @@ export function Toolbar({
                     <button
                         type="button"
                         onClick={onCreate}
-                        disabled={isLoading || lessonsCount === 0}
+                        disabled={isBusy || lessonsCount === 0}
                         className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#0B163F] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <Plus className="h-4 w-4" />

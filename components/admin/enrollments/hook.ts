@@ -4,9 +4,12 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FormEvent,
 } from "react";
+
+import { notify } from "@/lib/notify";
 
 import {
     getAllCourses,
@@ -43,6 +46,18 @@ import {
     getUserName,
 } from "./utils";
 
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
+
 export function useEnrollmentsAdminPanel() {
     const [enrollments, setEnrollments] =
         useState<Enrollment[]>([]);
@@ -75,9 +90,6 @@ export function useEnrollmentsAdminPanel() {
         useState<number | null>(null);
 
     const [error, setError] =
-        useState("");
-
-    const [success, setSuccess] =
         useState("");
 
     const [search, setSearch] =
@@ -123,13 +135,70 @@ export function useEnrollmentsAdminPanel() {
     const [userSearch, setUserSearch] =
         useState("");
 
+    const [deleteModalOpen, setDeleteModalOpen] =
+        useState(false);
+
+    const [enrollmentPendingDelete, setEnrollmentPendingDelete] =
+        useState<Enrollment | null>(null);
+
+    const loadingRef = useRef(false);
+    const mutationRef = useRef(false);
+    const hasLoadedOnceRef = useRef(false);
+
+    function beginMutation(message: string) {
+        if (loadingRef.current) {
+            notify.warning(
+                "Espera a que termine la actualización de matrículas.",
+            );
+            return false;
+        }
+
+        if (mutationRef.current) {
+            notify.warning(message);
+            return false;
+        }
+
+        mutationRef.current = true;
+        return true;
+    }
+
+    function endMutation() {
+        mutationRef.current = false;
+    }
+
     const loadEnrollments = useCallback(
         async (showRefresh = false) => {
+            if (loadingRef.current) {
+                if (showRefresh) {
+                    notify.warning(
+                        "La actualización de matrículas ya está en proceso.",
+                    );
+                }
+
+                return;
+            }
+
+            if (mutationRef.current && showRefresh) {
+                notify.warning(
+                    "Espera a que termine la acción en curso antes de actualizar.",
+                );
+                return;
+            }
+
+            loadingRef.current = true;
+
+            const isInitialLoad = !hasLoadedOnceRef.current;
+            const dismissLoadingToast = showRefresh
+                ? createLoadingToast("Actualizando matrículas...")
+                : null;
+
             try {
+                if (isInitialLoad) {
+                    setIsLoading(true);
+                }
+
                 if (showRefresh) {
                     setIsRefreshing(true);
-                } else {
-                    setIsLoading(true);
                 }
 
                 setError("");
@@ -165,17 +234,27 @@ export function useEnrollmentsAdminPanel() {
                 );
 
                 if (showRefresh) {
-                    setSuccess(
+                    dismissLoadingToast?.();
+                    notify.success(
                         "Lista de matrículas actualizada correctamente.",
                     );
                 }
             } catch (err) {
-                setError(
+                const message =
                     err instanceof Error
                         ? err.message
-                        : "No se pudieron cargar las matrículas.",
-                );
+                        : "No se pudieron cargar las matrículas.";
+
+                setError(message);
+                dismissLoadingToast?.();
+
+                if (showRefresh) {
+                    notify.error(message);
+                }
             } finally {
+                dismissLoadingToast?.();
+                hasLoadedOnceRef.current = true;
+                loadingRef.current = false;
                 setIsLoading(false);
                 setIsRefreshing(false);
             }
@@ -195,22 +274,6 @@ export function useEnrollmentsAdminPanel() {
             window.clearTimeout(timeoutId);
         };
     }, [loadEnrollments]);
-
-    useEffect(() => {
-        if (!error && !success) return;
-
-        const timeoutId = window.setTimeout(
-            () => {
-                setError("");
-                setSuccess("");
-            },
-            3000,
-        );
-
-        return () => {
-            window.clearTimeout(timeoutId);
-        };
-    }, [error, success]);
 
     const filteredCourses = useMemo(() => {
         const query = courseSearch
@@ -424,9 +487,13 @@ export function useEnrollmentsAdminPanel() {
     }
 
     function openEnrollmentModal() {
+        if (mutationRef.current) {
+            notify.warning("Espera a que termine la acción en curso.");
+            return;
+        }
+
         resetEnrollmentForm();
         setError("");
-        setSuccess("");
         setEnrollmentModalOpen(true);
     }
 
@@ -443,6 +510,11 @@ export function useEnrollmentsAdminPanel() {
     function openRejectModal(
         enrollment: Enrollment,
     ) {
+        if (mutationRef.current) {
+            notify.warning("Espera a que termine la acción en curso.");
+            return;
+        }
+
         setSelectedEnrollment(enrollment);
         setRejectReason("");
         setError("");
@@ -458,6 +530,27 @@ export function useEnrollmentsAdminPanel() {
         setSelectedEnrollment(null);
         setRejectReason("");
         setError("");
+    }
+
+    function openDeleteModal(
+        enrollment: Enrollment,
+    ) {
+        if (mutationRef.current) {
+            notify.warning("Espera a que termine la acción en curso.");
+            return;
+        }
+
+        setEnrollmentPendingDelete(enrollment);
+        setDeleteModalOpen(true);
+    }
+
+    function closeDeleteModal(
+        force = false,
+    ) {
+        if (deletingId !== null && !force) return;
+
+        setDeleteModalOpen(false);
+        setEnrollmentPendingDelete(null);
     }
 
     function openVoucherModal(
@@ -478,20 +571,32 @@ export function useEnrollmentsAdminPanel() {
     ) {
         event.preventDefault();
 
-        setError("");
-        setSuccess("");
-
         if (!courseId || !studentId) {
-            setError(
+            notify.warning(
                 "Debes seleccionar el curso y el usuario.",
             );
-
             return;
         }
 
-        try {
-            setIsSaving(true);
+        if (loadingRef.current) {
+            notify.warning(
+                "Espera a que termine la actualización de matrículas.",
+            );
+            return;
+        }
 
+        if (!beginMutation("La matrícula ya se está registrando.")) {
+            return;
+        }
+
+        setError("");
+        setIsSaving(true);
+
+        const dismissLoadingToast = createLoadingToast(
+            "Registrando matrícula...",
+        );
+
+        try {
             await createEnrollment({
                 accepted: true,
                 reference_code: undefined,
@@ -503,19 +608,23 @@ export function useEnrollmentsAdminPanel() {
             });
 
             closeEnrollmentModal(true);
+            await loadEnrollments();
 
-            setSuccess(
+            dismissLoadingToast();
+            notify.success(
                 "Matrícula creada correctamente.",
             );
-
-            await loadEnrollments();
         } catch (err) {
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : "No se pudo matricular.",
-            );
+                    : "No se pudo matricular.";
+
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            endMutation();
             setIsSaving(false);
         }
     }
@@ -523,11 +632,18 @@ export function useEnrollmentsAdminPanel() {
     async function handleApprove(
         enrollment: Enrollment,
     ) {
-        try {
-            setUpdatingId(enrollment.id);
-            setError("");
-            setSuccess("");
+        if (!beginMutation("Espera a que termine la acción en curso.")) {
+            return;
+        }
 
+        setUpdatingId(enrollment.id);
+        setError("");
+
+        const dismissLoadingToast = createLoadingToast(
+            "Aprobando matrícula...",
+        );
+
+        try {
             const updated =
                 await updateEnrollment(
                     enrollment.id,
@@ -554,16 +670,21 @@ export function useEnrollmentsAdminPanel() {
                 ),
             );
 
-            setSuccess(
+            dismissLoadingToast();
+            notify.success(
                 "Matrícula aprobada correctamente.",
             );
         } catch (err) {
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : "No se pudo aprobar la matrícula.",
-            );
+                    : "No se pudo aprobar la matrícula.";
+
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            endMutation();
             setUpdatingId(null);
         }
     }
@@ -571,11 +692,18 @@ export function useEnrollmentsAdminPanel() {
     async function handleRevision(
         enrollment: Enrollment,
     ) {
-        try {
-            setUpdatingId(enrollment.id);
-            setError("");
-            setSuccess("");
+        if (!beginMutation("Espera a que termine la acción en curso.")) {
+            return;
+        }
 
+        setUpdatingId(enrollment.id);
+        setError("");
+
+        const dismissLoadingToast = createLoadingToast(
+            "Enviando matrícula a revisión...",
+        );
+
+        try {
             const updated =
                 await updateEnrollment(
                     enrollment.id,
@@ -602,36 +730,52 @@ export function useEnrollmentsAdminPanel() {
                 ),
             );
 
-            setSuccess(
+            dismissLoadingToast();
+            notify.success(
                 "Matrícula enviada a revisión correctamente.",
             );
         } catch (err) {
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : "No se pudo pasar la matrícula a revisión.",
-            );
+                    : "No se pudo pasar la matrícula a revisión.";
+
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            endMutation();
             setUpdatingId(null);
         }
     }
 
     async function handleNoApprove() {
-        if (!selectedEnrollment) return;
-
-        if (!rejectReason.trim()) {
-            setError(
-                "Debes ingresar el motivo de no aprobación.",
+        if (!selectedEnrollment) {
+            notify.warning(
+                "No se encontró la matrícula seleccionada.",
             );
-
             return;
         }
 
-        try {
-            setIsSaving(true);
-            setError("");
-            setSuccess("");
+        if (!rejectReason.trim()) {
+            notify.warning(
+                "Debes ingresar el motivo de no aprobación.",
+            );
+            return;
+        }
 
+        if (!beginMutation("La actualización ya está en proceso.")) {
+            return;
+        }
+
+        setIsSaving(true);
+        setError("");
+
+        const dismissLoadingToast = createLoadingToast(
+            "Guardando motivo de no aprobación...",
+        );
+
+        try {
             const updated =
                 await updateEnrollment(
                     selectedEnrollment.id,
@@ -662,35 +806,47 @@ export function useEnrollmentsAdminPanel() {
             );
 
             closeRejectModal(true);
-
-            setSuccess(
+            dismissLoadingToast();
+            notify.success(
                 "Matrícula marcada como no aprobada.",
             );
         } catch (err) {
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : "No se pudo no aprobar la matrícula.",
-            );
+                    : "No se pudo no aprobar la matrícula.";
+
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            endMutation();
             setIsSaving(false);
         }
     }
 
-    async function handleDelete(
-        enrollmentId: number,
-    ) {
-        const confirmed = window.confirm(
-            "¿Seguro que deseas eliminar esta matrícula?",
+    async function handleDelete() {
+        if (!enrollmentPendingDelete) {
+            notify.warning(
+                "No se encontró la matrícula que deseas eliminar.",
+            );
+            return;
+        }
+
+        if (!beginMutation("La eliminación ya está en proceso.")) {
+            return;
+        }
+
+        const enrollmentId = enrollmentPendingDelete.id;
+
+        setDeletingId(enrollmentId);
+        setError("");
+
+        const dismissLoadingToast = createLoadingToast(
+            "Eliminando matrícula...",
         );
 
-        if (!confirmed) return;
-
         try {
-            setDeletingId(enrollmentId);
-            setError("");
-            setSuccess("");
-
             await deleteEnrollment(
                 enrollmentId,
             );
@@ -702,16 +858,22 @@ export function useEnrollmentsAdminPanel() {
                 ),
             );
 
-            setSuccess(
+            closeDeleteModal(true);
+            dismissLoadingToast();
+            notify.success(
                 "Matrícula eliminada correctamente.",
             );
         } catch (err) {
-            setError(
+            const message =
                 err instanceof Error
                     ? err.message
-                    : "No se pudo eliminar la matrícula.",
-            );
+                    : "No se pudo eliminar la matrícula.";
+
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            endMutation();
             setDeletingId(null);
         }
     }
@@ -728,7 +890,6 @@ export function useEnrollmentsAdminPanel() {
         updatingId,
         deletingId,
         error,
-        success,
         search,
         statusFilter,
         currentPage,
@@ -740,6 +901,8 @@ export function useEnrollmentsAdminPanel() {
         selectedEnrollment,
         courseSearch,
         userSearch,
+        deleteModalOpen,
+        enrollmentPendingDelete,
         filteredCourses,
         filteredUsers,
         stats,
@@ -762,6 +925,8 @@ export function useEnrollmentsAdminPanel() {
         closeEnrollmentModal,
         openRejectModal,
         closeRejectModal,
+        openDeleteModal,
+        closeDeleteModal,
         openVoucherModal,
         closeVoucherModal,
         handleSubmit,

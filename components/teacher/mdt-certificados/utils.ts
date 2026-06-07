@@ -107,6 +107,24 @@ export function getFileKey(file: File) {
     return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
+export function isPdfFile(file: File) {
+    const normalizedName = String(file.name ?? "")
+        .trim()
+        .toLowerCase();
+
+    const normalizedType = String(file.type ?? "")
+        .trim()
+        .toLowerCase();
+
+    const hasPdfExtension = normalizedName.endsWith(".pdf");
+    const hasAllowedMimeType =
+        !normalizedType ||
+        normalizedType === "application/pdf" ||
+        normalizedType === "application/x-pdf";
+
+    return hasPdfExtension && hasAllowedMimeType;
+}
+
 export function adaptCourseStudent(
     enrollment: Enrollment,
 ): CourseStudent {

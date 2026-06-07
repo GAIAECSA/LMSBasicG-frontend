@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     AlertTriangle,
     CalendarCheck,
@@ -10,6 +16,9 @@ import {
     RefreshCcw,
     UserCheck,
 } from "lucide-react";
+import { AthenaLoadingBackground } from "@/components/ui/AthenaLoadingBackground";
+import { AUTH_STORAGE_KEY } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 import {
     getCourseAttendancesByCourse,
     getAttendancesByCourseAttendance,
@@ -28,6 +37,32 @@ type AttendanceRow = {
 };
 
 type AnyRecord = Record<string, unknown>;
+
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
+
+function getErrorMessage(
+    error: unknown,
+    fallback: string,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    return fallback;
+}
 
 function asRecord(value: unknown): AnyRecord | null {
     return value && typeof value === "object" ? (value as AnyRecord) : null;
@@ -56,16 +91,40 @@ function getAttendanceState(attendance: Attendance | null) {
 function getAttendanceRoleId(attendance: Attendance) {
     const current = asRecord(attendance);
     const enrollment = asRecord(current?.enrollment);
+    const user = asRecord(enrollment?.user);
 
     const roleValue =
         current?.role_id ??
         current?.roleId ??
         enrollment?.role_id ??
-        enrollment?.roleId;
+        enrollment?.roleId ??
+        user?.role_id ??
+        user?.roleId;
 
     const roleId = Number(roleValue);
 
-    return Number.isFinite(roleId) ? roleId : null;
+    if (Number.isFinite(roleId)) {
+        return roleId;
+    }
+
+    const roleName = String(
+        current?.role ??
+        enrollment?.role ??
+        user?.role ??
+        "",
+    )
+        .trim()
+        .toLowerCase();
+
+    if (
+        roleName === "teacher" ||
+        roleName === "profesor" ||
+        roleName === "docente"
+    ) {
+        return 3;
+    }
+
+    return null;
 }
 
 function getAttendanceUserId(attendance: Attendance) {
@@ -112,6 +171,7 @@ function getStoredUserId() {
     }
 
     const objectKeys = [
+        AUTH_STORAGE_KEY,
         "user",
         "auth_user",
         "authUser",
@@ -169,145 +229,379 @@ function formatTime(value: string) {
     return value;
 }
 
-export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewProps) {
+export function TeacherMyAttendanceView({
+    courseId,
+}: TeacherMyAttendanceViewProps) {
     const [rows, setRows] = useState<AttendanceRow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [updatingAttendanceId, setUpdatingAttendanceId] = useState<number | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [
+        updatingAttendanceId,
+        setUpdatingAttendanceId,
+    ] = useState<number | null>(null);
+    const [
+        pageError,
+        setPageError,
+    ] = useState<string | null>(null);
 
-    const numericCourseId = Number(courseId);
+    const hasLoadedOnceRef =
+        useRef(false);
 
-    const loadAttendance = useCallback(async () => {
-        if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
-            setError("No se encontró el curso seleccionado.");
-            setRows([]);
-            setIsLoading(false);
-            return;
-        }
+    const loadRequestRef =
+        useRef<Promise<boolean> | null>(
+            null,
+        );
 
-        const currentUserId = getStoredUserId();
+    const attendanceMutationRef =
+        useRef(false);
 
-        setError(null);
+    const numericCourseId =
+        Number(courseId);
 
-        try {
-            const sessions = await getCourseAttendancesByCourse(numericCourseId);
+    const loadAttendance =
+        useCallback(async (
+            showToast = false,
+        ): Promise<boolean> => {
+            if (
+                loadRequestRef.current
+            ) {
+                if (showToast) {
+                    notify.warning(
+                        "La actualización de tu asistencia ya está en proceso.",
+                    );
+                }
 
-            const loadedRows = await Promise.all(
-                sessions.map(async (session) => {
-                    const attendances = await getAttendancesByCourseAttendance(session.id);
+                return loadRequestRef.current;
+            }
 
-                    const teacherAttendances = attendances.filter(
-                        (attendance) => getAttendanceRoleId(attendance) === 3,
+            if (
+                attendanceMutationRef.current
+            ) {
+                if (showToast) {
+                    notify.warning(
+                        "Espera a que termine el registro de asistencia antes de actualizar.",
+                    );
+                }
+
+                return false;
+            }
+
+            const isInitialLoad =
+                !hasLoadedOnceRef.current;
+
+            const dismissLoadingToast =
+                showToast
+                    ? createLoadingToast(
+                        "Actualizando mi asistencia...",
+                    )
+                    : null;
+
+            const request = (async () => {
+                try {
+                    if (
+                        !Number.isFinite(
+                            numericCourseId,
+                        ) ||
+                        numericCourseId <= 0
+                    ) {
+                        throw new Error(
+                            "No se encontró el curso seleccionado.",
+                        );
+                    }
+
+                    if (isInitialLoad) {
+                        setIsLoading(true);
+                    }
+
+                    if (showToast) {
+                        setIsRefreshing(true);
+                    }
+
+                    setPageError(null);
+
+                    const currentUserId =
+                        getStoredUserId();
+
+                    if (!currentUserId) {
+                        throw new Error(
+                            "No se pudo identificar al usuario autenticado.",
+                        );
+                    }
+
+                    const sessions =
+                        await getCourseAttendancesByCourse(
+                            numericCourseId,
+                        );
+
+                    const loadedRows =
+                        await Promise.all(
+                            sessions.map(
+                                async (
+                                    session,
+                                ) => {
+                                    const attendances =
+                                        await getAttendancesByCourseAttendance(
+                                            session.id,
+                                        );
+
+                                    const teacherAttendances =
+                                        attendances.filter(
+                                            (
+                                                attendance,
+                                            ) =>
+                                                getAttendanceRoleId(
+                                                    attendance,
+                                                ) ===
+                                                3,
+                                        );
+
+                                    const myAttendance =
+                                        teacherAttendances.find(
+                                            (
+                                                attendance,
+                                            ) =>
+                                                getAttendanceUserId(
+                                                    attendance,
+                                                ) ===
+                                                currentUserId,
+                                        ) ??
+                                        null;
+
+                                    return {
+                                        session,
+                                        attendance:
+                                            myAttendance,
+                                    };
+                                },
+                            ),
+                        );
+
+                    setRows(
+                        loadedRows,
                     );
 
-                    const myAttendance =
-                        teacherAttendances.find((attendance) => {
-                            const attendanceUserId = getAttendanceUserId(attendance);
+                    dismissLoadingToast?.();
 
-                            if (!currentUserId) return true;
+                    if (showToast) {
+                        notify.success(
+                            "Tu asistencia se actualizó correctamente.",
+                        );
+                    }
 
-                            return attendanceUserId === currentUserId;
-                        }) ?? null;
+                    return true;
+                } catch (error) {
+                    const message =
+                        getErrorMessage(
+                            error,
+                            "No se pudo cargar tu asistencia.",
+                        );
 
-                    return {
-                        session,
-                        attendance: myAttendance,
-                    };
-                }),
-            );
+                    setPageError(
+                        message,
+                    );
 
-            setRows(loadedRows);
-        } catch (currentError) {
-            console.error(currentError);
-            setError("No se pudo cargar tu asistencia.");
-            setRows([]);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [numericCourseId]);
+                    if (
+                        isInitialLoad
+                    ) {
+                        setRows([]);
+                    }
+
+                    dismissLoadingToast?.();
+
+                    if (showToast) {
+                        notify.error(
+                            message,
+                        );
+                    }
+
+                    return false;
+                } finally {
+                    dismissLoadingToast?.();
+
+                    hasLoadedOnceRef.current =
+                        true;
+
+                    setIsLoading(
+                        false,
+                    );
+
+                    setIsRefreshing(
+                        false,
+                    );
+                }
+            })();
+
+            loadRequestRef.current =
+                request;
+
+            try {
+                return await request;
+            } finally {
+                if (
+                    loadRequestRef.current ===
+                    request
+                ) {
+                    loadRequestRef.current =
+                        null;
+                }
+            }
+        }, [
+            numericCourseId,
+        ]);
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadAttendance();
-        }, 0);
+        const timeoutId =
+            window.setTimeout(
+                () => {
+                    void loadAttendance();
+                },
+                0,
+            );
 
         return () => {
-            window.clearTimeout(timeoutId);
+            window.clearTimeout(
+                timeoutId,
+            );
         };
-    }, [loadAttendance]);
+    }, [
+        loadAttendance,
+    ]);
 
-    const registeredCount = useMemo(
-        () =>
-            rows.filter(
-                (row) => getAttendanceState(row.attendance) === "PRESENTE",
-            ).length,
-        [rows],
-    );
+    const registeredCount =
+        useMemo(
+            () =>
+                rows.filter(
+                    (row) =>
+                        getAttendanceState(
+                            row.attendance,
+                        ) ===
+                        "PRESENTE",
+                ).length,
+            [
+                rows,
+            ],
+        );
 
-    const pendingCount = Math.max(rows.length - registeredCount, 0);
+    const pendingCount =
+        Math.max(
+            rows.length -
+            registeredCount,
+            0,
+        );
 
-    async function handleMarkAttendance(attendance: Attendance | null) {
+    async function handleMarkAttendance(
+        attendance: Attendance | null,
+    ) {
         if (!attendance) {
-            setError("No existe un registro de asistencia asignado para este docente.");
+            notify.warning(
+                "No existe un registro de asistencia asignado para este docente.",
+            );
+
             return;
         }
 
-        setUpdatingAttendanceId(attendance.id);
-        setError(null);
-        setMessage(null);
-
-        try {
-            const updatedAttendance = await updateAttendance(attendance.id, {
-                enrollment_id: attendance.enrollment_id,
-                course_attendance_id: attendance.course_attendance_id,
-                attendance_state: "PRESENTE",
-                deleted: attendance.deleted ?? false,
-            });
-
-            setRows((currentRows) =>
-                currentRows.map((row) =>
-                    row.attendance?.id === updatedAttendance.id
-                        ? {
-                            ...row,
-                            attendance: {
-                                ...row.attendance,
-                                ...updatedAttendance,
-                            },
-                        }
-                        : row,
-                ),
+        if (
+            attendanceMutationRef.current
+        ) {
+            notify.warning(
+                "Ya existe un registro de asistencia en proceso.",
             );
 
-            setMessage("Asistencia registrada correctamente.");
-        } catch (currentError) {
-            console.error(currentError);
-            setError("No se pudo registrar tu asistencia.");
+            return;
+        }
+
+        attendanceMutationRef.current =
+            true;
+
+        setUpdatingAttendanceId(
+            attendance.id,
+        );
+
+        const dismissLoadingToast =
+            createLoadingToast(
+                "Registrando tu asistencia...",
+            );
+
+        try {
+            const updatedAttendance =
+                await updateAttendance(
+                    attendance.id,
+                    {
+                        enrollment_id:
+                            attendance.enrollment_id,
+                        course_attendance_id:
+                            attendance.course_attendance_id,
+                        attendance_state:
+                            "PRESENTE",
+                        deleted:
+                            attendance.deleted ??
+                            false,
+                    },
+                );
+
+            setRows(
+                (
+                    currentRows,
+                ) =>
+                    currentRows.map(
+                        (
+                            row,
+                        ) =>
+                            row
+                                .attendance
+                                ?.id ===
+                            updatedAttendance.id
+                                ? {
+                                    ...row,
+                                    attendance:
+                                        {
+                                            ...row.attendance,
+                                            ...updatedAttendance,
+                                        },
+                                }
+                                : row,
+                    ),
+            );
+
+            dismissLoadingToast();
+
+            notify.success(
+                "Asistencia registrada correctamente.",
+            );
+        } catch (error) {
+            dismissLoadingToast();
+
+            notify.error(
+                getErrorMessage(
+                    error,
+                    "No se pudo registrar tu asistencia.",
+                ),
+            );
         } finally {
-            setUpdatingAttendanceId(null);
+            dismissLoadingToast();
+
+            attendanceMutationRef.current =
+                false;
+
+            setUpdatingAttendanceId(
+                null,
+            );
         }
     }
 
     function handleRefresh() {
-        setIsRefreshing(true);
-        setMessage(null);
-        setError(null);
-        void loadAttendance();
+        void loadAttendance(
+            true,
+        );
     }
 
     if (isLoading) {
         return (
-            <div className="flex min-h-[260px] w-full min-w-0 items-center justify-center px-3 py-4 sm:min-h-[320px] sm:px-4">
-                <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-bold text-slate-600 shadow-sm sm:px-5 sm:py-4 sm:text-sm">
-                    <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[#07499a]" />
-
-                    <span className="min-w-0 break-words">
-                        Cargando mi asistencia...
-                    </span>
+            <AthenaLoadingBackground>
+                <div className="rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-center text-sm font-bold text-slate-600 shadow-sm backdrop-blur-sm">
+                    Cargando mi asistencia...
                 </div>
-            </div>
+            </AthenaLoadingBackground>
         );
     }
 
@@ -333,15 +627,24 @@ export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewPro
                     <button
                         type="button"
                         onClick={handleRefresh}
-                        disabled={isRefreshing}
+                        disabled={
+                            isRefreshing ||
+                            updatingAttendanceId !==
+                                null
+                        }
                         className="inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-white/15 px-4 text-xs font-black text-white ring-1 ring-white/20 transition hover:bg-white/25 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-auto sm:rounded-2xl sm:text-sm"
                     >
                         <RefreshCcw
-                            className={`h-4 w-4 shrink-0 ${isRefreshing ? "animate-spin" : ""
-                                }`}
+                            className={`h-4 w-4 shrink-0 ${
+                                isRefreshing
+                                    ? "animate-spin"
+                                    : ""
+                            }`}
                         />
 
-                        {isRefreshing ? "Actualizando..." : "Actualizar"}
+                        {isRefreshing
+                            ? "Actualizando..."
+                            : "Actualizar"}
                     </button>
                 </div>
             </section>
@@ -384,18 +687,12 @@ export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewPro
                 />
             </section>
 
-            {message ? (
-                <div className="min-w-0 break-words rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs font-bold leading-5 text-[#07499a] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                    {message}
-                </div>
-            ) : null}
-
-            {error ? (
+            {pageError ? (
                 <div className="flex min-w-0 items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
 
                     <span className="min-w-0 break-words">
-                        {error}
+                        {pageError}
                     </span>
                 </div>
             ) : null}
@@ -429,27 +726,41 @@ export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewPro
                 ) : (
                     <div className="min-w-0 space-y-2.5 sm:space-y-3">
                         {rows.map((row) => {
-                            const state = getAttendanceState(row.attendance);
-                            const isPresent = state === "PRESENTE";
+                            const state =
+                                getAttendanceState(
+                                    row.attendance,
+                                );
+
+                            const isPresent =
+                                state ===
+                                "PRESENTE";
 
                             const isUpdating =
-                                updatingAttendanceId === row.attendance?.id;
+                                updatingAttendanceId ===
+                                row.attendance
+                                    ?.id;
 
                             return (
                                 <article
-                                    key={row.session.id}
-                                    className={`min-w-0 rounded-xl border p-3 transition sm:rounded-2xl sm:p-4 ${isPresent
-                                        ? "border-emerald-200 bg-emerald-50"
-                                        : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm"
-                                        }`}
+                                    key={
+                                        row
+                                            .session
+                                            .id
+                                    }
+                                    className={`min-w-0 rounded-xl border p-3 transition sm:rounded-2xl sm:p-4 ${
+                                        isPresent
+                                            ? "border-emerald-200 bg-emerald-50"
+                                            : "border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm"
+                                    }`}
                                 >
                                     <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                                         <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                                             <div
-                                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 sm:rounded-2xl ${isPresent
-                                                    ? "bg-white text-emerald-700"
-                                                    : "bg-blue-50 text-[#07499a]"
-                                                    }`}
+                                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 sm:rounded-2xl ${
+                                                    isPresent
+                                                        ? "bg-white text-emerald-700"
+                                                        : "bg-blue-50 text-[#07499a]"
+                                                }`}
                                             >
                                                 {isPresent ? (
                                                     <CheckCircle2 className="h-5 w-5" />
@@ -462,26 +773,33 @@ export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewPro
                                                 <h3 className="break-words text-sm font-black text-slate-950 sm:text-base">
                                                     Asistencia{" "}
                                                     {formatDate(
-                                                        row.session.day,
+                                                        row
+                                                            .session
+                                                            .day,
                                                     )}
                                                 </h3>
 
                                                 <p className="mt-1 break-words text-xs font-semibold text-slate-500 sm:text-sm">
                                                     {formatTime(
-                                                        row.session.start_time,
+                                                        row
+                                                            .session
+                                                            .start_time,
                                                     )}{" "}
                                                     -{" "}
                                                     {formatTime(
-                                                        row.session.end_time,
+                                                        row
+                                                            .session
+                                                            .end_time,
                                                     )}
                                                 </p>
 
                                                 <div className="mt-2 flex flex-wrap gap-2">
                                                     <span
-                                                        className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase sm:px-3 sm:text-xs ${isPresent
-                                                            ? "bg-emerald-100 text-emerald-700"
-                                                            : "bg-amber-100 text-amber-700"
-                                                            }`}
+                                                        className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase sm:px-3 sm:text-xs ${
+                                                            isPresent
+                                                                ? "bg-emerald-100 text-emerald-700"
+                                                                : "bg-amber-100 text-amber-700"
+                                                        }`}
                                                     >
                                                         {isPresent
                                                             ? "Registrado: presente"
@@ -496,6 +814,8 @@ export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewPro
                                             disabled={
                                                 isPresent ||
                                                 isUpdating ||
+                                                updatingAttendanceId !==
+                                                    null ||
                                                 !row.attendance
                                             }
                                             onClick={() =>
@@ -503,10 +823,11 @@ export function TeacherMyAttendanceView({ courseId }: TeacherMyAttendanceViewPro
                                                     row.attendance,
                                                 )
                                             }
-                                            className={`inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition active:scale-[0.97] sm:h-11 sm:w-auto sm:min-w-[205px] sm:rounded-2xl sm:text-sm ${isPresent
-                                                ? "cursor-not-allowed bg-slate-100 text-slate-500"
-                                                : "bg-[#07499a] text-white shadow-sm hover:bg-[#063b7d]"
-                                                } disabled:opacity-70`}
+                                            className={`inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition active:scale-[0.97] sm:h-11 sm:w-auto sm:min-w-[205px] sm:rounded-2xl sm:text-sm ${
+                                                isPresent
+                                                    ? "cursor-not-allowed bg-slate-100 text-slate-500"
+                                                    : "bg-[#07499a] text-white shadow-sm hover:bg-[#063b7d]"
+                                            } disabled:opacity-70`}
                                         >
                                             {isUpdating ? (
                                                 <Loader2 className="h-4 w-4 shrink-0 animate-spin" />

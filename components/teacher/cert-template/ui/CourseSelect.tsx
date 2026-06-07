@@ -33,7 +33,7 @@ export function CourseSelect({
                 </p>
             </div>
 
-            <Alerts error={error} notice="" />
+            <Alerts error={error} />
 
             <div className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
                 <h3 className="text-base font-bold text-slate-950 sm:text-lg">

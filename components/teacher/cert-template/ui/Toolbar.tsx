@@ -34,6 +34,8 @@ export function Toolbar({
     onSaveTemplate,
     onGeneratePdf,
 }: ToolbarProps) {
+    const isBusy = isSavingTemplate || isGenerating;
+
     return (
         <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
             <div className="grid min-w-0 gap-2 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
@@ -68,7 +70,13 @@ export function Toolbar({
             </div>
 
             <div className="grid grid-cols-1 gap-2 xs:grid-cols-3 xl:flex xl:shrink-0">
-                <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm">
+                <label
+                    className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-[#172861] shadow-sm transition sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm ${
+                        isBusy
+                            ? "cursor-not-allowed opacity-50"
+                            : "cursor-pointer hover:bg-blue-50 active:scale-[0.97]"
+                    }`}
+                >
                     <ImagePlus className="h-4 w-4 shrink-0" />
 
                     <span className="truncate">
@@ -79,6 +87,7 @@ export function Toolbar({
                         type="file"
                         accept="image/*"
                         onChange={onBackgroundUpload}
+                        disabled={isBusy}
                         className="hidden"
                     />
                 </label>
@@ -86,7 +95,7 @@ export function Toolbar({
                 <button
                     type="button"
                     onClick={onSaveTemplate}
-                    disabled={!hasBackgroundImage || isSavingTemplate}
+                    disabled={!hasBackgroundImage || isBusy}
                     title={
                         hasBackgroundImage
                             ? "Guardar plantilla"
@@ -104,7 +113,7 @@ export function Toolbar({
                 <button
                     type="button"
                     onClick={onGeneratePdf}
-                    disabled={!hasBackgroundImage || isGenerating}
+                    disabled={!hasBackgroundImage || isBusy}
                     title={
                         hasBackgroundImage
                             ? "Generar PDF"

@@ -70,7 +70,6 @@ export type LessonItemReviewState = {
     refreshing: boolean;
     savingGrade: boolean;
     error: string;
-    notice: string;
     block: LessonBlock | null;
     surveyBlocks: LessonBlock[];
     itemType: LessonReviewItemType;
@@ -82,7 +81,8 @@ export type LessonItemReviewState = {
     selectedRow: ReviewStudentRow | null;
     gradeForm: GradeFormState;
     setGradeForm: Dispatch<SetStateAction<GradeFormState>>;
-    setSelectedEnrollmentId: Dispatch<SetStateAction<number | null>>;
-    loadData: () => Promise<void>;
+    setSelectedEnrollmentId: (enrollmentId: number | null) => void;
+    loadData: (showFeedback?: boolean) => Promise<void>;
+    handleRefresh: () => Promise<void>;
     handleSaveGrade: () => Promise<void>;
 };

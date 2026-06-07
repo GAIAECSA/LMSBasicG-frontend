@@ -4,6 +4,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ChangeEvent,
     type FormEvent,
@@ -23,7 +24,10 @@ import {
     getAllCategories,
     type Category,
 } from "@/services/categories.service";
-import { getAllUsers, type User } from "@/services/users.service";
+import {
+    getAllUsers,
+    type User,
+} from "@/services/users.service";
 import {
     createEnrollment,
     getEnrollmentsByCourseAndRole,
@@ -31,13 +35,19 @@ import {
     updateEnrollment,
 } from "@/services/enrollments.service";
 import {
+    notify,
+} from "@/lib/notify";
+import {
     ROWS_PER_PAGE,
     STUDENT_ROLE_ID,
     TEACHER_ROLE_ID,
     USERS_PER_PAGE,
     initialFormState,
 } from "./constants";
-import type { CourseFormState, Notice } from "./types";
+import type {
+    CourseFormState,
+    Notice,
+} from "./types";
 import {
     buildFormFromCourse,
     getCourseDescription,
@@ -46,6 +56,7 @@ import {
     getCourseIsMdt,
     getCourseIsPublished,
     getCourseLevel,
+    getCourseName,
     getCourseOpenEnrollment,
     getCourseSubcategoryId,
     getUserFullName,
@@ -53,180 +64,589 @@ import {
     resolveImageUrl,
 } from "./utils";
 
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+
+function getErrorMessage(
+    error: unknown,
+    fallback: string,
+) {
+    return error instanceof Error
+        ? error.message
+        : fallback;
+}
+
 export function useCoursesAdminPanel() {
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-    const [form, setForm] = useState<CourseFormState>(initialFormState);
-    const [editingCourseId, setEditingCourseId] = useState<number | null>(null);
+    const [courses, setCourses] =
+        useState<Course[]>([]);
 
-    const [selectedImageFile, setSelectedImageFile] =
-        useState<File | null>(null);
-    const [previewImageUrl, setPreviewImageUrl] = useState("");
+    const [categories, setCategories] =
+        useState<Category[]>([]);
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [categoriesLoading, setCategoriesLoading] = useState(true);
-    const [subcategoriesLoading, setSubcategoriesLoading] = useState(true);
+    const [subcategories, setSubcategories] =
+        useState<Subcategory[]>([]);
 
-    const [search, setSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [notice, setNotice] = useState<Notice>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [form, setForm] =
+        useState<CourseFormState>(
+            initialFormState,
+        );
 
-    const [users, setUsers] = useState<User[]>([]);
-    const [usersLoading, setUsersLoading] = useState(false);
-    const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
-    const [assigningCourse, setAssigningCourse] = useState<Course | null>(null);
-    const [assigningTeacherId, setAssigningTeacherId] =
-        useState<number | null>(null);
-    const [assignedTeacherUserIds, setAssignedTeacherUserIds] =
-        useState<Set<number>>(new Set());
+    const [
+        editingCourseId,
+        setEditingCourseId,
+    ] =
+        useState<number | null>(
+            null,
+        );
 
-    const [userSearch, setUserSearch] = useState("");
-    const [userCurrentPage, setUserCurrentPage] = useState(1);
+    const [
+        selectedImageFile,
+        setSelectedImageFile,
+    ] =
+        useState<File | null>(
+            null,
+        );
 
-    const showNotice = useCallback(
-        (type: "success" | "error", text: string) => {
-            setNotice({ type, text });
+    const [
+        previewImageUrl,
+        setPreviewImageUrl,
+    ] =
+        useState("");
 
-            window.setTimeout(() => {
-                setNotice((current) =>
-                    current?.text === text ? null : current,
+    const [isLoading, setIsLoading] =
+        useState(true);
+
+    const [
+        isRefreshing,
+        setIsRefreshing,
+    ] =
+        useState(false);
+
+    const [isSaving, setIsSaving] =
+        useState(false);
+
+    const [
+        categoriesLoading,
+        setCategoriesLoading,
+    ] =
+        useState(true);
+
+    const [
+        subcategoriesLoading,
+        setSubcategoriesLoading,
+    ] =
+        useState(true);
+
+    const [search, setSearch] =
+        useState("");
+
+    const [
+        currentPage,
+        setCurrentPage,
+    ] =
+        useState(1);
+
+    const [notice, setNotice] =
+        useState<Notice>(
+            null,
+        );
+
+    const [
+        isModalOpen,
+        setIsModalOpen,
+    ] =
+        useState(false);
+
+    const [users, setUsers] =
+        useState<User[]>([]);
+
+    const [
+        usersLoading,
+        setUsersLoading,
+    ] =
+        useState(false);
+
+    const [
+        isTeacherModalOpen,
+        setIsTeacherModalOpen,
+    ] =
+        useState(false);
+
+    const [
+        assigningCourse,
+        setAssigningCourse,
+    ] =
+        useState<Course | null>(
+            null,
+        );
+
+    const [
+        assigningTeacherId,
+        setAssigningTeacherId,
+    ] =
+        useState<number | null>(
+            null,
+        );
+
+    const [
+        assignedTeacherUserIds,
+        setAssignedTeacherUserIds,
+    ] =
+        useState<Set<number>>(
+            new Set(),
+        );
+
+    const [
+        userSearch,
+        setUserSearch,
+    ] =
+        useState("");
+
+    const [
+        userCurrentPage,
+        setUserCurrentPage,
+    ] =
+        useState(1);
+
+    const [
+        deleteCandidate,
+        setDeleteCandidate,
+    ] =
+        useState<Course | null>(
+            null,
+        );
+
+    const [
+        isDeleting,
+        setIsDeleting,
+    ] =
+        useState(false);
+
+    const refreshInProgressRef =
+        useRef(false);
+
+    const saveInProgressRef =
+        useRef(false);
+
+    const deleteInProgressRef =
+        useRef(false);
+
+    const teacherOperationsRef =
+        useRef<Set<number>>(
+            new Set(),
+        );
+
+    const showPersistentError =
+        useCallback(
+            (
+                message: string,
+            ) => {
+                setNotice({
+                    type: "error",
+                    text:
+                        message,
+                });
+            },
+            [],
+        );
+
+    const clearNotice =
+        useCallback(
+            () => {
+                setNotice(
+                    null,
                 );
-            }, 2500);
-        },
-        [],
-    );
+            },
+            [],
+        );
 
-    const resetForm = useCallback(() => {
-        if (previewImageUrl.startsWith("blob:")) {
-            URL.revokeObjectURL(previewImageUrl);
-        }
+    const resetForm =
+        useCallback(
+            () => {
+                if (
+                    previewImageUrl.startsWith(
+                        "blob:",
+                    )
+                ) {
+                    URL.revokeObjectURL(
+                        previewImageUrl,
+                    );
+                }
 
-        setForm(initialFormState);
-        setEditingCourseId(null);
-        setSelectedImageFile(null);
-        setPreviewImageUrl("");
-    }, [previewImageUrl]);
+                setForm(
+                    initialFormState,
+                );
 
-    const closeModal = useCallback(() => {
-        setIsModalOpen(false);
-        resetForm();
-    }, [resetForm]);
+                setEditingCourseId(
+                    null,
+                );
 
-    const closeTeacherModal = useCallback(() => {
-        setIsTeacherModalOpen(false);
-        setAssigningCourse(null);
-        setAssigningTeacherId(null);
-        setAssignedTeacherUserIds(new Set());
-        setUserSearch("");
-        setUserCurrentPage(1);
-    }, []);
+                setSelectedImageFile(
+                    null,
+                );
 
-    const loadCoursesData = useCallback(
-        async (showSuccess = false) => {
-            try {
-                if (showSuccess) {
-                    setIsRefreshing(true);
+                setPreviewImageUrl(
+                    "",
+                );
+            },
+            [
+                previewImageUrl,
+            ],
+        );
+
+    const closeModal =
+        useCallback(
+            () => {
+                if (
+                    isSaving
+                ) {
+                    return;
+                }
+
+                setIsModalOpen(
+                    false,
+                );
+
+                resetForm();
+            },
+            [
+                isSaving,
+                resetForm,
+            ],
+        );
+
+    const closeTeacherModal =
+        useCallback(
+            () => {
+                if (
+                    assigningTeacherId !==
+                    null
+                ) {
+                    return;
+                }
+
+                setIsTeacherModalOpen(
+                    false,
+                );
+
+                setAssigningCourse(
+                    null,
+                );
+
+                setAssigningTeacherId(
+                    null,
+                );
+
+                setAssignedTeacherUserIds(
+                    new Set(),
+                );
+
+                setUserSearch(
+                    "",
+                );
+
+                setUserCurrentPage(
+                    1,
+                );
+            },
+            [
+                assigningTeacherId,
+            ],
+        );
+
+    const closeDeleteModal =
+        useCallback(
+            () => {
+                if (
+                    isDeleting
+                ) {
+                    return;
+                }
+
+                setDeleteCandidate(
+                    null,
+                );
+            },
+            [
+                isDeleting,
+            ],
+        );
+
+    const loadCoursesData =
+        useCallback(
+            async (
+                showSuccess =
+                    false,
+            ) => {
+                if (
+                    refreshInProgressRef.current
+                ) {
+                    return;
+                }
+
+                refreshInProgressRef.current =
+                    true;
+
+                clearNotice();
+
+                if (
+                    showSuccess
+                ) {
+                    setIsRefreshing(
+                        true,
+                    );
                 } else {
-                    setIsLoading(true);
-                }
-
-                setCategoriesLoading(true);
-                setSubcategoriesLoading(true);
-
-                const [coursesResult, categoriesResult, subcategoriesResult] =
-                    await Promise.allSettled([
-                        getAllCourses(),
-                        getAllCategories(),
-                        getAllSubcategories(),
-                    ]);
-
-                if (coursesResult.status === "fulfilled") {
-                    setCourses(
-                        Array.isArray(coursesResult.value)
-                            ? coursesResult.value
-                            : [],
-                    );
-                } else {
-                    setCourses([]);
-                    showNotice(
-                        "error",
-                        coursesResult.reason instanceof Error
-                            ? coursesResult.reason.message
-                            : "No se pudieron cargar los cursos.",
+                    setIsLoading(
+                        true,
                     );
                 }
 
-                if (categoriesResult.status === "fulfilled") {
-                    setCategories(
-                        Array.isArray(categoriesResult.value)
-                            ? categoriesResult.value
-                            : [],
-                    );
-                } else {
-                    setCategories([]);
-                    showNotice(
-                        "error",
-                        categoriesResult.reason instanceof Error
-                            ? categoriesResult.reason.message
-                            : "No se pudieron cargar las categorías.",
-                    );
-                }
+                setCategoriesLoading(
+                    true,
+                );
 
-                if (subcategoriesResult.status === "fulfilled") {
-                    setSubcategories(
-                        Array.isArray(subcategoriesResult.value)
-                            ? subcategoriesResult.value
-                            : [],
-                    );
-                } else {
-                    setSubcategories([]);
-                    showNotice(
-                        "error",
-                        subcategoriesResult.reason instanceof Error
-                            ? subcategoriesResult.reason.message
-                            : "No se pudieron cargar las subcategorías.",
-                    );
-                }
+                setSubcategoriesLoading(
+                    true,
+                );
 
-                if (showSuccess) {
-                    showNotice(
-                        "success",
-                        "Lista de cursos actualizada correctamente.",
+                const toastId =
+                    showSuccess
+                        ? notify.loading(
+                              "Actualizando cursos...",
+                              "Estamos consultando los cursos, categorías y subcategorías.",
+                          )
+                        : null;
+
+                try {
+                    const [
+                        coursesResult,
+                        categoriesResult,
+                        subcategoriesResult,
+                    ] =
+                        await Promise.allSettled([
+                            getAllCourses(),
+                            getAllCategories(),
+                            getAllSubcategories(),
+                        ]);
+
+                    const issues:
+                        string[] =
+                        [];
+
+                    if (
+                        coursesResult.status ===
+                        "fulfilled"
+                    ) {
+                        setCourses(
+                            Array.isArray(
+                                coursesResult.value,
+                            )
+                                ? coursesResult.value
+                                : [],
+                        );
+                    } else {
+                        setCourses(
+                            [],
+                        );
+
+                        issues.push(
+                            getErrorMessage(
+                                coursesResult.reason,
+                                "No se pudieron cargar los cursos.",
+                            ),
+                        );
+                    }
+
+                    if (
+                        categoriesResult.status ===
+                        "fulfilled"
+                    ) {
+                        setCategories(
+                            Array.isArray(
+                                categoriesResult.value,
+                            )
+                                ? categoriesResult.value
+                                : [],
+                        );
+                    } else {
+                        setCategories(
+                            [],
+                        );
+
+                        issues.push(
+                            getErrorMessage(
+                                categoriesResult.reason,
+                                "No se pudieron cargar las categorías.",
+                            ),
+                        );
+                    }
+
+                    if (
+                        subcategoriesResult.status ===
+                        "fulfilled"
+                    ) {
+                        setSubcategories(
+                            Array.isArray(
+                                subcategoriesResult.value,
+                            )
+                                ? subcategoriesResult.value
+                                : [],
+                        );
+                    } else {
+                        setSubcategories(
+                            [],
+                        );
+
+                        issues.push(
+                            getErrorMessage(
+                                subcategoriesResult.reason,
+                                "No se pudieron cargar las subcategorías.",
+                            ),
+                        );
+                    }
+
+                    if (
+                        toastId !==
+                        null
+                    ) {
+                        notify.dismiss(
+                            toastId,
+                        );
+                    }
+
+                    if (
+                        issues.length >
+                        0
+                    ) {
+                        const message =
+                            issues.join(
+                                " ",
+                            );
+
+                        showPersistentError(
+                            message,
+                        );
+
+                        notify.error(
+                            "No se pudo cargar toda la información.",
+                            message,
+                        );
+
+                        return;
+                    }
+
+                    if (
+                        showSuccess
+                    ) {
+                        notify.success(
+                            "Lista de cursos actualizada.",
+                            "La información se encuentra al día.",
+                        );
+                    }
+                } catch (
+                    error
+                ) {
+                    if (
+                        toastId !==
+                        null
+                    ) {
+                        notify.dismiss(
+                            toastId,
+                        );
+                    }
+
+                    const message =
+                        getErrorMessage(
+                            error,
+                            "No se pudo cargar la gestión de cursos.",
+                        );
+
+                    showPersistentError(
+                        message,
                     );
+
+                    notify.error(
+                        "No se pudo cargar la información.",
+                        message,
+                    );
+                } finally {
+                    setCategoriesLoading(
+                        false,
+                    );
+
+                    setSubcategoriesLoading(
+                        false,
+                    );
+
+                    setIsLoading(
+                        false,
+                    );
+
+                    setIsRefreshing(
+                        false,
+                    );
+
+                    refreshInProgressRef.current =
+                        false;
                 }
-            } finally {
-                setCategoriesLoading(false);
-                setSubcategoriesLoading(false);
-                setIsLoading(false);
-                setIsRefreshing(false);
-            }
-        },
-        [showNotice],
-    );
+            },
+            [
+                clearNotice,
+                showPersistentError,
+            ],
+        );
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadCoursesData();
-        }, 0);
+        const timeoutId =
+            window.setTimeout(
+                () => {
+                    void loadCoursesData();
+                },
+                0,
+            );
 
         return () => {
-            window.clearTimeout(timeoutId);
+            window.clearTimeout(
+                timeoutId,
+            );
         };
-    }, [loadCoursesData]);
+    }, [
+        loadCoursesData,
+    ]);
 
     useEffect(() => {
-        if (!isModalOpen && !isTeacherModalOpen) return;
+        if (
+            !isModalOpen &&
+            !isTeacherModalOpen &&
+            !deleteCandidate
+        ) {
+            return;
+        }
 
-        const originalOverflow = document.body.style.overflow;
+        const originalOverflow =
+            document.body.style
+                .overflow;
 
-        function handleEscape(event: KeyboardEvent) {
-            if (event.key !== "Escape") return;
+        function handleEscape(
+            event:
+                KeyboardEvent,
+        ) {
+            if (
+                event.key !==
+                "Escape"
+            ) {
+                return;
+            }
 
-            if (isTeacherModalOpen) {
+            if (
+                deleteCandidate
+            ) {
+                closeDeleteModal();
+                return;
+            }
+
+            if (
+                isTeacherModalOpen
+            ) {
                 closeTeacherModal();
                 return;
             }
@@ -234,424 +654,1245 @@ export function useCoursesAdminPanel() {
             closeModal();
         }
 
-        document.body.style.overflow = "hidden";
-        document.addEventListener("keydown", handleEscape);
+        document.body.style.overflow =
+            "hidden";
+
+        document.addEventListener(
+            "keydown",
+            handleEscape,
+        );
 
         return () => {
-            document.body.style.overflow = originalOverflow;
-            document.removeEventListener("keydown", handleEscape);
+            document.body.style.overflow =
+                originalOverflow;
+
+            document.removeEventListener(
+                "keydown",
+                handleEscape,
+            );
         };
     }, [
+        closeDeleteModal,
         closeModal,
         closeTeacherModal,
+        deleteCandidate,
         isModalOpen,
         isTeacherModalOpen,
     ]);
 
-    const categoryMap = useMemo(
-        () => new Map(categories.map((item) => [item.id, item])),
-        [categories],
-    );
-
-    const subcategoryMap = useMemo(
-        () => new Map(subcategories.map((item) => [item.id, item])),
-        [subcategories],
-    );
-
-    const availableSubcategories = useMemo(() => {
-        const categoryId = Number(form.category_id || 0);
-
-        if (!categoryId) return [];
-
-        return subcategories.filter(
-            (subcategory) => subcategory.category_id === categoryId,
-        );
-    }, [form.category_id, subcategories]);
-
-    const filteredCourses = useMemo(() => {
-        const term = search.trim().toLowerCase();
-
-        if (!term) return courses;
-
-        return courses.filter((course) => {
-            const courseSubcategoryId = getCourseSubcategoryId(course);
-
-            const subcategory =
-                courseSubcategoryId !== null
-                    ? subcategoryMap.get(courseSubcategoryId)
-                    : undefined;
-
-            const category = subcategory
-                ? categoryMap.get(subcategory.category_id)
-                : null;
-
-            const mdtLabel = getCourseIsMdt(course) ? "mdt" : "normal";
-
-            return (
-                getCourseNameSafe(course).includes(term) ||
-                getCourseDescription(course).toLowerCase().includes(term) ||
-                getCourseLevel(course).toLowerCase().includes(term) ||
-                mdtLabel.includes(term) ||
-                String(courseSubcategoryId ?? "").includes(term) ||
-                (subcategory?.name ?? "").toLowerCase().includes(term) ||
-                (category?.name ?? "").toLowerCase().includes(term)
-            );
-        });
-    }, [courses, search, subcategoryMap, categoryMap]);
-
-    const totalPages = Math.max(
-        1,
-        Math.ceil(filteredCourses.length / ROWS_PER_PAGE),
-    );
-
-    const activePage = Math.min(currentPage, totalPages);
-
-    const paginatedCourses = useMemo(() => {
-        const startIndex = (activePage - 1) * ROWS_PER_PAGE;
-
-        return filteredCourses.slice(
-            startIndex,
-            startIndex + ROWS_PER_PAGE,
-        );
-    }, [filteredCourses, activePage]);
-
-    const filteredUsers = useMemo(() => {
-        const term = userSearch.trim().toLowerCase();
-
-        if (!term) return users;
-
-        return users.filter((user) => {
-            const fullName = getUserFullName(user).toLowerCase();
-
-            return (
-                fullName.includes(term) ||
-                user.username.toLowerCase().includes(term) ||
-                user.email.toLowerCase().includes(term) ||
-                String(user.role_id).includes(term) ||
-                (user.phone_number ?? "").toLowerCase().includes(term) ||
-                (user.departament ?? "").toLowerCase().includes(term)
-            );
-        });
-    }, [users, userSearch]);
-
-    const userTotalPages = Math.max(
-        1,
-        Math.ceil(filteredUsers.length / USERS_PER_PAGE),
-    );
-
-    const activeUserPage = Math.min(userCurrentPage, userTotalPages);
-
-    const paginatedUsers = useMemo(() => {
-        const startIndex = (activeUserPage - 1) * USERS_PER_PAGE;
-
-        return filteredUsers.slice(
-            startIndex,
-            startIndex + USERS_PER_PAGE,
-        );
-    }, [filteredUsers, activeUserPage]);
-
-    const stats = useMemo(() => {
-        return {
-            total: courses.length,
-            published: courses.filter(getCourseIsPublished).length,
-            free: courses.filter(getCourseIsFree).length,
-            openEnrollment: courses.filter(getCourseOpenEnrollment).length,
-            mdt: courses.filter(getCourseIsMdt).length,
+    useEffect(() => {
+        return () => {
+            if (
+                previewImageUrl.startsWith(
+                    "blob:",
+                )
+            ) {
+                URL.revokeObjectURL(
+                    previewImageUrl,
+                );
+            }
         };
-    }, [courses]);
+    }, [
+        previewImageUrl,
+    ]);
+
+    const categoryMap =
+        useMemo(
+            () =>
+                new Map(
+                    categories.map(
+                        (
+                            item,
+                        ) => [
+                            item.id,
+                            item,
+                        ],
+                    ),
+                ),
+            [
+                categories,
+            ],
+        );
+
+    const subcategoryMap =
+        useMemo(
+            () =>
+                new Map(
+                    subcategories.map(
+                        (
+                            item,
+                        ) => [
+                            item.id,
+                            item,
+                        ],
+                    ),
+                ),
+            [
+                subcategories,
+            ],
+        );
+
+    const availableSubcategories =
+        useMemo(
+            () => {
+                const categoryId =
+                    Number(
+                        form.category_id ||
+                            0,
+                    );
+
+                if (
+                    !categoryId
+                ) {
+                    return [];
+                }
+
+                return subcategories.filter(
+                    (
+                        subcategory,
+                    ) =>
+                        subcategory.category_id ===
+                        categoryId,
+                );
+            },
+            [
+                form.category_id,
+                subcategories,
+            ],
+        );
+
+    const filteredCourses =
+        useMemo(
+            () => {
+                const term =
+                    search
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    !term
+                ) {
+                    return courses;
+                }
+
+                return courses.filter(
+                    (
+                        course,
+                    ) => {
+                        const courseSubcategoryId =
+                            getCourseSubcategoryId(
+                                course,
+                            );
+
+                        const subcategory =
+                            courseSubcategoryId !==
+                            null
+                                ? subcategoryMap.get(
+                                      courseSubcategoryId,
+                                  )
+                                : undefined;
+
+                        const category =
+                            subcategory
+                                ? categoryMap.get(
+                                      subcategory.category_id,
+                                  )
+                                : null;
+
+                        const mdtLabel =
+                            getCourseIsMdt(
+                                course,
+                            )
+                                ? "mdt"
+                                : "normal";
+
+                        return (
+                            getCourseNameSafe(
+                                course,
+                            ).includes(
+                                term,
+                            ) ||
+                            getCourseDescription(
+                                course,
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                ) ||
+                            getCourseLevel(
+                                course,
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                ) ||
+                            mdtLabel.includes(
+                                term,
+                            ) ||
+                            String(
+                                courseSubcategoryId ??
+                                    "",
+                            ).includes(
+                                term,
+                            ) ||
+                            (
+                                subcategory?.name ??
+                                ""
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                ) ||
+                            (
+                                category?.name ??
+                                ""
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                )
+                        );
+                    },
+                );
+            },
+            [
+                categoryMap,
+                courses,
+                search,
+                subcategoryMap,
+            ],
+        );
+
+    const totalPages =
+        Math.max(
+            1,
+            Math.ceil(
+                filteredCourses.length /
+                    ROWS_PER_PAGE,
+            ),
+        );
+
+    const activePage =
+        Math.min(
+            currentPage,
+            totalPages,
+        );
+
+    const paginatedCourses =
+        useMemo(
+            () => {
+                const startIndex =
+                    (
+                        activePage -
+                        1
+                    ) *
+                    ROWS_PER_PAGE;
+
+                return filteredCourses.slice(
+                    startIndex,
+                    startIndex +
+                        ROWS_PER_PAGE,
+                );
+            },
+            [
+                activePage,
+                filteredCourses,
+            ],
+        );
+
+    const filteredUsers =
+        useMemo(
+            () => {
+                const term =
+                    userSearch
+                        .trim()
+                        .toLowerCase();
+
+                if (
+                    !term
+                ) {
+                    return users;
+                }
+
+                return users.filter(
+                    (
+                        user,
+                    ) => {
+                        const fullName =
+                            getUserFullName(
+                                user,
+                            ).toLowerCase();
+
+                        return (
+                            fullName.includes(
+                                term,
+                            ) ||
+                            user.username
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                ) ||
+                            user.email
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                ) ||
+                            String(
+                                user.role_id,
+                            ).includes(
+                                term,
+                            ) ||
+                            (
+                                user.phone_number ??
+                                ""
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                ) ||
+                            (
+                                user.departament ??
+                                ""
+                            )
+                                .toLowerCase()
+                                .includes(
+                                    term,
+                                )
+                        );
+                    },
+                );
+            },
+            [
+                userSearch,
+                users,
+            ],
+        );
+
+    const userTotalPages =
+        Math.max(
+            1,
+            Math.ceil(
+                filteredUsers.length /
+                    USERS_PER_PAGE,
+            ),
+        );
+
+    const activeUserPage =
+        Math.min(
+            userCurrentPage,
+            userTotalPages,
+        );
+
+    const paginatedUsers =
+        useMemo(
+            () => {
+                const startIndex =
+                    (
+                        activeUserPage -
+                        1
+                    ) *
+                    USERS_PER_PAGE;
+
+                return filteredUsers.slice(
+                    startIndex,
+                    startIndex +
+                        USERS_PER_PAGE,
+                );
+            },
+            [
+                activeUserPage,
+                filteredUsers,
+            ],
+        );
+
+    const stats =
+        useMemo(
+            () => ({
+                total:
+                    courses.length,
+                published:
+                    courses.filter(
+                        getCourseIsPublished,
+                    ).length,
+                free:
+                    courses.filter(
+                        getCourseIsFree,
+                    ).length,
+                openEnrollment:
+                    courses.filter(
+                        getCourseOpenEnrollment,
+                    ).length,
+                mdt:
+                    courses.filter(
+                        getCourseIsMdt,
+                    ).length,
+            }),
+            [
+                courses,
+            ],
+        );
 
     const previewSrc =
-        previewImageUrl || resolveImageUrl(form.image_url);
+        previewImageUrl ||
+        resolveImageUrl(
+            form.image_url,
+        );
 
-    function updateForm<K extends keyof CourseFormState>(
+    function updateForm<
+        K extends keyof CourseFormState,
+    >(
         key: K,
-        value: CourseFormState[K],
+        value:
+            CourseFormState[K],
     ) {
-        setForm((current) => ({
-            ...current,
-            [key]: value,
-        }));
+        setForm(
+            (
+                current,
+            ) => ({
+                ...current,
+                [key]:
+                    value,
+            }),
+        );
+
+        clearNotice();
     }
 
-    function handleCategoryChange(categoryId: string) {
-        setForm((current) => ({
-            ...current,
-            category_id: categoryId,
-            subcategory_id: "",
-        }));
+    function handleCategoryChange(
+        categoryId: string,
+    ) {
+        setForm(
+            (
+                current,
+            ) => ({
+                ...current,
+                category_id:
+                    categoryId,
+                subcategory_id:
+                    "",
+            }),
+        );
+
+        clearNotice();
     }
 
-    function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0] ?? null;
+    function handleImageChange(
+        event:
+            ChangeEvent<HTMLInputElement>,
+    ) {
+        const file =
+            event.target.files?.[0] ??
+            null;
 
-        if (previewImageUrl.startsWith("blob:")) {
-            URL.revokeObjectURL(previewImageUrl);
+        if (
+            previewImageUrl.startsWith(
+                "blob:",
+            )
+        ) {
+            URL.revokeObjectURL(
+                previewImageUrl,
+            );
         }
 
-        if (!file) {
-            setSelectedImageFile(null);
-            setPreviewImageUrl(resolveImageUrl(form.image_url));
+        if (
+            !file
+        ) {
+            setSelectedImageFile(
+                null,
+            );
+
+            setPreviewImageUrl(
+                resolveImageUrl(
+                    form.image_url,
+                ),
+            );
+
             return;
         }
 
-        const objectUrl = URL.createObjectURL(file);
+        if (
+            !file.type.startsWith(
+                "image/",
+            )
+        ) {
+            event.target.value =
+                "";
 
-        setSelectedImageFile(file);
-        setPreviewImageUrl(objectUrl);
+            setSelectedImageFile(
+                null,
+            );
+
+            notify.warning(
+                "Imagen no válida.",
+                "Selecciona un archivo de imagen permitido.",
+            );
+
+            return;
+        }
+
+        if (
+            file.size >
+            MAX_IMAGE_SIZE_BYTES
+        ) {
+            event.target.value =
+                "";
+
+            setSelectedImageFile(
+                null,
+            );
+
+            notify.warning(
+                "Imagen demasiado pesada.",
+                "Selecciona una imagen de hasta 5 MB.",
+            );
+
+            return;
+        }
+
+        const objectUrl =
+            URL.createObjectURL(
+                file,
+            );
+
+        setSelectedImageFile(
+            file,
+        );
+
+        setPreviewImageUrl(
+            objectUrl,
+        );
     }
 
     function openCreateModal() {
+        clearNotice();
         resetForm();
-        setIsModalOpen(true);
+
+        setIsModalOpen(
+            true,
+        );
     }
 
-    async function openAssignTeacherModal(course: Course) {
-        setAssigningCourse(course);
-        setIsTeacherModalOpen(true);
-        setUserSearch("");
-        setUserCurrentPage(1);
-        setAssignedTeacherUserIds(new Set());
+    async function openAssignTeacherModal(
+        course: Course,
+    ) {
+        setAssigningCourse(
+            course,
+        );
+
+        setIsTeacherModalOpen(
+            true,
+        );
+
+        setUserSearch(
+            "",
+        );
+
+        setUserCurrentPage(
+            1,
+        );
+
+        setAssignedTeacherUserIds(
+            new Set(),
+        );
 
         try {
-            setUsersLoading(true);
+            setUsersLoading(
+                true,
+            );
 
-            const [usersData, teacherEnrollments] = await Promise.all([
-                getAllUsers(),
-                getEnrollmentsByCourseAndRole(course.id, TEACHER_ROLE_ID),
-            ]);
+            const [
+                usersData,
+                teacherEnrollments,
+            ] =
+                await Promise.all([
+                    getAllUsers(),
+                    getEnrollmentsByCourseAndRole(
+                        course.id,
+                        TEACHER_ROLE_ID,
+                    ),
+                ]);
 
-            setUsers(Array.isArray(usersData) ? usersData : []);
+            setUsers(
+                Array.isArray(
+                    usersData,
+                )
+                    ? usersData
+                    : [],
+            );
+
             setAssignedTeacherUserIds(
                 new Set(
                     teacherEnrollments.map(
-                        (enrollment) => enrollment.user.id,
+                        (
+                            enrollment,
+                        ) =>
+                            enrollment.user
+                                .id,
                     ),
                 ),
             );
-        } catch (error) {
+        } catch (
+            error
+        ) {
             const message =
-                error instanceof Error
-                    ? error.message
-                    : "No se pudieron cargar los usuarios.";
+                getErrorMessage(
+                    error,
+                    "No se pudieron cargar los usuarios.",
+                );
 
-            showNotice("error", message);
-            setUsers([]);
-            setAssignedTeacherUserIds(new Set());
+            setUsers(
+                [],
+            );
+
+            setAssignedTeacherUserIds(
+                new Set(),
+            );
+
+            notify.error(
+                "No se pudo abrir la asignación de docentes.",
+                message,
+            );
         } finally {
-            setUsersLoading(false);
+            setUsersLoading(
+                false,
+            );
         }
     }
 
-    async function handleToggleTeacher(user: User, isTeacher: boolean) {
-        if (!assigningCourse) {
-            showNotice("error", "No se encontró el curso seleccionado.");
+    async function handleToggleTeacher(
+        user: User,
+        isTeacher: boolean,
+    ) {
+        if (
+            !assigningCourse
+        ) {
+            notify.warning(
+                "Curso no disponible.",
+                "No se encontró el curso seleccionado.",
+            );
+
             return;
         }
 
-        const nextRoleId = isTeacher ? STUDENT_ROLE_ID : TEACHER_ROLE_ID;
+        if (
+            teacherOperationsRef.current.has(
+                user.id,
+            )
+        ) {
+            return;
+        }
+
+        teacherOperationsRef.current.add(
+            user.id,
+        );
+
+        setAssigningTeacherId(
+            user.id,
+        );
+
+        const nextRoleId =
+            isTeacher
+                ? STUDENT_ROLE_ID
+                : TEACHER_ROLE_ID;
+
+        const toastId =
+            notify.loading(
+                isTeacher
+                    ? "Quitando docente..."
+                    : "Asignando docente...",
+                `${getUserFullName(
+                    user,
+                )} · ${getCourseName(
+                    assigningCourse,
+                )}`,
+            );
 
         try {
-            setAssigningTeacherId(user.id);
+            const userEnrollments =
+                await getEnrollmentsByUser(
+                    user.id,
+                );
 
-            const userEnrollments = await getEnrollmentsByUser(user.id);
+            const courseEnrollment =
+                userEnrollments.find(
+                    (
+                        enrollment,
+                    ) =>
+                        enrollment.course
+                            .id ===
+                        assigningCourse.id,
+                );
 
-            const courseEnrollment = userEnrollments.find(
-                (enrollment) =>
-                    enrollment.course.id === assigningCourse.id,
+            const savedEnrollment =
+                courseEnrollment
+                    ? await updateEnrollment(
+                          courseEnrollment.id,
+                          {
+                              accepted:
+                                  courseEnrollment.accepted ??
+                                  true,
+                              reference_code:
+                                  courseEnrollment.reference_code ??
+                                  null,
+                              comment:
+                                  courseEnrollment.comment ??
+                                  null,
+                              user_id:
+                                  user.id,
+                              course_id:
+                                  assigningCourse.id,
+                              role_id:
+                                  nextRoleId,
+                          },
+                      )
+                    : await createEnrollment({
+                          accepted:
+                              true,
+                          reference_code:
+                              null,
+                          comment:
+                              "Asignado como docente desde administración.",
+                          user_id:
+                              user.id,
+                          course_id:
+                              assigningCourse.id,
+                          role_id:
+                              TEACHER_ROLE_ID,
+                          image:
+                              null,
+                      });
+
+            setAssignedTeacherUserIds(
+                (
+                    current,
+                ) => {
+                    const next =
+                        new Set(
+                            current,
+                        );
+
+                    if (
+                        nextRoleId ===
+                        TEACHER_ROLE_ID
+                    ) {
+                        next.add(
+                            savedEnrollment.user
+                                .id,
+                        );
+                    } else {
+                        next.delete(
+                            savedEnrollment.user
+                                .id,
+                        );
+                    }
+
+                    return next;
+                },
             );
 
-            const savedEnrollment = courseEnrollment
-                ? await updateEnrollment(courseEnrollment.id, {
-                      accepted: courseEnrollment.accepted ?? true,
-                      reference_code:
-                          courseEnrollment.reference_code ?? null,
-                      comment: courseEnrollment.comment ?? null,
-                      user_id: user.id,
-                      course_id: assigningCourse.id,
-                      role_id: nextRoleId,
-                  })
-                : await createEnrollment({
-                      accepted: true,
-                      reference_code: null,
-                      comment:
-                          "Asignado como docente desde administración.",
-                      user_id: user.id,
-                      course_id: assigningCourse.id,
-                      role_id: TEACHER_ROLE_ID,
-                      image: null,
-                  });
-
-            setAssignedTeacherUserIds((current) => {
-                const next = new Set(current);
-
-                if (nextRoleId === TEACHER_ROLE_ID) {
-                    next.add(savedEnrollment.user.id);
-                } else {
-                    next.delete(savedEnrollment.user.id);
-                }
-
-                return next;
-            });
-
-            showNotice(
-                "success",
-                nextRoleId === TEACHER_ROLE_ID
-                    ? "Docente asignado al curso correctamente."
-                    : "El usuario volvió al rol de estudiante correctamente.",
+            notify.dismiss(
+                toastId,
             );
-        } catch (error) {
-            showNotice(
-                "error",
-                error instanceof Error
-                    ? error.message
-                    : isTeacher
-                      ? "No se pudo quitar el docente."
-                      : "No se pudo asignar el docente.",
+
+            notify.success(
+                nextRoleId ===
+                    TEACHER_ROLE_ID
+                    ? "Docente asignado."
+                    : "Asignación actualizada.",
+                nextRoleId ===
+                    TEACHER_ROLE_ID
+                    ? "El usuario ya tiene acceso docente al curso."
+                    : "El usuario volvió al rol de estudiante en este curso.",
+            );
+        } catch (
+            error
+        ) {
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                isTeacher
+                    ? "No se pudo quitar el docente."
+                    : "No se pudo asignar el docente.",
+                getErrorMessage(
+                    error,
+                    "No se pudo completar la operación.",
+                ),
             );
         } finally {
-            setAssigningTeacherId(null);
+            teacherOperationsRef.current.delete(
+                user.id,
+            );
+
+            setAssigningTeacherId(
+                null,
+            );
         }
     }
 
-    function handleEdit(course: Course) {
-        const courseSubcategoryId = getCourseSubcategoryId(course);
+    function handleEdit(
+        course: Course,
+    ) {
+        const courseSubcategoryId =
+            getCourseSubcategoryId(
+                course,
+            );
 
         const foundSubcategory =
-            courseSubcategoryId !== null
-                ? subcategoryMap.get(courseSubcategoryId)
+            courseSubcategoryId !==
+            null
+                ? subcategoryMap.get(
+                      courseSubcategoryId,
+                  )
                 : undefined;
 
         const nextForm = {
-            ...buildFormFromCourse(course),
-            category_id: foundSubcategory
-                ? String(foundSubcategory.category_id)
-                : "",
-            subcategory_id: String(courseSubcategoryId ?? ""),
+            ...buildFormFromCourse(
+                course,
+            ),
+            category_id:
+                foundSubcategory
+                    ? String(
+                          foundSubcategory.category_id,
+                      )
+                    : "",
+            subcategory_id:
+                String(
+                    courseSubcategoryId ??
+                        "",
+                ),
         };
 
-        if (previewImageUrl.startsWith("blob:")) {
-            URL.revokeObjectURL(previewImageUrl);
+        if (
+            previewImageUrl.startsWith(
+                "blob:",
+            )
+        ) {
+            URL.revokeObjectURL(
+                previewImageUrl,
+            );
         }
 
-        setEditingCourseId(course.id);
-        setForm(nextForm);
-        setSelectedImageFile(null);
-        setPreviewImageUrl(resolveImageUrl(getCourseImageUrl(course)));
-        setIsModalOpen(true);
-    }
+        clearNotice();
 
-    async function handleDelete(courseId: number) {
-        const confirmed = window.confirm(
-            "¿Seguro que deseas eliminar este curso?",
+        setEditingCourseId(
+            course.id,
         );
 
-        if (!confirmed) return;
+        setForm(
+            nextForm,
+        );
 
-        try {
-            await deleteCourse(courseId);
+        setSelectedImageFile(
+            null,
+        );
 
-            setCourses((current) =>
-                current.filter((item) => item.id !== courseId),
+        setPreviewImageUrl(
+            resolveImageUrl(
+                getCourseImageUrl(
+                    course,
+                ),
+            ),
+        );
+
+        setIsModalOpen(
+            true,
+        );
+    }
+
+    function openDeleteModal(
+        course: Course,
+    ) {
+        if (
+            isDeleting
+        ) {
+            return;
+        }
+
+        setDeleteCandidate(
+            course,
+        );
+    }
+
+    async function confirmDeleteCourse() {
+        if (
+            !deleteCandidate ||
+            isDeleting ||
+            deleteInProgressRef.current
+        ) {
+            return;
+        }
+
+        deleteInProgressRef.current =
+            true;
+
+        setIsDeleting(
+            true,
+        );
+
+        clearNotice();
+
+        const courseId =
+            deleteCandidate.id;
+
+        const courseName =
+            getCourseName(
+                deleteCandidate,
+            ) ||
+            `Curso #${courseId}`;
+
+        const toastId =
+            notify.loading(
+                "Eliminando curso...",
+                courseName,
             );
 
-            showNotice("success", "Curso eliminado correctamente.");
-        } catch (error) {
-            showNotice(
-                "error",
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo eliminar el curso.",
+        try {
+            await deleteCourse(
+                courseId,
+            );
+
+            setCourses(
+                (
+                    current,
+                ) =>
+                    current.filter(
+                        (
+                            item,
+                        ) =>
+                            item.id !==
+                            courseId,
+                    ),
+            );
+
+            setDeleteCandidate(
+                null,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.success(
+                "Curso eliminado.",
+                `${courseName} fue eliminado correctamente.`,
+            );
+        } catch (
+            error
+        ) {
+            const message =
+                getErrorMessage(
+                    error,
+                    "No se pudo eliminar el curso.",
+                );
+
+            showPersistentError(
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                "No se pudo eliminar el curso.",
+                message,
+            );
+        } finally {
+            deleteInProgressRef.current =
+                false;
+
+            setIsDeleting(
+                false,
             );
         }
     }
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    function getFormValidationMessage() {
+        const subcategoryId =
+            parseNumberInput(
+                form.subcategory_id,
+                0,
+            );
+
+        const price =
+            parseNumberInput(
+                form.price,
+                0,
+            );
+
+        const discountPrice =
+            parseNumberInput(
+                form.discount_price,
+                0,
+            );
+
+        const durationHours =
+            parseNumberInput(
+                form.duration_hours,
+                0,
+            );
+
+        if (
+            !form.name.trim()
+        ) {
+            return "El nombre del curso es obligatorio.";
+        }
+
+        if (
+            !form.description.trim()
+        ) {
+            return "La descripción del curso es obligatoria.";
+        }
+
+        if (
+            !form.category_id
+        ) {
+            return "La categoría es obligatoria.";
+        }
+
+        if (
+            !subcategoryId ||
+            subcategoryId <=
+                0
+        ) {
+            return "La subcategoría es obligatoria.";
+        }
+
+        if (
+            !form.currency.trim()
+        ) {
+            return "La moneda es obligatoria.";
+        }
+
+        if (
+            !form.is_free &&
+            price <
+                0
+        ) {
+            return "El precio no puede ser negativo.";
+        }
+
+        if (
+            !form.is_free &&
+            discountPrice <
+                0
+        ) {
+            return "El precio con descuento no puede ser negativo.";
+        }
+
+        if (
+            !form.is_free &&
+            discountPrice >
+                0 &&
+            price >
+                0 &&
+            discountPrice >=
+                price
+        ) {
+            return "El precio con descuento debe ser menor que el precio normal.";
+        }
+
+        if (
+            durationHours <
+            0
+        ) {
+            return "La duración no puede ser negativa.";
+        }
+
+        return "";
+    }
+
+    async function handleSubmit(
+        event:
+            FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
 
-        const subcategoryId = parseNumberInput(form.subcategory_id, 0);
-
-        if (!form.name.trim()) {
-            showNotice("error", "El nombre del curso es obligatorio.");
+        if (
+            isSaving ||
+            saveInProgressRef.current
+        ) {
             return;
         }
 
-        if (!form.description.trim()) {
-            showNotice("error", "La descripción del curso es obligatoria.");
+        const validationMessage =
+            getFormValidationMessage();
+
+        if (
+            validationMessage
+        ) {
+            notify.warning(
+                "Revisa los datos del curso.",
+                validationMessage,
+            );
+
             return;
         }
 
-        if (!form.category_id) {
-            showNotice("error", "La categoría es obligatoria.");
-            return;
-        }
+        saveInProgressRef.current =
+            true;
 
-        if (!subcategoryId || subcategoryId <= 0) {
-            showNotice("error", "La subcategoría es obligatoria.");
-            return;
-        }
+        setIsSaving(
+            true,
+        );
+
+        clearNotice();
+
+        const isEditing =
+            Boolean(
+                editingCourseId,
+            );
+
+        const toastId =
+            notify.loading(
+                isEditing
+                    ? "Actualizando curso..."
+                    : "Creando curso...",
+                "Estamos guardando la información del curso.",
+            );
 
         try {
-            setIsSaving(true);
+            const subcategoryId =
+                parseNumberInput(
+                    form.subcategory_id,
+                    0,
+                );
 
             const payload = {
-                name: form.name.trim(),
-                description: form.description.trim(),
-                price: form.is_free
-                    ? 0
-                    : parseNumberInput(form.price, 0),
-                is_free: form.is_free,
-                level: form.level,
-                is_published: form.is_published,
-                open_enrollment: form.open_enrollment,
-                duration_hours: parseNumberInput(
-                    form.duration_hours,
-                    0,
-                ),
-                total_lessons: parseNumberInput(form.total_lessons, 0),
-                subcategory_id: subcategoryId,
-                is_mdt: form.is_mdt,
-                image: selectedImageFile ?? undefined,
-                discount_price: form.is_free
-                    ? 0
-                    : parseNumberInput(form.discount_price, 0),
+                name:
+                    form.name.trim(),
+                description:
+                    form.description.trim(),
+                price:
+                    form.is_free
+                        ? 0
+                        : parseNumberInput(
+                              form.price,
+                              0,
+                          ),
+                is_free:
+                    form.is_free,
+                level:
+                    form.level,
+                is_published:
+                    form.is_published,
+                open_enrollment:
+                    form.open_enrollment,
+                duration_hours:
+                    parseNumberInput(
+                        form.duration_hours,
+                        0,
+                    ),
+                total_lessons:
+                    parseNumberInput(
+                        form.total_lessons,
+                        0,
+                    ),
+                subcategory_id:
+                    subcategoryId,
+                is_mdt:
+                    form.is_mdt,
+                image:
+                    selectedImageFile ??
+                    undefined,
+                discount_price:
+                    form.is_free
+                        ? 0
+                        : parseNumberInput(
+                              form.discount_price,
+                              0,
+                          ),
             };
 
-            if (editingCourseId) {
-                const updatedCourse = await updateCourse(
-                    editingCourseId,
-                    payload,
-                );
+            if (
+                editingCourseId
+            ) {
+                const updatedCourse =
+                    await updateCourse(
+                        editingCourseId,
+                        payload,
+                    );
 
-                setCourses((current) =>
-                    current.map((item) =>
-                        item.id === editingCourseId
-                            ? updatedCourse
-                            : item,
-                    ),
-                );
-
-                showNotice(
-                    "success",
-                    "Curso actualizado correctamente.",
+                setCourses(
+                    (
+                        current,
+                    ) =>
+                        current.map(
+                            (
+                                item,
+                            ) =>
+                                item.id ===
+                                editingCourseId
+                                    ? updatedCourse
+                                    : item,
+                        ),
                 );
             } else {
-                const createdCourse = await createCourse(payload);
+                const createdCourse =
+                    await createCourse(
+                        payload,
+                    );
 
-                setCourses((current) => [createdCourse, ...current]);
-
-                showNotice("success", "Curso creado correctamente.");
+                setCourses(
+                    (
+                        current,
+                    ) => [
+                        createdCourse,
+                        ...current,
+                    ],
+                );
             }
 
-            closeModal();
-        } catch (error) {
-            showNotice(
-                "error",
-                error instanceof Error
-                    ? error.message
-                    : "No se pudo guardar el curso.",
+            setIsModalOpen(
+                false,
+            );
+
+            resetForm();
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.success(
+                isEditing
+                    ? "Curso actualizado."
+                    : "Curso creado.",
+                isEditing
+                    ? "La información del curso se actualizó correctamente."
+                    : "El nuevo curso fue registrado correctamente.",
+            );
+        } catch (
+            error
+        ) {
+            const message =
+                getErrorMessage(
+                    error,
+                    "No se pudo guardar el curso.",
+                );
+
+            showPersistentError(
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                isEditing
+                    ? "No se pudo actualizar el curso."
+                    : "No se pudo crear el curso.",
+                message,
             );
         } finally {
-            setIsSaving(false);
+            saveInProgressRef.current =
+                false;
+
+            setIsSaving(
+                false,
+            );
         }
     }
 
@@ -691,7 +1932,6 @@ export function useCoursesAdminPanel() {
         handleCategoryChange,
         handleImageChange,
         handleEdit,
-        handleDelete,
         handleSubmit,
 
         users,
@@ -712,11 +1952,22 @@ export function useCoursesAdminPanel() {
         closeTeacherModal,
         handleToggleTeacher,
 
+        deleteCandidate,
+        isDeleting,
+        openDeleteModal,
+        closeDeleteModal,
+        confirmDeleteCourse,
+
         stats,
         loadCoursesData,
     };
 }
 
-function getCourseNameSafe(course: Course) {
-    return String(course.name ?? "").toLowerCase();
+function getCourseNameSafe(
+    course: Course,
+) {
+    return String(
+        course.name ??
+            "",
+    ).toLowerCase();
 }

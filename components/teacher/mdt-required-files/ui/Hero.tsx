@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
     FileCheck2,
     Layers3,
-    ShieldCheck,
 } from "lucide-react";
 
 type HeroProps = {

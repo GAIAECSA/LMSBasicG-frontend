@@ -1,5 +1,15 @@
+"use client";
+
 import Link from "next/link";
+
 import { AuthShell } from "./auth-shell";
+import {
+    AuthCard,
+    AuthFormHeader,
+    AuthInfoPanel,
+    AuthPrimaryButton,
+} from "./auth-ui";
+import { notify } from "@/lib/notify";
 
 function ArrowLeftIcon() {
     return (
@@ -24,11 +34,11 @@ function LockIcon() {
     return (
         <svg
             aria-hidden="true"
-            className="h-9 w-9"
+            className="h-5 w-5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            strokeWidth="1.8"
+            strokeWidth="1.9"
         >
             <path
                 strokeLinecap="round"
@@ -62,7 +72,7 @@ function SparklesIcon() {
     return (
         <svg
             aria-hidden="true"
-            className="h-3.5 w-3.5"
+            className="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -78,31 +88,78 @@ function SparklesIcon() {
 }
 
 export function ForgotPassword() {
+    function handleRecoveryRequest() {
+        notify.info(
+            "Recuperación automática próximamente.",
+            "Por el momento, comunícate con el administrador de la plataforma para restablecer tu contraseña.",
+        );
+    }
+
     return (
         <AuthShell active="forgot">
-            <section className="rounded-[28px] border border-white/80 bg-white/95 p-6 shadow-[0_22px_55px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:p-7">
+            <AuthCard>
+                <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#dce8f7] bg-[#f7fbff] px-3 py-3 sm:px-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#3564bf] shadow-sm">
+                        <LockIcon />
+                    </div>
 
-                <div className="mt-6 rounded-[20px] border border-[#dce8f7] bg-[#f7fbff] p-4 sm:p-5">
-                    <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#3564bf] shadow-sm">
-                            <ClockIcon />
-                        </div>
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#2457b8] sm:text-[11px]">
+                            Seguridad de la cuenta
+                        </p>
 
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2457b8]">
-                                Próximamente
-                            </p>
-
-                            <p className="mt-1.5 text-sm font-medium leading-6 text-slate-600">
-                                La recuperación automática de contraseña estará
-                                disponible en una próxima actualización de la
-                                plataforma.
-                            </p>
-                        </div>
+                        <p className="mt-0.5 text-xs font-semibold text-slate-600">
+                            Recuperación de acceso a ATHENA
+                        </p>
                     </div>
                 </div>
 
-            </section>
+                <AuthFormHeader
+                    title="Recuperar contraseña"
+                    description="Estamos preparando una opción segura para recuperar tu acceso automáticamente."
+                />
+
+                <div className="space-y-3">
+                    <AuthInfoPanel
+                        icon={<ClockIcon />}
+                        title="Disponible próximamente"
+                    >
+                        La recuperación automática de contraseña estará
+                        habilitada en una próxima actualización de la
+                        plataforma.
+                    </AuthInfoPanel>
+
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 sm:px-4">
+                        <p className="text-xs font-bold text-amber-800">
+                            ¿Necesitas ingresar urgentemente?
+                        </p>
+
+                        <p className="mt-1 text-[11px] leading-5 text-amber-700 sm:text-xs">
+                            Solicita al administrador de la plataforma el
+                            restablecimiento temporal de tu contraseña.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Link
+                        href="/login"
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.99] sm:h-11 sm:rounded-2xl sm:text-sm"
+                    >
+                        <ArrowLeftIcon />
+                        Volver al inicio
+                    </Link>
+
+                    <AuthPrimaryButton
+                        type="button"
+                        onClick={handleRecoveryRequest}
+                        className="gap-2"
+                    >
+                        <SparklesIcon />
+                        Solicitar recuperación
+                    </AuthPrimaryButton>
+                </div>
+            </AuthCard>
         </AuthShell>
     );
 }

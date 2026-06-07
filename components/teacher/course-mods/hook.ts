@@ -2,7 +2,8 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import type { DragEvent, FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { notify } from "@/lib/notify";
 import { getAllCourses, type Course } from "@/services/courses.service";
 import {
     createModule,
@@ -144,6 +145,20 @@ function shouldShowInCourseModules(block: unknown) {
     return isDefault && !isRequired;
 }
 
+function getResourceLabel(
+    type: "module" | "lesson" | "item",
+) {
+    if (type === "module") {
+        return "módulo";
+    }
+
+    if (type === "lesson") {
+        return "lección";
+    }
+
+    return "actividad";
+}
+
 export function useCourseMods({
     courseId,
     params,
@@ -197,9 +212,14 @@ export function useCourseMods({
     const [dragOver, setDragOver] = useState<DragState | null>(null);
 
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [actionError, setActionError] = useState("");
+
+    const refreshInProgressRef = useRef(false);
+    const saveInProgressRef = useRef(false);
+    const reorderInProgressRef = useRef(false);
 
     const courseOptions = useMemo(
         () =>
@@ -229,90 +249,242 @@ export function useCourseMods({
     const backLabel = isAdminRoute ? "Volver al panel" : "Volver al curso";
 
     const refreshModules = useCallback(
-        async (showLoading = false) => {
+        async (
+            showLoading = false,
+            showToast = false,
+        ) => {
+            if (
+                showToast &&
+                refreshInProgressRef.current
+            ) {
+                return;
+            }
+
+            let toastId:
+                | ReturnType<typeof notify.loading>
+                | null = null;
+
+            if (showToast) {
+                refreshInProgressRef.current =
+                    true;
+
+                setIsRefreshing(
+                    true,
+                );
+
+                toastId =
+                    notify.loading(
+                        "Actualizando contenido...",
+                        "Estamos consultando los módulos, lecciones y actividades del curso.",
+                    );
+            }
+
             try {
-                if (showLoading) setIsLoading(true);
+                if (showLoading) {
+                    setIsLoading(
+                        true,
+                    );
+                }
 
-                setErrorMessage("");
-                setActionError("");
+                setErrorMessage(
+                    "",
+                );
 
-                const coursesData = await getAllCourses();
+                setActionError(
+                    "",
+                );
 
-                setCourses(Array.isArray(coursesData) ? coursesData : []);
+                const coursesData =
+                    await getAllCourses();
 
-                if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
-                    setModules([]);
+                setCourses(
+                    Array.isArray(
+                        coursesData,
+                    )
+                        ? coursesData
+                        : [],
+                );
+
+                if (
+                    !Number.isFinite(
+                        numericCourseId,
+                    ) ||
+                    numericCourseId <= 0
+                ) {
+                    setModules(
+                        [],
+                    );
+
+                    if (
+                        toastId !==
+                        null
+                    ) {
+                        notify.dismiss(
+                            toastId,
+                        );
+
+                        notify.success(
+                            "Cursos actualizados.",
+                            "La lista de cursos disponibles se encuentra al día.",
+                        );
+                    }
+
                     return;
                 }
 
                 const courseModulesResponse =
-                    await getModulesByCourse(numericCourseId);
+                    await getModulesByCourse(
+                        numericCourseId,
+                    );
 
-                const safeModules = Array.isArray(courseModulesResponse)
-                    ? courseModulesResponse
-                    : [];
+                const safeModules =
+                    Array.isArray(
+                        courseModulesResponse,
+                    )
+                        ? courseModulesResponse
+                        : [];
 
-                const modulesWithLessons = await Promise.all(
-                    sortByOrder<ApiCourseModule>(safeModules).map(
-                        async (courseModule: ApiCourseModule) => {
-                            const lessonsResponse = await getLessonsByModule(
-                                courseModule.id,
-                            );
+                const modulesWithLessons =
+                    await Promise.all(
+                        sortByOrder<ApiCourseModule>(
+                            safeModules,
+                        ).map(
+                            async (
+                                courseModule:
+                                    ApiCourseModule,
+                            ) => {
+                                const lessonsResponse =
+                                    await getLessonsByModule(
+                                        courseModule.id,
+                                    );
 
-                            const safeLessons = Array.isArray(lessonsResponse)
-                                ? lessonsResponse
-                                : [];
+                                const safeLessons =
+                                    Array.isArray(
+                                        lessonsResponse,
+                                    )
+                                        ? lessonsResponse
+                                        : [];
 
-                            const lessonsWithBlocks = await Promise.all(
-                                sortByOrder<ApiLesson>(safeLessons).map(
-                                    async (lesson: ApiLesson) => {
-                                        const blocksResponse =
-                                            await getLessonBlocksByLesson(
-                                                lesson.id,
-                                            );
+                                const lessonsWithBlocks =
+                                    await Promise.all(
+                                        sortByOrder<ApiLesson>(
+                                            safeLessons,
+                                        ).map(
+                                            async (
+                                                lesson:
+                                                    ApiLesson,
+                                            ) => {
+                                                const blocksResponse =
+                                                    await getLessonBlocksByLesson(
+                                                        lesson.id,
+                                                    );
 
-                                        const safeBlocks = Array.isArray(
-                                            blocksResponse,
-                                        )
-                                            ? blocksResponse
-                                            : [];
+                                                const safeBlocks =
+                                                    Array.isArray(
+                                                        blocksResponse,
+                                                    )
+                                                        ? blocksResponse
+                                                        : [];
 
-                                        const visibleBlocks =
-                                            sortByOrder<LessonBlock>(
-                                                safeBlocks,
-                                            ).filter(shouldShowInCourseModules);
+                                                const visibleBlocks =
+                                                    sortByOrder<LessonBlock>(
+                                                        safeBlocks,
+                                                    ).filter(
+                                                        shouldShowInCourseModules,
+                                                    );
 
-                                        return {
-                                            id: String(lesson.id),
-                                            title: lesson.name,
-                                            order: lesson.order,
-                                            moduleId: String(lesson.module_id),
-                                            raw: lesson,
-                                            items: visibleBlocks.map(
-                                                mapLessonBlockToView,
-                                            ),
-                                        };
-                                    },
-                                ),
-                            );
+                                                return {
+                                                    id: String(
+                                                        lesson.id,
+                                                    ),
+                                                    title:
+                                                        lesson.name,
+                                                    order:
+                                                        lesson.order,
+                                                    moduleId:
+                                                        String(
+                                                            lesson.module_id,
+                                                        ),
+                                                    raw: lesson,
+                                                    items:
+                                                        visibleBlocks.map(
+                                                            mapLessonBlockToView,
+                                                        ),
+                                                };
+                                            },
+                                        ),
+                                    );
 
-                            return {
-                                id: String(courseModule.id),
-                                title: courseModule.name,
-                                order: courseModule.order,
-                                raw: courseModule,
-                                lessons: lessonsWithBlocks,
-                            };
-                        },
-                    ),
+                                return {
+                                    id: String(
+                                        courseModule.id,
+                                    ),
+                                    title:
+                                        courseModule.name,
+                                    order:
+                                        courseModule.order,
+                                    raw:
+                                        courseModule,
+                                    lessons:
+                                        lessonsWithBlocks,
+                                };
+                            },
+                        ),
+                    );
+
+                setModules(
+                    modulesWithLessons,
                 );
 
-                setModules(modulesWithLessons);
+                if (
+                    toastId !== null
+                ) {
+                    notify.dismiss(
+                        toastId,
+                    );
+
+                    notify.success(
+                        "Contenido actualizado.",
+                        "Los módulos, lecciones y actividades se encuentran al día.",
+                    );
+                }
             } catch (error) {
-                setErrorMessage(getErrorMessage(error));
-                setModules([]);
+                const message =
+                    getErrorMessage(
+                        error,
+                    );
+
+                setErrorMessage(
+                    message,
+                );
+
+                setModules(
+                    [],
+                );
+
+                if (
+                    toastId !== null
+                ) {
+                    notify.dismiss(
+                        toastId,
+                    );
+
+                    notify.error(
+                        "No se pudo actualizar el contenido.",
+                        message,
+                    );
+                }
             } finally {
-                setIsLoading(false);
+                setIsLoading(
+                    false,
+                );
+
+                setIsRefreshing(
+                    false,
+                );
+
+                refreshInProgressRef.current =
+                    false;
             }
         },
         [numericCourseId],
@@ -327,6 +499,13 @@ export function useCourseMods({
             window.clearTimeout(timeoutId);
         };
     }, [refreshModules]);
+
+    function handleManualRefresh() {
+        void refreshModules(
+            false,
+            true,
+        );
+    }
 
     function handleSelectCourse(value: string) {
         const parsedCourseId = Number(value);
@@ -414,136 +593,337 @@ export function useCourseMods({
         event.preventDefault();
         event.stopPropagation();
 
-        if (!dragging) return;
+        if (
+            !dragging ||
+            reorderInProgressRef.current
+        ) {
+            return;
+        }
 
-        if (dragging.id === targetState.id || dragging.type !== targetState.type) {
+        if (
+            dragging.id ===
+                targetState.id ||
+            dragging.type !==
+                targetState.type
+        ) {
             resetDragState();
             return;
         }
 
+        const resourceLabel =
+            dragging.type ===
+            "module"
+                ? "módulos"
+                : dragging.type ===
+                    "lesson"
+                  ? "lecciones"
+                  : "actividades";
+
+        const toastId =
+            notify.loading(
+                `Reorganizando ${resourceLabel}...`,
+                "Estamos guardando el nuevo orden.",
+            );
+
+        reorderInProgressRef.current =
+            true;
+
+        let orderWasUpdated =
+            false;
+
         try {
-            setActionError("");
+            setActionError(
+                "",
+            );
 
-            if (dragging.type === "module" && targetState.type === "module") {
-                const reorderedModules = moveItem(
-                    modules,
-                    dragging.id,
-                    targetState.id,
-                ).map((courseModule: CourseModuleView, index: number) => ({
-                    ...courseModule,
-                    order: index + 1,
-                }));
-
-                setModules(reorderedModules);
-
-                await Promise.all(
-                    reorderedModules.map((courseModule: CourseModuleView) =>
-                        updateModule(Number(courseModule.id), {
-                            name: courseModule.title,
-                            order: courseModule.order,
+            if (
+                dragging.type ===
+                    "module" &&
+                targetState.type ===
+                    "module"
+            ) {
+                const reorderedModules =
+                    moveItem(
+                        modules,
+                        dragging.id,
+                        targetState.id,
+                    ).map(
+                        (
+                            courseModule:
+                                CourseModuleView,
+                            index:
+                                number,
+                        ) => ({
+                            ...courseModule,
+                            order:
+                                index +
+                                1,
                         }),
-                    ),
-                );
-            }
+                    );
 
-            if (dragging.type === "lesson" && targetState.type === "lesson") {
-                if (dragging.moduleId !== targetState.moduleId) {
-                    resetDragState();
-                    return;
-                }
-
-                const targetModule = modules.find(
-                    (courseModule: CourseModuleView) =>
-                        courseModule.id === dragging.moduleId,
-                );
-
-                if (!targetModule) return;
-
-                const reorderedLessons = moveItem(
-                    targetModule.lessons,
-                    dragging.id,
-                    targetState.id,
-                ).map((lesson: LessonView, index: number) => ({
-                    ...lesson,
-                    order: index + 1,
-                }));
-
-                setModules((currentModules: CourseModuleView[]) =>
-                    currentModules.map((courseModule: CourseModuleView) =>
-                        courseModule.id === targetModule.id
-                            ? {
-                                ...courseModule,
-                                lessons: reorderedLessons,
-                            }
-                            : courseModule,
-                    ),
+                setModules(
+                    reorderedModules,
                 );
 
                 await Promise.all(
-                    reorderedLessons.map((lesson: LessonView) =>
-                        updateLesson(Number(lesson.id), {
-                            name: lesson.title,
-                            order: lesson.order,
-                            module_id: Number(lesson.moduleId),
-                        }),
+                    reorderedModules.map(
+                        (
+                            courseModule:
+                                CourseModuleView,
+                        ) =>
+                            updateModule(
+                                Number(
+                                    courseModule.id,
+                                ),
+                                {
+                                    name:
+                                        courseModule.title,
+                                    order:
+                                        courseModule.order,
+                                },
+                            ),
                     ),
                 );
+
+                orderWasUpdated =
+                    true;
             }
 
-            if (dragging.type === "item" && targetState.type === "item") {
-                if (dragging.lessonId !== targetState.lessonId) {
-                    resetDragState();
+            if (
+                dragging.type ===
+                    "lesson" &&
+                targetState.type ===
+                    "lesson"
+            ) {
+                if (
+                    dragging.moduleId !==
+                    targetState.moduleId
+                ) {
                     return;
                 }
 
-                const targetLesson = findLessonInModules(
-                    modules,
-                    dragging.lessonId,
-                );
+                const targetModule =
+                    modules.find(
+                        (
+                            courseModule:
+                                CourseModuleView,
+                        ) =>
+                            courseModule.id ===
+                            dragging.moduleId,
+                    );
 
-                if (!targetLesson) return;
+                if (
+                    !targetModule
+                ) {
+                    return;
+                }
 
-                const reorderedItems = moveItem(
-                    targetLesson.items,
-                    dragging.id,
-                    targetState.id,
-                ).map((item: LessonItemView, index: number) => ({
-                    ...item,
-                    order: index + 1,
-                }));
+                const reorderedLessons =
+                    moveItem(
+                        targetModule.lessons,
+                        dragging.id,
+                        targetState.id,
+                    ).map(
+                        (
+                            lesson:
+                                LessonView,
+                            index:
+                                number,
+                        ) => ({
+                            ...lesson,
+                            order:
+                                index +
+                                1,
+                        }),
+                    );
 
-                setModules((currentModules: CourseModuleView[]) =>
-                    currentModules.map((courseModule: CourseModuleView) => ({
-                        ...courseModule,
-                        lessons: courseModule.lessons.map(
-                            (lesson: LessonView) =>
-                                lesson.id === targetLesson.id
+                setModules(
+                    (
+                        currentModules:
+                            CourseModuleView[],
+                    ) =>
+                        currentModules.map(
+                            (
+                                courseModule:
+                                    CourseModuleView,
+                            ) =>
+                                courseModule.id ===
+                                targetModule.id
                                     ? {
-                                        ...lesson,
-                                        items: reorderedItems,
-                                    }
-                                    : lesson,
+                                          ...courseModule,
+                                          lessons:
+                                              reorderedLessons,
+                                      }
+                                    : courseModule,
                         ),
-                    })),
                 );
 
                 await Promise.all(
-                    reorderedItems.map((item: LessonItemView) =>
-                        updateLessonBlock(
-                            Number(item.id),
-                            toLessonBlockPayload(
-                                item.raw,
-                                item.order,
-                                item.type,
-                            ) as LessonBlockPayload,
-                        ),
+                    reorderedLessons.map(
+                        (
+                            lesson:
+                                LessonView,
+                        ) =>
+                            updateLesson(
+                                Number(
+                                    lesson.id,
+                                ),
+                                {
+                                    name:
+                                        lesson.title,
+                                    order:
+                                        lesson.order,
+                                    module_id:
+                                        Number(
+                                            lesson.moduleId,
+                                        ),
+                                },
+                            ),
                     ),
+                );
+
+                orderWasUpdated =
+                    true;
+            }
+
+            if (
+                dragging.type ===
+                    "item" &&
+                targetState.type ===
+                    "item"
+            ) {
+                if (
+                    dragging.lessonId !==
+                    targetState.lessonId
+                ) {
+                    return;
+                }
+
+                const targetLesson =
+                    findLessonInModules(
+                        modules,
+                        dragging.lessonId,
+                    );
+
+                if (
+                    !targetLesson
+                ) {
+                    return;
+                }
+
+                const reorderedItems =
+                    moveItem(
+                        targetLesson.items,
+                        dragging.id,
+                        targetState.id,
+                    ).map(
+                        (
+                            item:
+                                LessonItemView,
+                            index:
+                                number,
+                        ) => ({
+                            ...item,
+                            order:
+                                index +
+                                1,
+                        }),
+                    );
+
+                setModules(
+                    (
+                        currentModules:
+                            CourseModuleView[],
+                    ) =>
+                        currentModules.map(
+                            (
+                                courseModule:
+                                    CourseModuleView,
+                            ) => ({
+                                ...courseModule,
+                                lessons:
+                                    courseModule.lessons.map(
+                                        (
+                                            lesson:
+                                                LessonView,
+                                        ) =>
+                                            lesson.id ===
+                                            targetLesson.id
+                                                ? {
+                                                      ...lesson,
+                                                      items:
+                                                          reorderedItems,
+                                                  }
+                                                : lesson,
+                                    ),
+                            })),
+                );
+
+                await Promise.all(
+                    reorderedItems.map(
+                        (
+                            item:
+                                LessonItemView,
+                        ) =>
+                            updateLessonBlock(
+                                Number(
+                                    item.id,
+                                ),
+                                toLessonBlockPayload(
+                                    item.raw,
+                                    item.order,
+                                    item.type,
+                                ) as LessonBlockPayload,
+                            ),
+                    ),
+                );
+
+                orderWasUpdated =
+                    true;
+            }
+
+            if (
+                orderWasUpdated
+            ) {
+                notify.dismiss(
+                    toastId,
+                );
+
+                notify.success(
+                    "Orden actualizado.",
+                    `El orden de ${resourceLabel} se guardó correctamente.`,
                 );
             }
         } catch (error) {
-            setActionError(getErrorMessage(error));
-            void refreshModules(false);
+            const message =
+                getErrorMessage(
+                    error,
+                );
+
+            setActionError(
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                "No se pudo guardar el nuevo orden.",
+                message,
+            );
+
+            void refreshModules(
+                false,
+            );
         } finally {
+            notify.dismiss(
+                toastId,
+            );
+
+            reorderInProgressRef.current =
+                false;
+
             resetDragState();
         }
     }
@@ -663,148 +1043,430 @@ export function useCourseMods({
         setFormError("");
     }
 
-    async function handleCreateSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleCreateSubmit(
+        event:
+            FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
 
-        if (!createModal) return;
-
-        const title = formTitle.trim();
-
-        if (!title) {
-            setFormError("Ingresa un nombre para continuar.");
+        if (
+            !createModal ||
+            isSaving ||
+            saveInProgressRef.current
+        ) {
             return;
         }
 
-        if (!numericCourseId || numericCourseId <= 0) {
-            setFormError("Primero selecciona un curso.");
+        const title =
+            formTitle.trim();
+
+        if (
+            !title
+        ) {
+            const message =
+                "Ingresa un nombre para continuar.";
+
+            setFormError(
+                message,
+            );
+
+            notify.warning(
+                "Revisa el formulario.",
+                message,
+            );
+
             return;
         }
+
+        if (
+            !numericCourseId ||
+            numericCourseId <= 0
+        ) {
+            const message =
+                "Primero selecciona un curso.";
+
+            setFormError(
+                message,
+            );
+
+            notify.warning(
+                "Curso requerido.",
+                message,
+            );
+
+            return;
+        }
+
+        const resourceLabel =
+            getResourceLabel(
+                createModal.type,
+            );
+
+        const toastId =
+            notify.loading(
+                `Creando ${resourceLabel}...`,
+                "Estamos guardando la información.",
+            );
+
+        saveInProgressRef.current =
+            true;
 
         try {
-            setIsSaving(true);
-            setFormError("");
-            setActionError("");
+            setIsSaving(
+                true,
+            );
 
-            if (createModal.type === "module") {
-                const createdModule = await createModule({
-                    name: title,
-                    order: toSafeNumber(formOrder, modules.length + 1),
-                    course_id: numericCourseId,
-                });
+            setFormError(
+                "",
+            );
 
-                setOpenModules((current) => ({
-                    ...current,
-                    [createdModule.id]: true,
-                }));
+            setActionError(
+                "",
+            );
+
+            if (
+                createModal.type ===
+                "module"
+            ) {
+                const createdModule =
+                    await createModule({
+                        name: title,
+                        order:
+                            toSafeNumber(
+                                formOrder,
+                                modules.length +
+                                    1,
+                            ),
+                        course_id:
+                            numericCourseId,
+                    });
+
+                setOpenModules(
+                    (
+                        current,
+                    ) => ({
+                        ...current,
+                        [createdModule.id]:
+                            true,
+                    }),
+                );
             }
 
-            if (createModal.type === "lesson") {
-                const parentModule = modules.find(
-                    (courseModule: CourseModuleView) =>
-                        courseModule.id === createModal.moduleId,
+            if (
+                createModal.type ===
+                "lesson"
+            ) {
+                const parentModule =
+                    modules.find(
+                        (
+                            courseModule:
+                                CourseModuleView,
+                        ) =>
+                            courseModule.id ===
+                            createModal.moduleId,
+                    );
+
+                const createdLesson =
+                    await createLesson({
+                        name: title,
+                        order:
+                            toSafeNumber(
+                                formOrder,
+                                (
+                                    parentModule?.lessons
+                                        .length ??
+                                    0
+                                ) + 1,
+                            ),
+                        module_id:
+                            Number(
+                                createModal.moduleId,
+                            ),
+                    });
+
+                setOpenModules(
+                    (
+                        current,
+                    ) => ({
+                        ...current,
+                        [createModal.moduleId]:
+                            true,
+                    }),
                 );
 
-                const createdLesson = await createLesson({
-                    name: title,
-                    order: toSafeNumber(
-                        formOrder,
-                        (parentModule?.lessons.length ?? 0) + 1,
-                    ),
-                    module_id: Number(createModal.moduleId),
-                });
-
-                setOpenModules((current) => ({
-                    ...current,
-                    [createModal.moduleId]: true,
-                }));
-
-                setOpenLessons((current) => ({
-                    ...current,
-                    [createdLesson.id]: true,
-                }));
+                setOpenLessons(
+                    (
+                        current,
+                    ) => ({
+                        ...current,
+                        [createdLesson.id]:
+                            true,
+                    }),
+                );
             }
 
-            if (createModal.type === "item") {
+            if (
+                createModal.type ===
+                "item"
+            ) {
                 await createLessonBlock(
                     buildLessonBlockPayload({
-                        lessonId: createModal.lessonId,
-                        type: createModal.itemType,
+                        lessonId:
+                            createModal.lessonId,
+                        type:
+                            createModal.itemType,
                         title,
                         form: {
                             ...blockForm,
-                            order: formOrder,
+                            order:
+                                formOrder,
                         },
                     }) as LessonBlockPayload,
                 );
 
-                setOpenLessons((current) => ({
-                    ...current,
-                    [createModal.lessonId]: true,
-                }));
+                setOpenLessons(
+                    (
+                        current,
+                    ) => ({
+                        ...current,
+                        [createModal.lessonId]:
+                            true,
+                    }),
+                );
             }
 
-            await refreshModules(false);
-            closeCreateModal(true);
+            await refreshModules(
+                false,
+            );
+
+            closeCreateModal(
+                true,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.success(
+                `${resourceLabel
+                    .charAt(
+                        0,
+                    )
+                    .toUpperCase()}${resourceLabel.slice(
+                    1,
+                )} creado correctamente.`,
+                "La estructura del curso fue actualizada.",
+            );
         } catch (error) {
-            setFormError(getErrorMessage(error));
+            const message =
+                getErrorMessage(
+                    error,
+                );
+
+            setFormError(
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                `No se pudo crear el ${resourceLabel}.`,
+                message,
+            );
         } finally {
-            setIsSaving(false);
+            notify.dismiss(
+                toastId,
+            );
+
+            saveInProgressRef.current =
+                false;
+
+            setIsSaving(
+                false,
+            );
         }
     }
 
-    async function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
+    async function handleEditSubmit(
+        event:
+            FormEvent<HTMLFormElement>,
+    ) {
         event.preventDefault();
 
-        if (!editModal) return;
-
-        const title = formTitle.trim();
-
-        if (!title) {
-            setFormError("Ingresa un título válido.");
+        if (
+            !editModal ||
+            isSaving ||
+            saveInProgressRef.current
+        ) {
             return;
         }
 
+        const title =
+            formTitle.trim();
+
+        if (
+            !title
+        ) {
+            const message =
+                "Ingresa un título válido.";
+
+            setFormError(
+                message,
+            );
+
+            notify.warning(
+                "Revisa el formulario.",
+                message,
+            );
+
+            return;
+        }
+
+        const resourceLabel =
+            getResourceLabel(
+                editModal.type,
+            );
+
+        const toastId =
+            notify.loading(
+                `Actualizando ${resourceLabel}...`,
+                "Estamos guardando los cambios.",
+            );
+
+        saveInProgressRef.current =
+            true;
+
         try {
-            setIsSaving(true);
-            setFormError("");
-            setActionError("");
+            setIsSaving(
+                true,
+            );
 
-            if (editModal.type === "module") {
-                await updateModule(Number(editModal.id), {
-                    name: title,
-                    order: toSafeNumber(formOrder, 1),
-                });
+            setFormError(
+                "",
+            );
+
+            setActionError(
+                "",
+            );
+
+            if (
+                editModal.type ===
+                "module"
+            ) {
+                await updateModule(
+                    Number(
+                        editModal.id,
+                    ),
+                    {
+                        name: title,
+                        order:
+                            toSafeNumber(
+                                formOrder,
+                                1,
+                            ),
+                    },
+                );
             }
 
-            if (editModal.type === "lesson") {
-                await updateLesson(Number(editModal.id), {
-                    name: title,
-                    order: toSafeNumber(formOrder, 1),
-                    module_id: Number(editModal.moduleId),
-                });
+            if (
+                editModal.type ===
+                "lesson"
+            ) {
+                await updateLesson(
+                    Number(
+                        editModal.id,
+                    ),
+                    {
+                        name: title,
+                        order:
+                            toSafeNumber(
+                                formOrder,
+                                1,
+                            ),
+                        module_id:
+                            Number(
+                                editModal.moduleId,
+                            ),
+                    },
+                );
             }
 
-            if (editModal.type === "item") {
+            if (
+                editModal.type ===
+                "item"
+            ) {
                 await updateLessonBlock(
-                    Number(editModal.id),
+                    Number(
+                        editModal.id,
+                    ),
                     buildLessonBlockPayload({
-                        lessonId: editModal.lessonId,
-                        type: editModal.itemType,
+                        lessonId:
+                            editModal.lessonId,
+                        type:
+                            editModal.itemType,
                         title,
                         form: {
                             ...blockForm,
-                            order: formOrder,
+                            order:
+                                formOrder,
                         },
                     }) as LessonBlockPayload,
                 );
             }
 
-            await refreshModules(false);
-            closeEditModal(true);
+            await refreshModules(
+                false,
+            );
+
+            closeEditModal(
+                true,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.success(
+                `${resourceLabel
+                    .charAt(
+                        0,
+                    )
+                    .toUpperCase()}${resourceLabel.slice(
+                    1,
+                )} actualizado correctamente.`,
+                "Los cambios fueron guardados.",
+            );
         } catch (error) {
-            setFormError(getErrorMessage(error));
+            const message =
+                getErrorMessage(
+                    error,
+                );
+
+            setFormError(
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                `No se pudo actualizar el ${resourceLabel}.`,
+                message,
+            );
         } finally {
-            setIsSaving(false);
+            notify.dismiss(
+                toastId,
+            );
+
+            saveInProgressRef.current =
+                false;
+
+            setIsSaving(
+                false,
+            );
         }
     }
 
@@ -820,30 +1482,121 @@ export function useCourseMods({
     }
 
     async function handleConfirmDelete() {
-        if (!deleteModal) return;
+        if (
+            !deleteModal ||
+            isSaving ||
+            saveInProgressRef.current
+        ) {
+            return;
+        }
+
+        const resourceLabel =
+            getResourceLabel(
+                deleteModal.type,
+            );
+
+        const toastId =
+            notify.loading(
+                `Eliminando ${resourceLabel}...`,
+                "Estamos actualizando la estructura del curso.",
+            );
+
+        saveInProgressRef.current =
+            true;
 
         try {
-            setIsSaving(true);
-            setActionError("");
+            setIsSaving(
+                true,
+            );
 
-            if (deleteModal.type === "module") {
-                await deleteModule(Number(deleteModal.id));
+            setActionError(
+                "",
+            );
+
+            if (
+                deleteModal.type ===
+                "module"
+            ) {
+                await deleteModule(
+                    Number(
+                        deleteModal.id,
+                    ),
+                );
             }
 
-            if (deleteModal.type === "lesson") {
-                await deleteLesson(Number(deleteModal.id));
+            if (
+                deleteModal.type ===
+                "lesson"
+            ) {
+                await deleteLesson(
+                    Number(
+                        deleteModal.id,
+                    ),
+                );
             }
 
-            if (deleteModal.type === "item") {
-                await deleteLessonBlock(Number(deleteModal.id));
+            if (
+                deleteModal.type ===
+                "item"
+            ) {
+                await deleteLessonBlock(
+                    Number(
+                        deleteModal.id,
+                    ),
+                );
             }
 
-            await refreshModules(false);
-            closeDeleteModal(true);
+            await refreshModules(
+                false,
+            );
+
+            closeDeleteModal(
+                true,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.success(
+                `${resourceLabel
+                    .charAt(
+                        0,
+                    )
+                    .toUpperCase()}${resourceLabel.slice(
+                    1,
+                )} eliminado correctamente.`,
+                "La estructura del curso fue actualizada.",
+            );
         } catch (error) {
-            setActionError(getErrorMessage(error));
+            const message =
+                getErrorMessage(
+                    error,
+                );
+
+            setActionError(
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                `No se pudo eliminar el ${resourceLabel}.`,
+                message,
+            );
         } finally {
-            setIsSaving(false);
+            notify.dismiss(
+                toastId,
+            );
+
+            saveInProgressRef.current =
+                false;
+
+            setIsSaving(
+                false,
+            );
         }
     }
 
@@ -872,6 +1625,7 @@ export function useCourseMods({
         dragOver,
 
         isLoading,
+        isRefreshing,
         isSaving,
         errorMessage,
         actionError,
@@ -888,6 +1642,7 @@ export function useCourseMods({
         setBlockForm,
 
         refreshModules,
+        handleManualRefresh,
         handleSelectCourse,
         resetDragState,
         handleDragStart,

@@ -21,7 +21,7 @@ export function TeacherQuizGradesView({
         return (
             <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
                 <div className="mx-auto w-full max-w-[1480px]">
-                    <Loading currentCourseId={grades.currentCourseId} />
+                    <Loading />
                 </div>
             </div>
         );
@@ -57,7 +57,6 @@ export function TeacherQuizGradesView({
                 />
 
                 <div className="space-y-2 sm:space-y-3">
-                    <Alert type="success" message={grades.notice} />
                     <Alert type="error" message={grades.errorMessage} />
                 </div>
 

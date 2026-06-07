@@ -22,18 +22,3 @@ export type FlexibleRecord = Record<string, unknown>;
 export type DeleteModalState = {
     certificate: MdtCertificate;
 };
-
-export type EditModalState = {
-    certificate: MdtCertificate;
-    certificateType: string;
-    idNumber: string;
-    file: File | null;
-};
-
-export type UpdateMdtCertificatePayload = {
-    course_id?: number;
-    id_number?: string;
-    certificate_type?: string;
-    file?: File;
-    deleted?: boolean;
-};

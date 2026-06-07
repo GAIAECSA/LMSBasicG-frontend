@@ -297,6 +297,7 @@ function DesktopActivityRow({
                     responseId={details.responseId}
                     value={editScores[details.responseId] ?? ""}
                     minimumScore={details.minimumScore}
+                    maximumScore={details.maximumScore}
                     saving={saving}
                     setEditScores={setEditScores}
                     setEditPassed={setEditPassed}
@@ -359,6 +360,7 @@ function MobileActivityCard({
                         responseId={details.responseId}
                         value={editScores[details.responseId] ?? ""}
                         minimumScore={details.minimumScore}
+                        maximumScore={details.maximumScore}
                         saving={saving}
                         setEditScores={setEditScores}
                         setEditPassed={setEditPassed}
@@ -398,6 +400,7 @@ function getActivityEditorDetails(row: GradeRow) {
     return {
         responseId: row.response.id,
         minimumScore,
+        maximumScore: maxScore,
         scoreLabel: `${getScore(row)}${maxScore > 0 ? ` / ${maxScore}` : ""}`,
         minimumLabel: `${minimumScore}${maxScore > 0 ? ` / ${maxScore}` : ""}`,
     };
@@ -446,6 +449,7 @@ function ScoreInput({
     responseId,
     value,
     minimumScore,
+    maximumScore,
     saving,
     setEditScores,
     setEditPassed,
@@ -455,6 +459,7 @@ function ScoreInput({
     responseId: number;
     value: string;
     minimumScore: number;
+    maximumScore: number;
     saving: boolean;
     setEditScores: Dispatch<SetStateAction<Record<number, string>>>;
     setEditPassed: Dispatch<SetStateAction<Record<number, boolean>>>;
@@ -465,6 +470,7 @@ function ScoreInput({
         <input
             type="number"
             min={0}
+            max={maximumScore > 0 ? maximumScore : undefined}
             value={value}
             onChange={(event) => {
                 const nextValue = event.target.value;

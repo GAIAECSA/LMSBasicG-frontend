@@ -6,7 +6,9 @@ import {
     useMemo,
     useState,
 } from "react";
+
 import { useAuth } from "@/hooks/useAuth";
+import { notify } from "@/lib/notify";
 import {
     getAllCourses,
 } from "@/services/courses.service";
@@ -14,6 +16,7 @@ import {
     getEnrollmentsByUser,
     type Enrollment,
 } from "@/services/enrollments.service";
+
 import {
     MAX_VISIBLE_MY_COURSES,
     MAX_VISIBLE_RECOMMENDED_COURSES,
@@ -36,6 +39,26 @@ import {
     mergeEnrollmentCourse,
 } from "./utils";
 
+function getErrorMessage(
+    error: unknown,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    return "No se pudo cargar la información del estudiante.";
+}
+
 export function useStudentDashboard() {
     const { user } = useAuth();
 
@@ -54,23 +77,35 @@ export function useStudentDashboard() {
         [studentName],
     );
 
-    const [courses, setCourses] =
-        useState<DashboardCourse[]>([]);
+    const [
+        courses,
+        setCourses,
+    ] = useState<DashboardCourse[]>([]);
 
-    const [enrollments, setEnrollments] =
-        useState<Enrollment[]>([]);
+    const [
+        enrollments,
+        setEnrollments,
+    ] = useState<Enrollment[]>([]);
 
-    const [loading, setLoading] =
-        useState(true);
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
 
-    const [refreshing, setRefreshing] =
-        useState(false);
+    const [
+        refreshing,
+        setRefreshing,
+    ] = useState(false);
 
-    const [error, setError] =
-        useState("");
+    const [
+        error,
+        setError,
+    ] = useState("");
 
     const loadDashboard = useCallback(
-        async (manualRefresh = false) => {
+        async (
+            manualRefresh = false,
+        ) => {
             if (!userId) {
                 setLoading(false);
                 setRefreshing(false);
@@ -112,18 +147,32 @@ export function useStudentDashboard() {
                         ? enrollmentResponse
                         : [],
                 );
+
+                if (manualRefresh) {
+                    notify.success(
+                        "Panel actualizado correctamente.",
+                        "La información de tus cursos y matrículas está al día.",
+                    );
+                }
             } catch (currentError) {
                 console.error(
                     "Error al cargar dashboard del estudiante:",
                     currentError,
                 );
 
-                setError(
-                    currentError instanceof
-                        Error
-                        ? currentError.message
-                        : "No se pudo cargar la información del estudiante.",
-                );
+                const message =
+                    getErrorMessage(
+                        currentError,
+                    );
+
+                setError(message);
+
+                if (manualRefresh) {
+                    notify.error(
+                        "No se pudo actualizar el panel.",
+                        message,
+                    );
+                }
             } finally {
                 setLoading(false);
                 setRefreshing(false);
@@ -138,19 +187,21 @@ export function useStudentDashboard() {
                 void loadDashboard();
             }, 0);
 
-        return () =>
+        return () => {
             window.clearTimeout(
                 timeoutId,
             );
+        };
     }, [loadDashboard]);
 
-    const studentEnrollments = useMemo(
-        () =>
-            enrollments.filter(
-                isStudentEnrollment,
-            ),
-        [enrollments],
-    );
+    const studentEnrollments =
+        useMemo(
+            () =>
+                enrollments.filter(
+                    isStudentEnrollment,
+                ),
+            [enrollments],
+        );
 
     const approvedEnrollments =
         useMemo(
@@ -172,10 +223,12 @@ export function useStudentDashboard() {
 
     const courseMap = useMemo(() => {
         return new Map(
-            courses.map((course) => [
-                course.id,
-                course,
-            ]),
+            courses.map(
+                (course) => [
+                    course.id,
+                    course,
+                ],
+            ),
         );
     }, [courses]);
 

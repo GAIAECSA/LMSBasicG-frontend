@@ -61,7 +61,9 @@ export function TeacherCourseModulesPage({
                         backHref={mods.backHref}
                         backLabel={mods.backLabel}
                         isLoading={mods.isLoading}
+                        isRefreshing={mods.isRefreshing}
                         numericCourseId={mods.numericCourseId}
+                        onRefresh={mods.handleManualRefresh}
                         onCreateModule={mods.openCreateModuleModal}
                     />
                 </div>

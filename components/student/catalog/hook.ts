@@ -4,16 +4,22 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FormEvent,
 } from "react";
+
 import { useAuth } from "@/hooks/useAuth";
-import { getAllCourses } from "@/services/courses.service";
+import { notify } from "@/lib/notify";
+import {
+    getAllCourses,
+} from "@/services/courses.service";
 import {
     createEnrollment,
     getEnrollmentsByUser,
     type Enrollment,
 } from "@/services/enrollments.service";
+
 import {
     AUTO_APPROVE_FREE_ENROLLMENTS,
     STUDENT_ROLE_ID,
@@ -32,187 +38,474 @@ import {
     matchesCatalogFilters,
 } from "./utils";
 
+function getErrorMessage(
+    error: unknown,
+    fallback: string,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    return fallback;
+}
+
 export function useStudentCatalog() {
-    const { user } = useAuth();
+    const { user } =
+        useAuth();
 
-    const userId = useMemo(() => getUserId(user), [user]);
-    const studentName = useMemo(() => getUserFullName(user), [user]);
-    const studentInitials = useMemo(
-        () => getInitials(studentName),
-        [studentName],
-    );
+    const userId =
+        useMemo(
+            () => getUserId(user),
+            [user],
+        );
 
-    const [courses, setCourses] = useState<CatalogCourse[]>([]);
-    const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+    const studentName =
+        useMemo(
+            () => getUserFullName(user),
+            [user],
+        );
 
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [savingEnrollment, setSavingEnrollment] = useState(false);
+    const studentInitials =
+        useMemo(
+            () =>
+                getInitials(
+                    studentName,
+                ),
+            [studentName],
+        );
 
-    const [error, setError] = useState("");
-    const [notice, setNotice] = useState("");
+    const loadingCatalogRef =
+        useRef(false);
 
-    const [searchTerm, setSearchTerm] = useState("");
-    const [catalogFilter, setCatalogFilter] =
-        useState<CatalogFilter>("all");
-    const [levelFilter, setLevelFilter] =
-        useState<LevelFilter>("all");
+    const savingEnrollmentRef =
+        useRef(false);
 
-    const [selectedCourse, setSelectedCourse] =
-        useState<CatalogCourse | null>(null);
+    const [
+        courses,
+        setCourses,
+    ] = useState<CatalogCourse[]>([]);
 
-    const [referenceCode, setReferenceCode] = useState("");
-    const [comment, setComment] = useState("");
-    const [voucherFile, setVoucherFile] = useState<File | null>(null);
-    const [modalError, setModalError] = useState("");
+    const [
+        enrollments,
+        setEnrollments,
+    ] = useState<Enrollment[]>([]);
 
-    const loadCatalog = useCallback(
-        async (manualRefresh = false) => {
-            try {
-                if (manualRefresh) {
-                    setRefreshing(true);
-                } else {
-                    setLoading(true);
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
+
+    const [
+        refreshing,
+        setRefreshing,
+    ] = useState(false);
+
+    const [
+        savingEnrollment,
+        setSavingEnrollment,
+    ] = useState(false);
+
+    const [
+        error,
+        setError,
+    ] = useState("");
+
+    const [
+        searchTerm,
+        setSearchTerm,
+    ] = useState("");
+
+    const [
+        catalogFilter,
+        setCatalogFilter,
+    ] =
+        useState<CatalogFilter>(
+            "all",
+        );
+
+    const [
+        levelFilter,
+        setLevelFilter,
+    ] =
+        useState<LevelFilter>(
+            "all",
+        );
+
+    const [
+        selectedCourse,
+        setSelectedCourse,
+    ] =
+        useState<CatalogCourse | null>(
+            null,
+        );
+
+    const [
+        referenceCode,
+        setReferenceCode,
+    ] = useState("");
+
+    const [
+        comment,
+        setComment,
+    ] = useState("");
+
+    const [
+        voucherFile,
+        setVoucherFile,
+    ] =
+        useState<File | null>(
+            null,
+        );
+
+    const [
+        modalError,
+        setModalError,
+    ] = useState("");
+
+    const loadCatalog =
+        useCallback(
+            async (
+                manualRefresh = false,
+            ) => {
+                if (
+                    loadingCatalogRef.current
+                ) {
+                    return;
                 }
 
-                setError("");
+                loadingCatalogRef.current =
+                    true;
 
-                const coursesResponse = await getAllCourses();
+                let toastId:
+                    | string
+                    | number
+                    | undefined;
 
-                const enrollmentResponse =
-                    userId > 0
-                        ? await getEnrollmentsByUser(userId)
-                        : [];
+                try {
+                    if (
+                        manualRefresh
+                    ) {
+                        setRefreshing(
+                            true,
+                        );
 
-                setCourses(
-                    Array.isArray(coursesResponse)
-                        ? coursesResponse
-                        : [],
-                );
+                        toastId =
+                            notify.loading(
+                                "Actualizando catálogo...",
+                                "Estamos consultando los cursos disponibles.",
+                            );
+                    } else {
+                        setLoading(
+                            true,
+                        );
+                    }
 
-                setEnrollments(
-                    Array.isArray(enrollmentResponse)
-                        ? enrollmentResponse
-                        : [],
-                );
+                    setError("");
 
-                if (manualRefresh) {
-                    setNotice("Catálogo actualizado correctamente.");
+                    const coursesResponse =
+                        await getAllCourses();
+
+                    const enrollmentResponse =
+                        userId > 0
+                            ? await getEnrollmentsByUser(
+                                userId,
+                            )
+                            : [];
+
+                    setCourses(
+                        Array.isArray(
+                            coursesResponse,
+                        )
+                            ? coursesResponse
+                            : [],
+                    );
+
+                    setEnrollments(
+                        Array.isArray(
+                            enrollmentResponse,
+                        )
+                            ? enrollmentResponse
+                            : [],
+                    );
+
+                    if (
+                        manualRefresh
+                    ) {
+                        if (
+                            toastId !==
+                            undefined
+                        ) {
+                            notify.dismiss(
+                                toastId,
+                            );
+
+                            toastId =
+                                undefined;
+                        }
+
+                        notify.success(
+                            "Catálogo actualizado correctamente.",
+                            "La información de los cursos se encuentra al día.",
+                        );
+                    }
+                } catch (
+                currentError
+                ) {
+                    console.error(
+                        "Error al cargar el catálogo del estudiante:",
+                        currentError,
+                    );
+
+                    const message =
+                        getErrorMessage(
+                            currentError,
+                            "No se pudo cargar el catálogo de cursos.",
+                        );
+
+                    setError(
+                        message,
+                    );
+
+                    if (
+                        manualRefresh
+                    ) {
+                        if (
+                            toastId !==
+                            undefined
+                        ) {
+                            notify.dismiss(
+                                toastId,
+                            );
+
+                            toastId =
+                                undefined;
+                        }
+
+                        notify.error(
+                            "No se pudo actualizar el catálogo.",
+                            message,
+                        );
+                    }
+                } finally {
+                    if (
+                        toastId !==
+                        undefined
+                    ) {
+                        notify.dismiss(
+                            toastId,
+                        );
+                    }
+
+                    loadingCatalogRef.current =
+                        false;
+
+                    setLoading(
+                        false,
+                    );
+
+                    setRefreshing(
+                        false,
+                    );
                 }
-            } catch (currentError) {
-                console.error(
-                    "Error al cargar el catálogo del estudiante:",
-                    currentError,
-                );
-
-                setError(
-                    currentError instanceof Error
-                        ? currentError.message
-                        : "No se pudo cargar el catálogo de cursos.",
-                );
-            } finally {
-                setLoading(false);
-                setRefreshing(false);
-            }
-        },
-        [userId],
-    );
+            },
+            [userId],
+        );
 
     useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            void loadCatalog();
-        }, 0);
+        const timeoutId =
+            window.setTimeout(
+                () => {
+                    void loadCatalog();
+                },
+                0,
+            );
 
-        return () => window.clearTimeout(timeoutId);
+        return () => {
+            window.clearTimeout(
+                timeoutId,
+            );
+        };
     }, [loadCatalog]);
 
-    useEffect(() => {
-        if (!error && !notice) return;
-
-        const timeoutId = window.setTimeout(() => {
-            setError("");
-            setNotice("");
-        }, 4000);
-
-        return () => window.clearTimeout(timeoutId);
-    }, [error, notice]);
-
-    const visibleCourses = useMemo(() => {
-        return courses.filter((course) =>
-            matchesCatalogFilters({
-                course,
+    const visibleCourses =
+        useMemo(
+            () =>
+                courses.filter(
+                    (course) =>
+                        matchesCatalogFilters(
+                            {
+                                course,
+                                searchTerm,
+                                catalogFilter,
+                                levelFilter,
+                            },
+                        ),
+                ),
+            [
+                courses,
                 searchTerm,
                 catalogFilter,
                 levelFilter,
-            }),
-        );
-    }, [
-        courses,
-        searchTerm,
-        catalogFilter,
-        levelFilter,
-    ]);
-
-    const courseEnrollmentMap = useMemo(() => {
-        return new Map(
-            courses.map((course) => [
-                course.id,
-                getCourseEnrollmentInfo(course, enrollments),
-            ]),
-        );
-    }, [courses, enrollments]);
-
-    const stats = useMemo(() => {
-        const publishedCourses = courses.filter((course) =>
-            matchesCatalogFilters({
-                course,
-                searchTerm: "",
-                catalogFilter: "all",
-                levelFilter: "all",
-            }),
+            ],
         );
 
-        return {
-            total: publishedCourses.length,
-            open: publishedCourses.filter(isCourseOpen).length,
-            enrolled: publishedCourses.filter((course) => {
-                const state =
-                    courseEnrollmentMap.get(course.id)?.state;
+    const courseEnrollmentMap =
+        useMemo(() => {
+            return new Map(
+                courses.map(
+                    (course) => [
+                        course.id,
+                        getCourseEnrollmentInfo(
+                            course,
+                            enrollments,
+                        ),
+                    ],
+                ),
+            );
+        }, [
+            courses,
+            enrollments,
+        ]);
 
-                return state === "approved";
-            }).length,
-            pending: publishedCourses.filter((course) => {
-                const state =
-                    courseEnrollmentMap.get(course.id)?.state;
+    const stats =
+        useMemo(() => {
+            const publishedCourses =
+                courses.filter(
+                    (course) =>
+                        matchesCatalogFilters(
+                            {
+                                course,
+                                searchTerm:
+                                    "",
+                                catalogFilter:
+                                    "all",
+                                levelFilter:
+                                    "all",
+                            },
+                        ),
+                );
 
-                return state === "pending";
-            }).length,
-        };
-    }, [courses, courseEnrollmentMap]);
+            return {
+                total:
+                    publishedCourses.length,
+                open:
+                    publishedCourses.filter(
+                        isCourseOpen,
+                    ).length,
+                enrolled:
+                    publishedCourses.filter(
+                        (course) => {
+                            const state =
+                                courseEnrollmentMap.get(
+                                    course.id,
+                                )?.state;
+
+                            return (
+                                state ===
+                                "approved"
+                            );
+                        },
+                    ).length,
+                pending:
+                    publishedCourses.filter(
+                        (course) => {
+                            const state =
+                                courseEnrollmentMap.get(
+                                    course.id,
+                                )?.state;
+
+                            return (
+                                state ===
+                                "pending"
+                            );
+                        },
+                    ).length,
+            };
+        }, [
+            courses,
+            courseEnrollmentMap,
+        ]);
 
     function resetEnrollmentForm() {
-        setSelectedCourse(null);
-        setReferenceCode("");
-        setComment("");
-        setVoucherFile(null);
-        setModalError("");
+        setSelectedCourse(
+            null,
+        );
+
+        setReferenceCode(
+            "",
+        );
+
+        setComment(
+            "",
+        );
+
+        setVoucherFile(
+            null,
+        );
+
+        setModalError(
+            "",
+        );
     }
 
-    function openEnrollmentModal(course: CatalogCourse) {
-        const state = courseEnrollmentMap.get(course.id)?.state;
+    function openEnrollmentModal(
+        course: CatalogCourse,
+    ) {
+        const state =
+            courseEnrollmentMap.get(
+                course.id,
+            )?.state;
 
-        if (state === "approved" || state === "pending") return;
-        if (!isCourseOpen(course)) return;
+        if (
+            state === "approved" ||
+            state === "pending"
+        ) {
+            return;
+        }
 
-        setSelectedCourse(course);
-        setReferenceCode("");
-        setComment("");
-        setVoucherFile(null);
-        setModalError("");
+        if (
+            !isCourseOpen(course)
+        ) {
+            return;
+        }
+
+        setSelectedCourse(
+            course,
+        );
+
+        setReferenceCode(
+            "",
+        );
+
+        setComment(
+            "",
+        );
+
+        setVoucherFile(
+            null,
+        );
+
+        setModalError(
+            "",
+        );
     }
 
     function closeEnrollmentModal() {
-        if (savingEnrollment) return;
+        if (
+            savingEnrollment
+        ) {
+            return;
+        }
 
         resetEnrollmentForm();
     }
@@ -222,80 +515,176 @@ export function useStudentCatalog() {
     ) {
         event.preventDefault();
 
-        if (!selectedCourse) return;
+        if (
+            savingEnrollmentRef.current ||
+            savingEnrollment
+        ) {
+            return;
+        }
+
+        if (!selectedCourse) {
+            return;
+        }
 
         if (!userId) {
+            const message =
+                "No se pudo identificar al estudiante. Inicia sesión nuevamente.";
+
             setModalError(
-                "No se pudo identificar al estudiante. Inicia sesión nuevamente.",
+                message,
+            );
+
+            notify.error(
+                "No se pudo continuar.",
+                message,
             );
 
             return;
         }
 
-        const isPaidCourse = !selectedCourse.is_free;
+        const isPaidCourse =
+            !selectedCourse.is_free;
 
-        if (isPaidCourse && !referenceCode.trim()) {
+        if (
+            isPaidCourse &&
+            !referenceCode.trim()
+        ) {
+            const message =
+                "Ingresa el código o referencia del comprobante.";
+
             setModalError(
-                "Ingresa el código o referencia del comprobante.",
+                message,
+            );
+
+            notify.warning(
+                "Referencia requerida.",
+                message,
             );
 
             return;
         }
 
-        if (isPaidCourse && !voucherFile) {
+        if (
+            isPaidCourse &&
+            !voucherFile
+        ) {
+            const message =
+                "Adjunta el comprobante de pago para continuar.";
+
             setModalError(
-                "Adjunta el comprobante de pago para continuar.",
+                message,
+            );
+
+            notify.warning(
+                "Comprobante requerido.",
+                message,
             );
 
             return;
         }
+
+        savingEnrollmentRef.current =
+            true;
+
+        setSavingEnrollment(
+            true,
+        );
+
+        setModalError(
+            "",
+        );
+
+        const toastId =
+            notify.loading(
+                "Enviando solicitud...",
+                "Estamos registrando tu matrícula.",
+            );
 
         try {
-            setSavingEnrollment(true);
-            setModalError("");
+            const createdEnrollment =
+                await createEnrollment(
+                    {
+                        accepted:
+                            selectedCourse.is_free &&
+                                AUTO_APPROVE_FREE_ENROLLMENTS
+                                ? true
+                                : null,
+                        reference_code:
+                            isPaidCourse
+                                ? referenceCode.trim()
+                                : null,
+                        comment:
+                            comment.trim() ||
+                            null,
+                        user_id:
+                            userId,
+                        course_id:
+                            selectedCourse.id,
+                        role_id:
+                            STUDENT_ROLE_ID,
+                        image:
+                            isPaidCourse
+                                ? voucherFile
+                                : null,
+                    },
+                );
 
-            const createdEnrollment = await createEnrollment({
-                accepted:
-                    selectedCourse.is_free &&
-                    AUTO_APPROVE_FREE_ENROLLMENTS
-                        ? true
-                        : null,
-                reference_code: isPaidCourse
-                    ? referenceCode.trim()
-                    : null,
-                comment: comment.trim() || null,
-                user_id: userId,
-                course_id: selectedCourse.id,
-                role_id: STUDENT_ROLE_ID,
-                image: isPaidCourse ? voucherFile : null,
-            });
-
-            setEnrollments((current) => [
-                createdEnrollment,
-                ...current,
-            ]);
+            setEnrollments(
+                (current) => [
+                    createdEnrollment,
+                    ...current,
+                ],
+            );
 
             const successMessage =
                 selectedCourse.is_free &&
-                AUTO_APPROVE_FREE_ENROLLMENTS
+                    AUTO_APPROVE_FREE_ENROLLMENTS
                     ? "Matrícula aprobada. Ya puedes ingresar al aula."
                     : "Solicitud enviada correctamente. La matrícula se encuentra en revisión.";
 
             resetEnrollmentForm();
-            setNotice(successMessage);
-        } catch (currentError) {
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.success(
+                "Solicitud registrada.",
+                successMessage,
+            );
+        } catch (
+        currentError
+        ) {
             console.error(
                 "Error al crear la matrícula:",
                 currentError,
             );
 
+            const message =
+                getErrorMessage(
+                    currentError,
+                    "No se pudo enviar la solicitud de matrícula.",
+                );
+
             setModalError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo enviar la solicitud de matrícula.",
+                message,
+            );
+
+            notify.dismiss(
+                toastId,
+            );
+
+            notify.error(
+                "No se pudo enviar la solicitud.",
+                message,
             );
         } finally {
-            setSavingEnrollment(false);
+            savingEnrollmentRef.current =
+                false;
+
+            setSavingEnrollment(
+                false,
+            );
         }
     }
 
@@ -310,7 +699,6 @@ export function useStudentCatalog() {
         refreshing,
         savingEnrollment,
         error,
-        notice,
         searchTerm,
         catalogFilter,
         levelFilter,
@@ -334,4 +722,6 @@ export function useStudentCatalog() {
 }
 
 export type StudentCatalogState =
-    ReturnType<typeof useStudentCatalog>;
+    ReturnType<
+        typeof useStudentCatalog
+    >;

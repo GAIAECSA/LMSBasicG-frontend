@@ -33,16 +33,6 @@ export function CalendarHeader({
             </div>
 
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-                <span className="inline-flex h-9 min-w-0 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-black text-[var(--foreground)] shadow-sm sm:h-10 sm:px-4 sm:text-sm">
-                    <GraduationCap className="h-4 w-4 shrink-0 text-[var(--primary)]" />
-
-                    <span className="truncate">
-                        <span className="hidden sm:inline">
-                            Rol:{" "}
-                        </span>
-                        Estudiante
-                    </span>
-                </span>
 
                 <StudentNotificationsBell />
 
@@ -53,31 +43,6 @@ export function CalendarHeader({
                     {calendar.initials}
                 </div>
 
-                <button
-                    type="button"
-                    onClick={() =>
-                        void calendar.refreshCalendar()
-                    }
-                    disabled={
-                        calendar.isRefreshing ||
-                        calendar.isLoading
-                    }
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[var(--primary)] px-3 text-xs font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-95 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
-                >
-                    <RefreshCw
-                        className={`h-4 w-4 ${
-                            calendar.isRefreshing
-                                ? "animate-spin"
-                                : ""
-                        }`}
-                    />
-
-                    <span className="hidden xs:inline">
-                        {calendar.isRefreshing
-                            ? "Actualizando..."
-                            : "Actualizar"}
-                    </span>
-                </button>
             </div>
         </header>
     );

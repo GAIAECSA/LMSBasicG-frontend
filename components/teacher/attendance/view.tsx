@@ -2,6 +2,7 @@
 
 import {
     useEffect,
+    useRef,
     useState,
     type ReactNode,
 } from "react";
@@ -14,7 +15,9 @@ import {
     CalendarCheck,
     CheckCircle2,
     ClipboardCheck,
+    Loader2,
     Plus,
+    RefreshCw,
     UserCheck,
     Users,
 } from "lucide-react";
@@ -205,11 +208,19 @@ function getAttendanceRoleId(
             ? (currentRecord.enrollment as AnyRecord)
             : null;
 
+    const enrollmentUser =
+        enrollment?.user &&
+        typeof enrollment.user === "object"
+            ? (enrollment.user as AnyRecord)
+            : null;
+
     const roleValue =
         currentRecord.role_id ??
         currentRecord.roleId ??
         enrollment?.role_id ??
-        enrollment?.roleId;
+        enrollment?.roleId ??
+        enrollmentUser?.role_id ??
+        enrollmentUser?.roleId;
 
     const roleId = Number(roleValue);
 
@@ -284,6 +295,8 @@ export function TeacherAttendanceWorkspace({
         setIsLoadingCourses,
     ] = useState(false);
 
+    const coursesRequestRef = useRef<Promise<Course[]> | null>(null);
+
     const currentCourseId =
         cleanText(courseId);
 
@@ -293,22 +306,30 @@ export function TeacherAttendanceWorkspace({
     useEffect(() => {
         if (!shouldSelectCourse) return;
 
-        let isMounted = true;
+        let isActive = true;
 
         async function loadCourses() {
             try {
                 setIsLoadingCourses(true);
                 setCourseError("");
 
-                const response =
-                    await getCourses();
+                if (!coursesRequestRef.current) {
+                    coursesRequestRef.current = getCourses()
+                        .then((response) =>
+                            normalizeCoursesResponse(
+                                response,
+                            ),
+                        )
+                        .finally(() => {
+                            coursesRequestRef.current =
+                                null;
+                        });
+                }
 
                 const courses =
-                    normalizeCoursesResponse(
-                        response,
-                    );
+                    await coursesRequestRef.current;
 
-                if (!isMounted) return;
+                if (!isActive) return;
 
                 setCourseOptions(courses);
             } catch (error) {
@@ -317,13 +338,13 @@ export function TeacherAttendanceWorkspace({
                     error,
                 );
 
-                if (!isMounted) return;
+                if (!isActive) return;
 
                 setCourseError(
                     "No se pudieron cargar los cursos.",
                 );
             } finally {
-                if (isMounted) {
+                if (isActive) {
                     setIsLoadingCourses(
                         false,
                     );
@@ -334,7 +355,7 @@ export function TeacherAttendanceWorkspace({
         void loadCourses();
 
         return () => {
-            isMounted = false;
+            isActive = false;
         };
     }, [shouldSelectCourse]);
 
@@ -466,9 +487,7 @@ function AttendanceCourseWorkspace({
                     errorMessage={
                         attendance.errorMessage
                     }
-                    actionError={
-                        attendance.actionError
-                    }
+                    actionError=""
                 />
 
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-[2rem]">
@@ -546,19 +565,44 @@ function AttendanceCourseWorkspace({
                                     </p>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={
-                                        attendance.openCreateModal
-                                    }
-                                    disabled={
-                                        attendance.isSaving
-                                    }
-                                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-black text-white shadow-sm transition hover:opacity-95 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 xs:w-fit sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
-                                >
-                                    <Plus className="h-4 w-4 shrink-0" />
-                                    Nueva sesión
-                                </button>
+                                <div className="grid grid-cols-2 gap-2 xs:flex">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void attendance.refreshAll(
+                                                attendance.selectedSessionId ||
+                                                    undefined,
+                                                true,
+                                            )
+                                        }
+                                        disabled={
+                                            attendance.isBusy
+                                        }
+                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                                    >
+                                        {attendance.isRefreshing ? (
+                                            <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                        ) : (
+                                            <RefreshCw className="h-4 w-4 shrink-0" />
+                                        )}
+
+                                        Actualizar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={
+                                            attendance.openCreateModal
+                                        }
+                                        disabled={
+                                            attendance.isBusy
+                                        }
+                                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-black text-white shadow-sm transition hover:opacity-95 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                                    >
+                                        <Plus className="h-4 w-4 shrink-0" />
+                                        Nueva sesión
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4 [@media(max-height:760px)]:hidden">
@@ -618,10 +662,10 @@ function AttendanceCourseWorkspace({
                                         attendance.selectedSessionId
                                     }
                                     setSelectedSessionId={
-                                        attendance.setSelectedSessionId
+                                        attendance.selectSessionId
                                     }
-                                    onCreate={
-                                        attendance.openCreateModal
+                                    isDisabled={
+                                        attendance.isBusy
                                     }
                                 />
 
@@ -642,6 +686,9 @@ function AttendanceCourseWorkspace({
                                         updatingAttendanceId={
                                             attendance.updatingAttendanceId
                                         }
+                                        isActionBusy={
+                                            attendance.isBusy
+                                        }
                                         setSearchTerm={
                                             attendance.setSearchTerm
                                         }
@@ -649,7 +696,7 @@ function AttendanceCourseWorkspace({
                                             attendance.openEditModal
                                         }
                                         onDeleteSession={
-                                            attendance.setDeleteSession
+                                            attendance.openDeleteModal
                                         }
                                         onChangeAttendanceStatus={(
                                             currentAttendance,
@@ -705,10 +752,8 @@ function AttendanceCourseWorkspace({
                     isSaving={
                         attendance.isSaving
                     }
-                    onClose={() =>
-                        attendance.setDeleteSession(
-                            null,
-                        )
+                    onClose={
+                        attendance.closeDeleteModal
                     }
                     onConfirm={() =>
                         void attendance.handleDeleteSession()

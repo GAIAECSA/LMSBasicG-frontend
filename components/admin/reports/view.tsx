@@ -3,13 +3,17 @@
 import { useReportsAdminPanel } from "./hook";
 import { Alerts } from "./ui/Alerts";
 import { CourseSelectionModal } from "./ui/CourseSelectionModal";
+import { Loading } from "./ui/Loading";
 import { PreviewModal } from "./ui/PreviewModal";
 import { ReportsGrid } from "./ui/ReportsGrid";
 import { ReportsHero } from "./ui/ReportsHero";
 
 export function ReportsAdminPanel() {
-    const reports =
-        useReportsAdminPanel();
+    const reports = useReportsAdminPanel();
+
+    if (reports.initialLoading) {
+        return <Loading />;
+    }
 
     return (
         <>
@@ -27,9 +31,6 @@ export function ReportsAdminPanel() {
                     <Alerts
                         errorMessage={
                             reports.pageErrorMessage
-                        }
-                        successMessage={
-                            reports.successMessage
                         }
                     />
 

@@ -58,8 +58,8 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     href: "/admin/enrollments",
                 },
                 {
-                    label: "Matrículación Masiva",
-                    href: "/admin/bulk-enrollment"
+                    label: "Matriculación masiva",
+                    href: "/admin/bulk-enrollment",
                 },
                 {
                     label: "Asistencia Estudiante",
@@ -165,30 +165,70 @@ export function getEffectiveRoleByPathname(
     userRole: UserRole | undefined,
     pathname: string,
 ): UserRole {
-    if (pathname.startsWith("/admin")) return "admin";
-    if (pathname.startsWith("/teacher")) return "teacher";
-    if (pathname.startsWith("/student")) return "student";
+    if (
+        pathname === "/admin" ||
+        pathname.startsWith("/admin/")
+    ) {
+        return "admin";
+    }
+
+    if (
+        pathname === "/teacher" ||
+        pathname.startsWith("/teacher/")
+    ) {
+        return "teacher";
+    }
+
+    if (
+        pathname === "/student" ||
+        pathname.startsWith("/student/")
+    ) {
+        return "student";
+    }
 
     return userRole ?? "student";
 }
 
-export function getTeacherCourseIdFromPathname(pathname: string): string | null {
-    const match = pathname.match(/^\/teacher\/courses\/(\d+)(?:\/.*)?$/);
+export function getTeacherCourseIdFromPathname(
+    pathname: string,
+): string | null {
+    const match =
+        pathname.match(
+            /^\/teacher\/courses\/(\d+)(?:\/.*)?$/,
+        );
 
     return match?.[1] ?? null;
 }
 
-export function getStudentCourseIdFromPathname(pathname: string): string | null {
-    const match = pathname.match(/^\/student\/courses\/(\d+)(?:\/.*)?$/);
+export function getStudentCourseIdFromPathname(
+    pathname: string,
+): string | null {
+    const match =
+        pathname.match(
+            /^\/student\/courses\/(\d+)(?:\/.*)?$/,
+        );
 
     return match?.[1] ?? null;
 }
 
-export function getAdminCourseIdFromPathname(pathname: string): string | null {
-    const courseMatch = pathname.match(/^\/admin\/courses\/(\d+)(?:\/.*)?$/);
-    const modulesMatch = pathname.match(/^\/admin\/modules\/(\d+)(?:\/.*)?$/);
+export function getAdminCourseIdFromPathname(
+    pathname: string,
+): string | null {
+    const courseMatch =
+        pathname.match(
+            /^\/admin\/courses\/(\d+)(?:\/.*)?$/,
+        );
 
-    return courseMatch?.[1] ?? modulesMatch?.[1] ?? null;
+    const modulesMatch =
+        pathname.match(
+            /^\/admin\/modules\/(\d+)(?:\/.*)?$/,
+        );
+
+    return (
+        courseMatch?.[1] ??
+        modulesMatch?.[1] ??
+        null
+    );
 }
 
 export function getSidebarItemsByRoute(
@@ -196,7 +236,11 @@ export function getSidebarItemsByRoute(
     pathname: string,
     isTeacherMdtCourse = false,
 ): SidebarItem[] {
-    const effectiveRole = getEffectiveRoleByPathname(userRole, pathname);
+    const effectiveRole =
+        getEffectiveRoleByPathname(
+            userRole,
+            pathname,
+        );
 
     if (effectiveRole === "admin") {
         return sidebarByRole.admin;
@@ -206,11 +250,10 @@ export function getSidebarItemsByRoute(
         return sidebarByRole.student;
     }
 
-    if (effectiveRole !== "teacher") {
-        return sidebarByRole[effectiveRole];
-    }
-
-    const courseId = getTeacherCourseIdFromPathname(pathname);
+    const courseId =
+        getTeacherCourseIdFromPathname(
+            pathname,
+        );
 
     if (!courseId) {
         return sidebarByRole.teacher;
@@ -219,16 +262,12 @@ export function getSidebarItemsByRoute(
     return [
         {
             label: "Mis cursos",
-            href: "/student/courses",
+            href: "/teacher/courses",
         },
         {
             label: "Curso actual",
             href: `/teacher/courses/${courseId}`,
             children: [
-                /*                 {
-                                    label: "Presentación",
-                                    href: `/teacher/courses/${courseId}`,
-                                }, */
                 {
                     label: "Módulos",
                     href: `/teacher/courses/${courseId}/modules`,
@@ -263,9 +302,5 @@ export function getSidebarItemsByRoute(
                     : []),
             ],
         },
-        /*         {
-                    label: "Reportes",
-                    href: `/teacher/courses/${courseId}/reports`,
-                } */
     ];
 }

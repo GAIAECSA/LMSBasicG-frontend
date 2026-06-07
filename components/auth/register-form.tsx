@@ -3,28 +3,34 @@
 import Link from "next/link";
 import {
     useEffect,
+    useRef,
     useState,
     type FormEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import {
+    Eye,
+    EyeOff,
+    Loader2,
+} from "lucide-react";
 
 import {
-    AuthAlert,
     AuthCard,
     AuthField,
     AuthFormHeader,
     AuthPrimaryButton,
-    AUTH_ACTION_CLASS,
     AUTH_FOOTER_CLASS,
     AUTH_FOOTER_LINK_CLASS,
     AUTH_FORM_GRID_CLASS,
     AUTH_FORM_STACK_CLASS,
     AUTH_INPUT_CLASS,
+    AUTH_PASSWORD_INPUT_CLASS,
+    AUTH_PASSWORD_TOGGLE_CLASS,
 } from "@/components/auth/auth-ui";
-import { getDashboardRouteByRole } from "@/lib/auth";
-import { registerService } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
+import { getDashboardRouteByRole } from "@/lib/auth";
+import { notify } from "@/lib/notify";
+import { registerService } from "@/services/auth.service";
 
 interface RegisterFormState {
     username: string;
@@ -46,32 +52,133 @@ const INITIAL_FORM: RegisterFormState = {
     password: "",
 };
 
+function isValidEmail(
+    email: string,
+) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email,
+    );
+}
+
+function getErrorMessage(
+    error: unknown,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    return "No se pudo completar el registro.";
+}
+
 export function RegisterForm() {
     const router = useRouter();
-    const { user, loading } = useAuth();
 
-    const [form, setForm] =
-        useState<RegisterFormState>(INITIAL_FORM);
+    const {
+        user,
+        loading,
+    } = useAuth();
 
-    const [showPassword, setShowPassword] =
-        useState(false);
+    const redirectTimeoutRef =
+        useRef<ReturnType<
+            typeof setTimeout
+        > | null>(null);
 
-    const [submitting, setSubmitting] =
-        useState(false);
+    const [
+        form,
+        setForm,
+    ] = useState<RegisterFormState>(
+        INITIAL_FORM,
+    );
 
-    const [error, setError] =
-        useState("");
+    const [
+        showPassword,
+        setShowPassword,
+    ] = useState(false);
 
-    const [success, setSuccess] =
-        useState("");
+    const [
+        submitting,
+        setSubmitting,
+    ] = useState(false);
 
+    const isUsernameCompleted =
+        Boolean(
+            form.username.trim(),
+        );
+
+    const isIdNumberCompleted =
+        /^\d{10}$/.test(
+            form.idnumber.trim(),
+        );
+
+    const isFirstnameCompleted =
+        Boolean(
+            form.firstname.trim(),
+        );
+
+    const isLastnameCompleted =
+        Boolean(
+            form.lastname.trim(),
+        );
+
+    const isEmailCompleted =
+        isValidEmail(
+            form.email.trim(),
+        );
+
+    const isPhoneCompleted =
+        /^\d{7,15}$/.test(
+            form.phone_number.trim(),
+        );
+
+    const isPasswordCompleted =
+        form.password.length >= 6;
+
+    /*
+     * Si el usuario ya inició sesión,
+     * lo redirige automáticamente a su panel.
+     */
     useEffect(() => {
-        if (!loading && user) {
+        if (
+            !loading &&
+            user
+        ) {
             router.replace(
-                getDashboardRouteByRole(user.role),
+                getDashboardRouteByRole(
+                    user.role,
+                ),
             );
         }
-    }, [loading, user, router]);
+    }, [
+        loading,
+        user,
+        router,
+    ]);
+
+    /*
+     * Limpia el temporizador si el componente
+     * se desmonta antes de la redirección.
+     */
+    useEffect(() => {
+        return () => {
+            if (
+                redirectTimeoutRef.current
+            ) {
+                clearTimeout(
+                    redirectTimeoutRef.current,
+                );
+            }
+        };
+    }, []);
 
     function updateField<
         K extends keyof RegisterFormState,
@@ -79,13 +186,12 @@ export function RegisterForm() {
         key: K,
         value: RegisterFormState[K],
     ) {
-        setForm((previousForm) => ({
-            ...previousForm,
-            [key]: value,
-        }));
-
-        setError("");
-        setSuccess("");
+        setForm(
+            (previousForm) => ({
+                ...previousForm,
+                [key]: value,
+            }),
+        );
     }
 
     function validateForm() {
@@ -99,19 +205,41 @@ export function RegisterForm() {
             !form.password.trim()
         ) {
             throw new Error(
-                "Completa todos los campos.",
+                "Completa todos los campos obligatorios.",
             );
         }
 
         if (
-            form.idnumber.trim().length !== 10
+            form.idnumber.trim()
+                .length !== 10
         ) {
             throw new Error(
-                "La cédula debe tener 10 dígitos.",
+                "La cédula debe tener exactamente 10 dígitos.",
             );
         }
 
-        if (form.password.length < 6) {
+        if (
+            !isValidEmail(
+                form.email.trim(),
+            )
+        ) {
+            throw new Error(
+                "Ingresa un correo electrónico válido.",
+            );
+        }
+
+        if (
+            form.phone_number.trim()
+                .length < 7
+        ) {
+            throw new Error(
+                "Ingresa un número de teléfono válido.",
+            );
+        }
+
+        if (
+            form.password.length < 6
+        ) {
             throw new Error(
                 "La contraseña debe tener al menos 6 caracteres.",
             );
@@ -123,40 +251,57 @@ export function RegisterForm() {
     ) {
         event.preventDefault();
 
-        setError("");
-        setSuccess("");
+        if (submitting) {
+            return;
+        }
 
         try {
             validateForm();
+
             setSubmitting(true);
 
             const payload = {
-                username: form.username.trim(),
-                idnumber: form.idnumber.trim(),
-                firstname: form.firstname.trim(),
-                lastname: form.lastname.trim(),
-                email: form.email.trim(),
+                username:
+                    form.username.trim(),
+                idnumber:
+                    form.idnumber.trim(),
+                firstname:
+                    form.firstname.trim(),
+                lastname:
+                    form.lastname.trim(),
+                email:
+                    form.email
+                        .trim()
+                        .toLowerCase(),
                 phone_number:
                     form.phone_number.trim(),
-                password: form.password,
+                password:
+                    form.password,
             };
 
             const response =
-                await registerService(payload);
+                await registerService(
+                    payload,
+                );
 
-            setSuccess(
+            notify.success(
                 response.message ||
                 "Usuario registrado correctamente.",
+                "Serás redirigido al inicio de sesión.",
             );
 
-            window.setTimeout(() => {
-                router.push("/login");
-            }, 1500);
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "No se pudo completar el registro.",
+            redirectTimeoutRef.current =
+                setTimeout(() => {
+                    router.push(
+                        "/login",
+                    );
+                }, 1400);
+        } catch (error) {
+            notify.error(
+                "No se pudo crear la cuenta.",
+                getErrorMessage(
+                    error,
+                ),
             );
         } finally {
             setSubmitting(false);
@@ -167,42 +312,54 @@ export function RegisterForm() {
         <AuthCard>
             <AuthFormHeader
                 title="Crear cuenta"
-                description="Registra tu usuario con los datos requeridos."
+                description="Registra tus datos personales para acceder a la plataforma ATHENA."
             />
 
+
             <form
-                className={AUTH_FORM_STACK_CLASS}
-                onSubmit={handleSubmit}
+                className={
+                    AUTH_FORM_STACK_CLASS
+                }
+                onSubmit={
+                    handleSubmit
+                }
+                noValidate
             >
-                {error ? (
-                    <AuthAlert>
-                        {error}
-                    </AuthAlert>
-                ) : null}
-
-                {success ? (
-                    <AuthAlert variant="success">
-                        {success}
-                    </AuthAlert>
-                ) : null}
-
-                <div className={AUTH_FORM_GRID_CLASS}>
+                <div
+                    className={
+                        AUTH_FORM_GRID_CLASS
+                    }
+                >
                     <AuthField
                         label="Usuario"
                         htmlFor="register-username"
+                        required
+                        completed={
+                            isUsernameCompleted
+                        }
                     >
                         <input
                             id="register-username"
                             type="text"
                             placeholder="Tu nombre de usuario"
-                            value={form.username}
-                            onChange={(event) => {
+                            value={
+                                form.username
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 updateField(
                                     "username",
-                                    event.target.value,
+                                    event.target
+                                        .value,
                                 );
                             }}
                             autoComplete="username"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
                             className={
                                 AUTH_INPUT_CLASS
                             }
@@ -212,6 +369,10 @@ export function RegisterForm() {
                     <AuthField
                         label="Cédula"
                         htmlFor="register-idnumber"
+                        required
+                        completed={
+                            isIdNumberCompleted
+                        }
                     >
                         <input
                             id="register-idnumber"
@@ -219,19 +380,32 @@ export function RegisterForm() {
                             inputMode="numeric"
                             maxLength={10}
                             placeholder="Ingrese su cédula"
-                            value={form.idnumber}
-                            onChange={(event) => {
+                            value={
+                                form.idnumber
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 updateField(
                                     "idnumber",
-                                    event.target.value
+                                    event.target
+                                        .value
                                         .replace(
                                             /\D/g,
                                             "",
                                         )
-                                        .slice(0, 10),
+                                        .slice(
+                                            0,
+                                            10,
+                                        ),
                                 );
                             }}
                             autoComplete="off"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
                             className={
                                 AUTH_INPUT_CLASS
                             }
@@ -239,23 +413,41 @@ export function RegisterForm() {
                     </AuthField>
                 </div>
 
-                <div className={AUTH_FORM_GRID_CLASS}>
+                <div
+                    className={
+                        AUTH_FORM_GRID_CLASS
+                    }
+                >
                     <AuthField
                         label="Nombres"
                         htmlFor="register-firstname"
+                        required
+                        completed={
+                            isFirstnameCompleted
+                        }
                     >
                         <input
                             id="register-firstname"
                             type="text"
                             placeholder="Tus nombres"
-                            value={form.firstname}
-                            onChange={(event) => {
+                            value={
+                                form.firstname
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 updateField(
                                     "firstname",
-                                    event.target.value,
+                                    event.target
+                                        .value,
                                 );
                             }}
                             autoComplete="given-name"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
                             className={
                                 AUTH_INPUT_CLASS
                             }
@@ -265,19 +457,33 @@ export function RegisterForm() {
                     <AuthField
                         label="Apellidos"
                         htmlFor="register-lastname"
+                        required
+                        completed={
+                            isLastnameCompleted
+                        }
                     >
                         <input
                             id="register-lastname"
                             type="text"
                             placeholder="Tus apellidos"
-                            value={form.lastname}
-                            onChange={(event) => {
+                            value={
+                                form.lastname
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 updateField(
                                     "lastname",
-                                    event.target.value,
+                                    event.target
+                                        .value,
                                 );
                             }}
                             autoComplete="family-name"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
                             className={
                                 AUTH_INPUT_CLASS
                             }
@@ -285,23 +491,41 @@ export function RegisterForm() {
                     </AuthField>
                 </div>
 
-                <div className={AUTH_FORM_GRID_CLASS}>
+                <div
+                    className={
+                        AUTH_FORM_GRID_CLASS
+                    }
+                >
                     <AuthField
                         label="Correo electrónico"
                         htmlFor="register-email"
+                        required
+                        completed={
+                            isEmailCompleted
+                        }
                     >
                         <input
                             id="register-email"
                             type="email"
                             placeholder="ejemplo@correo.com"
-                            value={form.email}
-                            onChange={(event) => {
+                            value={
+                                form.email
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 updateField(
                                     "email",
-                                    event.target.value,
+                                    event.target
+                                        .value,
                                 );
                             }}
                             autoComplete="email"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
                             className={
                                 AUTH_INPUT_CLASS
                             }
@@ -311,20 +535,43 @@ export function RegisterForm() {
                     <AuthField
                         label="Teléfono"
                         htmlFor="register-phone-number"
+                        required
+                        completed={
+                            isPhoneCompleted
+                        }
                     >
                         <input
                             id="register-phone-number"
                             type="tel"
-                            inputMode="tel"
+                            inputMode="numeric"
+                            maxLength={15}
                             placeholder="0999999999"
-                            value={form.phone_number}
-                            onChange={(event) => {
+                            value={
+                                form.phone_number
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 updateField(
                                     "phone_number",
-                                    event.target.value,
+                                    event.target
+                                        .value
+                                        .replace(
+                                            /\D/g,
+                                            "",
+                                        )
+                                        .slice(
+                                            0,
+                                            15,
+                                        ),
                                 );
                             }}
                             autoComplete="tel"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
                             className={
                                 AUTH_INPUT_CLASS
                             }
@@ -335,53 +582,87 @@ export function RegisterForm() {
                 <AuthField
                     label="Contraseña"
                     htmlFor="register-password"
-                    action={
+                    required
+                    completed={
+                        isPasswordCompleted
+                    }
+                >
+                    <div className="relative">
+                        <input
+                            id="register-password"
+                            type={
+                                showPassword
+                                    ? "text"
+                                    : "password"
+                            }
+                            placeholder="Mínimo 6 caracteres"
+                            value={
+                                form.password
+                            }
+                            onChange={(
+                                event,
+                            ) => {
+                                updateField(
+                                    "password",
+                                    event.target
+                                        .value,
+                                );
+                            }}
+                            autoComplete="new-password"
+                            disabled={
+                                submitting
+                            }
+                            required
+                            aria-required="true"
+                            className={
+                                AUTH_PASSWORD_INPUT_CLASS
+                            }
+                        />
+
                         <button
                             type="button"
                             onClick={() => {
                                 setShowPassword(
                                     (
-                                        previousShowPassword,
+                                        previousValue,
                                     ) =>
-                                        !previousShowPassword,
+                                        !previousValue,
                                 );
                             }}
-                            className={AUTH_ACTION_CLASS}
+                            disabled={
+                                submitting
+                            }
+                            className={
+                                AUTH_PASSWORD_TOGGLE_CLASS
+                            }
+                            aria-label={
+                                showPassword
+                                    ? "Ocultar contraseña"
+                                    : "Mostrar contraseña"
+                            }
                         >
-                            {showPassword
-                                ? "Ocultar"
-                                : "Mostrar"}
+                            {showPassword ? (
+                                <EyeOff
+                                    className="h-[18px] w-[18px]"
+                                />
+                            ) : (
+                                <Eye
+                                    className="h-[18px] w-[18px]"
+                                />
+                            )}
                         </button>
-                    }
-                >
-                    <input
-                        id="register-password"
-                        type={
-                            showPassword
-                                ? "text"
-                                : "password"
-                        }
-                        placeholder="Crea tu contraseña"
-                        value={form.password}
-                        onChange={(event) => {
-                            updateField(
-                                "password",
-                                event.target.value,
-                            );
-                        }}
-                        autoComplete="new-password"
-                        className={
-                            AUTH_INPUT_CLASS
-                        }
-                    />
+                    </div>
                 </AuthField>
 
                 <AuthPrimaryButton
-                    disabled={submitting}
+                    disabled={
+                        submitting
+                    }
                 >
                     {submitting ? (
                         <span className="flex items-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
+
                             Creando cuenta...
                         </span>
                     ) : (
@@ -390,11 +671,18 @@ export function RegisterForm() {
                 </AuthPrimaryButton>
             </form>
 
-            <div className={AUTH_FOOTER_CLASS}>
+            <div
+                className={
+                    AUTH_FOOTER_CLASS
+                }
+            >
                 ¿Ya tienes cuenta?{" "}
+
                 <Link
                     href="/login"
-                    className={AUTH_FOOTER_LINK_CLASS}
+                    className={
+                        AUTH_FOOTER_LINK_CLASS
+                    }
                 >
                     Inicia sesión
                 </Link>

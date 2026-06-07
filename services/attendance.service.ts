@@ -23,19 +23,19 @@ export type CourseAttendance = {
     end_time: string;
 };
 
-export type AttendanceState = "PENDIENTE" | "PRESENTE" | "AUSENTE";
+export type AttendanceState = "PENDIENTE" | "PRESENTE" | "FALTA";
 
 export type AttendancePayload = {
     enrollment_id?: number;
     course_attendance_id?: number;
 
     /**
-     * Nuevo campo correcto según tu Swagger.
+     * Campo correcto enviado al backend.
      */
     attendance_state?: AttendanceState | string;
 
     /**
-     * Se deja para no romper llamadas anteriores.
+     * Se conserva para no romper llamadas anteriores.
      * El servicio lo transforma a attendance_state antes de enviar.
      */
     state?: AttendanceState | string;
@@ -94,11 +94,11 @@ function normalizeAttendanceState(value: unknown): AttendanceState {
     }
 
     if (
-        normalized === "AUSENTE" ||
         normalized === "FALTA" ||
+        normalized === "AUSENTE" ||
         normalized === "ABSENT"
     ) {
-        return "AUSENTE";
+        return "FALTA";
     }
 
     return "PENDIENTE";

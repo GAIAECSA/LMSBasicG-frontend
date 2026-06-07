@@ -4,10 +4,12 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FormEvent,
 } from "react";
 import {
+    AlertTriangle,
     Check,
     ChevronLeft,
     ChevronRight,
@@ -15,10 +17,15 @@ import {
     Pencil,
     Plus,
     RefreshCw,
+    Search,
     Trash2,
     UserPlus,
     X,
 } from "lucide-react";
+
+import { AthenaLoadingBackground } from "@/components/ui/AthenaLoadingBackground";
+import { notify } from "@/lib/notify";
+import { getAllCourses, type Course } from "@/services/courses.service";
 import {
     createEnrollment,
     deleteEnrollment,
@@ -27,13 +34,7 @@ import {
     updateEnrollment,
     type Enrollment,
 } from "@/services/enrollments.service";
-import { getAllCourses, type Course } from "@/services/courses.service";
 import { getAllUsers, type User } from "@/services/users.service";
-
-type Notice =
-    | { type: "success"; text: string }
-    | { type: "error"; text: string }
-    | null;
 
 type EditAssignmentForm = {
     courseId: string;
@@ -56,27 +57,23 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 function getTeacherName(item: Enrollment): string {
-    const fullName = `${item.user.firstname ?? ""} ${
-        item.user.lastname ?? ""
-    }`.trim();
+    const fullName = `${item.user.firstname ?? ""} ${item.user.lastname ?? ""
+        }`.trim();
 
     return fullName || `Usuario #${item.user.id}`;
 }
 
 function getUserName(user: User): string {
-    const fullName = `${user.firstname ?? ""} ${
-        user.lastname ?? ""
-    }`.trim();
+    const fullName = `${user.firstname ?? ""} ${user.lastname ?? ""
+        }`.trim();
 
     return fullName || user.username || `Usuario #${user.id}`;
 }
 
 function getAcceptedBadgeClass(accepted: boolean | null): string {
-    if (accepted === true) {
-        return "bg-emerald-100 text-emerald-700";
-    }
-
-    return "bg-orange-100 text-orange-700";
+    return accepted === true
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-orange-100 text-orange-700";
 }
 
 export default function TeachersPage() {
@@ -88,7 +85,7 @@ export default function TeachersPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [notice, setNotice] = useState<Notice>(null);
+    const [errorMessage, setErrorMessage] = useState("");
 
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -107,119 +104,148 @@ export default function TeachersPage() {
     );
     const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-    const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<
-        number | null
-    >(null);
+    const [removeCandidate, setRemoveCandidate] = useState<Enrollment | null>(
+        null,
+    );
+    const [isRemoving, setIsRemoving] = useState(false);
 
-    const showNotice = useCallback(
-        (type: "success" | "error", text: string) => {
-            setNotice({ type, text });
+    const refreshInProgressRef = useRef(false);
+    const assignInProgressRef = useRef(false);
+    const editInProgressRef = useRef(false);
+    const removeInProgressRef = useRef(false);
 
-            window.setTimeout(() => {
-                setNotice((current) =>
-                    current?.text === text ? null : current,
+    const loadData = useCallback(async (manualRefresh = false) => {
+        if (manualRefresh && refreshInProgressRef.current) return;
+
+        if (manualRefresh) {
+            refreshInProgressRef.current = true;
+            setIsRefreshing(true);
+        } else {
+            setIsLoading(true);
+        }
+
+        setErrorMessage("");
+
+        const toastId = manualRefresh
+            ? notify.loading(
+                "Actualizando docentes...",
+                "Estamos consultando asignaciones, cursos y usuarios.",
+            )
+            : null;
+
+        try {
+            const [teachersResult, coursesResult, usersResult] =
+                await Promise.allSettled([
+                    getEnrollmentsByRole(TEACHER_ROLE_ID),
+                    getAllCourses(),
+                    getAllUsers(),
+                ]);
+
+            const errors: string[] = [];
+
+            if (teachersResult.status === "fulfilled") {
+                setTeacherEnrollments(
+                    Array.isArray(teachersResult.value)
+                        ? teachersResult.value
+                        : [],
                 );
-            }, 2800);
-        },
-        [],
-    );
-
-    const loadData = useCallback(
-        async (showSuccess = false) => {
-            try {
-                if (showSuccess) {
-                    setIsRefreshing(true);
-                } else {
-                    setIsLoading(true);
-                }
-
-                const [teachersResult, coursesResult, usersResult] =
-                    await Promise.allSettled([
-                        getEnrollmentsByRole(TEACHER_ROLE_ID),
-                        getAllCourses(),
-                        getAllUsers(),
-                    ]);
-
-                const errors: string[] = [];
-
-                if (teachersResult.status === "fulfilled") {
-                    setTeacherEnrollments(
-                        Array.isArray(teachersResult.value)
-                            ? teachersResult.value
-                            : [],
-                    );
-                } else {
-                    setTeacherEnrollments([]);
-                    errors.push(
-                        getErrorMessage(
-                            teachersResult.reason,
-                            "No se pudieron cargar los docentes.",
-                        ),
-                    );
-                }
-
-                if (coursesResult.status === "fulfilled") {
-                    const loadedCourses = Array.isArray(coursesResult.value)
-                        ? coursesResult.value
-                        : [];
-
-                    setCourses(loadedCourses);
-                    setSelectedCourseId((current) => {
-                        if (
-                            current &&
-                            loadedCourses.some(
-                                (course) => String(course.id) === current,
-                            )
-                        ) {
-                            return current;
-                        }
-
-                        return loadedCourses[0]
-                            ? String(loadedCourses[0].id)
-                            : "";
-                    });
-                } else {
-                    setCourses([]);
-                    setSelectedCourseId("");
-                    errors.push(
-                        getErrorMessage(
-                            coursesResult.reason,
-                            "No se pudieron cargar los cursos.",
-                        ),
-                    );
-                }
-
-                if (usersResult.status === "fulfilled") {
-                    setUsers(
-                        Array.isArray(usersResult.value)
-                            ? usersResult.value
-                            : [],
-                    );
-                } else {
-                    setUsers([]);
-                    errors.push(
-                        getErrorMessage(
-                            usersResult.reason,
-                            "No se pudieron cargar los usuarios.",
-                        ),
-                    );
-                }
-
-                if (errors.length > 0) {
-                    showNotice("error", errors.join(" "));
-                } else if (showSuccess) {
-                    showNotice(
-                        "success",
-                        "Lista de docentes actualizada correctamente.",
-                    );
-                }
-            } finally {
-                setIsLoading(false);
-                setIsRefreshing(false);
+            } else {
+                setTeacherEnrollments([]);
+                errors.push(
+                    getErrorMessage(
+                        teachersResult.reason,
+                        "No se pudieron cargar los docentes.",
+                    ),
+                );
             }
-        },
-        [showNotice],
-    );
+
+            if (coursesResult.status === "fulfilled") {
+                const loadedCourses = Array.isArray(coursesResult.value)
+                    ? coursesResult.value
+                    : [];
+
+                setCourses(loadedCourses);
+                setSelectedCourseId((current) => {
+                    if (
+                        current &&
+                        loadedCourses.some(
+                            (course) => String(course.id) === current,
+                        )
+                    ) {
+                        return current;
+                    }
+
+                    return loadedCourses[0] ? String(loadedCourses[0].id) : "";
+                });
+            } else {
+                setCourses([]);
+                setSelectedCourseId("");
+                errors.push(
+                    getErrorMessage(
+                        coursesResult.reason,
+                        "No se pudieron cargar los cursos.",
+                    ),
+                );
+            }
+
+            if (usersResult.status === "fulfilled") {
+                setUsers(Array.isArray(usersResult.value) ? usersResult.value : []);
+            } else {
+                setUsers([]);
+                errors.push(
+                    getErrorMessage(
+                        usersResult.reason,
+                        "No se pudieron cargar los usuarios.",
+                    ),
+                );
+            }
+
+            if (errors.length > 0) {
+                const message = errors.join(" ");
+
+                setErrorMessage(message);
+
+                if (toastId !== null) notify.dismiss(toastId);
+
+                notify.error(
+                    manualRefresh
+                        ? "No se pudo actualizar la lista."
+                        : "No se pudo cargar la gestión de docentes.",
+                    message,
+                );
+
+                return;
+            }
+
+            if (toastId !== null) {
+                notify.dismiss(toastId);
+                notify.success(
+                    "Docentes actualizados.",
+                    "La lista de asignaciones se encuentra al día.",
+                );
+            }
+        } catch (error) {
+            const message = getErrorMessage(
+                error,
+                "No se pudo cargar la información de docentes.",
+            );
+
+            setErrorMessage(message);
+
+            if (toastId !== null) notify.dismiss(toastId);
+
+            notify.error(
+                manualRefresh
+                    ? "No se pudo actualizar la lista."
+                    : "No se pudo cargar la gestión de docentes.",
+                message,
+            );
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+            refreshInProgressRef.current = false;
+        }
+    }, []);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -285,8 +311,8 @@ export default function TeachersPage() {
 
             return (
                 fullName.includes(term) ||
-                user.username.toLowerCase().includes(term) ||
-                user.email.toLowerCase().includes(term) ||
+                (user.username ?? "").toLowerCase().includes(term) ||
+                (user.email ?? "").toLowerCase().includes(term) ||
                 (user.phone_number ?? "").toLowerCase().includes(term) ||
                 (user.departament ?? "").toLowerCase().includes(term) ||
                 String(user.id).includes(term)
@@ -335,10 +361,13 @@ export default function TeachersPage() {
 
         setUserSearch("");
         setUserCurrentPage(1);
+        setErrorMessage("");
         setIsAssignModalOpen(true);
     }
 
     function closeAssignModal() {
+        if (assigningUserId !== null) return;
+
         setIsAssignModalOpen(false);
         setAssigningUserId(null);
         setUserSearch("");
@@ -352,35 +381,53 @@ export default function TeachersPage() {
             status: item.accepted === true ? "accepted" : "pending",
             comment: item.comment ?? "",
         });
+        setErrorMessage("");
         setIsEditModalOpen(true);
     }
 
-    function closeEditModal() {
+    function resetEditModal() {
         setIsEditModalOpen(false);
         setEditingEnrollment(null);
         setEditForm(initialEditAssignmentForm);
-        setIsSavingEdit(false);
+    }
+
+    function closeEditModal() {
+        if (isSavingEdit) return;
+
+        resetEditModal();
     }
 
     async function handleAssignTeacher(user: User) {
         const courseId = Number(selectedCourseId);
 
+        if (assignInProgressRef.current || assigningUserId !== null) return;
+
         if (!courseId || courseId <= 0) {
-            showNotice("error", "Selecciona primero el curso.");
+            notify.warning(
+                "Selecciona un curso.",
+                "Debes elegir el curso antes de asignar un docente.",
+            );
             return;
         }
 
         if (assignedTeacherUserIds.has(user.id)) {
-            showNotice(
-                "error",
+            notify.warning(
+                "Asignación existente.",
                 "El usuario ya está asignado como docente en este curso.",
             );
             return;
         }
 
-        try {
-            setAssigningUserId(user.id);
+        assignInProgressRef.current = true;
+        setAssigningUserId(user.id);
+        setErrorMessage("");
 
+        const toastId = notify.loading(
+            "Asignando docente...",
+            `Estamos registrando a ${getUserName(user)} en el curso seleccionado.`,
+        );
+
+        try {
             const userEnrollments = await getEnrollmentsByUser(user.id);
             const existingEnrollment = userEnrollments.find(
                 (item) => item.course.id === courseId,
@@ -388,39 +435,46 @@ export default function TeachersPage() {
 
             const savedEnrollment = existingEnrollment
                 ? await updateEnrollment(existingEnrollment.id, {
-                      accepted: true,
-                      reference_code:
-                          existingEnrollment.reference_code ?? null,
-                      comment:
-                          existingEnrollment.comment ??
-                          "Asignado como docente desde administración.",
-                      user_id: user.id,
-                      course_id: courseId,
-                      role_id: TEACHER_ROLE_ID,
-                  })
+                    accepted: true,
+                    reference_code: existingEnrollment.reference_code ?? null,
+                    comment:
+                        existingEnrollment.comment ??
+                        "Asignado como docente desde administración.",
+                    user_id: user.id,
+                    course_id: courseId,
+                    role_id: TEACHER_ROLE_ID,
+                })
                 : await createEnrollment({
-                      accepted: true,
-                      reference_code: null,
-                      comment:
-                          "Asignado como docente desde administración.",
-                      user_id: user.id,
-                      course_id: courseId,
-                      role_id: TEACHER_ROLE_ID,
-                      image: null,
-                  });
+                    accepted: true,
+                    reference_code: null,
+                    comment: "Asignado como docente desde administración.",
+                    user_id: user.id,
+                    course_id: courseId,
+                    role_id: TEACHER_ROLE_ID,
+                    image: null,
+                });
 
             setTeacherEnrollments((current) => [
                 savedEnrollment,
                 ...current.filter((item) => item.id !== savedEnrollment.id),
             ]);
 
-            showNotice("success", "Docente asignado al curso correctamente.");
-        } catch (error) {
-            showNotice(
-                "error",
-                getErrorMessage(error, "No se pudo asignar el docente."),
+            notify.dismiss(toastId);
+            notify.success(
+                "Docente asignado.",
+                `${getUserName(user)} fue asignado correctamente al curso.`,
             );
+        } catch (error) {
+            const message = getErrorMessage(
+                error,
+                "No se pudo asignar el docente.",
+            );
+
+            setErrorMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo asignar el docente.", message);
         } finally {
+            assignInProgressRef.current = false;
             setAssigningUserId(null);
         }
     }
@@ -428,15 +482,23 @@ export default function TeachersPage() {
     async function handleUpdateAssignment(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
+        if (editInProgressRef.current || isSavingEdit) return;
+
         if (!editingEnrollment) {
-            showNotice("error", "No se encontró la asignación seleccionada.");
+            notify.error(
+                "No se encontró la asignación.",
+                "Cierra el formulario e intenta nuevamente.",
+            );
             return;
         }
 
         const courseId = Number(editForm.courseId);
 
         if (!courseId || courseId <= 0) {
-            showNotice("error", "Selecciona el curso del docente.");
+            notify.warning(
+                "Selecciona un curso.",
+                "Debes elegir el curso asignado al docente.",
+            );
             return;
         }
 
@@ -448,22 +510,28 @@ export default function TeachersPage() {
         );
 
         if (duplicatedAssignment) {
-            showNotice(
-                "error",
+            notify.warning(
+                "Asignación duplicada.",
                 "El docente ya tiene una asignación registrada en ese curso.",
             );
             return;
         }
 
-        try {
-            setIsSavingEdit(true);
+        editInProgressRef.current = true;
+        setIsSavingEdit(true);
+        setErrorMessage("");
 
+        const toastId = notify.loading(
+            "Actualizando asignación...",
+            "Estamos guardando los cambios del docente.",
+        );
+
+        try {
             const updatedEnrollment = await updateEnrollment(
                 editingEnrollment.id,
                 {
                     accepted: editForm.status === "accepted",
-                    reference_code:
-                        editingEnrollment.reference_code ?? null,
+                    reference_code: editingEnrollment.reference_code ?? null,
                     comment: editForm.comment.trim() || null,
                     user_id: editingEnrollment.user.id,
                     course_id: courseId,
@@ -473,53 +541,116 @@ export default function TeachersPage() {
 
             setTeacherEnrollments((current) =>
                 current.map((item) =>
-                    item.id === updatedEnrollment.id
-                        ? updatedEnrollment
-                        : item,
+                    item.id === updatedEnrollment.id ? updatedEnrollment : item,
                 ),
             );
 
-            closeEditModal();
-            showNotice("success", "Asignación actualizada correctamente.");
-        } catch (error) {
-            showNotice(
-                "error",
-                getErrorMessage(
-                    error,
-                    "No se pudo actualizar la asignación.",
-                ),
+            resetEditModal();
+            notify.dismiss(toastId);
+            notify.success(
+                "Asignación actualizada.",
+                "Los cambios del docente se guardaron correctamente.",
             );
+        } catch (error) {
+            const message = getErrorMessage(
+                error,
+                "No se pudo actualizar la asignación.",
+            );
+
+            setErrorMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo actualizar la asignación.", message);
         } finally {
+            editInProgressRef.current = false;
             setIsSavingEdit(false);
         }
     }
 
-    async function handleDeleteAssignment(item: Enrollment) {
-        const confirmed = window.confirm(
-            `¿Seguro que deseas quitar a ${getTeacherName(item)} del curso ${
-                item.course.name
-            }?`,
+    function openRemoveModal(item: Enrollment) {
+        if (isRemoving) return;
+
+        setRemoveCandidate(item);
+    }
+
+    function closeRemoveModal() {
+        if (isRemoving) return;
+
+        setRemoveCandidate(null);
+    }
+
+    async function confirmRemoveAssignment() {
+        if (
+            !removeCandidate ||
+            isRemoving ||
+            removeInProgressRef.current
+        ) {
+            return;
+        }
+
+        removeInProgressRef.current = true;
+        setIsRemoving(true);
+        setErrorMessage("");
+
+        const teacherName = getTeacherName(removeCandidate);
+        const courseName = removeCandidate.course.name;
+
+        const toastId = notify.loading(
+            "Quitando asignación...",
+            `Estamos quitando a ${teacherName} del curso ${courseName}.`,
         );
 
-        if (!confirmed) return;
-
         try {
-            setDeletingEnrollmentId(item.id);
-            await deleteEnrollment(item.id);
+            await deleteEnrollment(removeCandidate.id);
 
             setTeacherEnrollments((current) =>
-                current.filter((currentItem) => currentItem.id !== item.id),
+                current.filter((item) => item.id !== removeCandidate.id),
             );
 
-            showNotice("success", "Asignación eliminada correctamente.");
-        } catch (error) {
-            showNotice(
-                "error",
-                getErrorMessage(error, "No se pudo eliminar la asignación."),
+            setRemoveCandidate(null);
+            notify.dismiss(toastId);
+            notify.success(
+                "Asignación eliminada.",
+                `${teacherName} ya no está asignado al curso ${courseName}.`,
             );
+        } catch (error) {
+            const message = getErrorMessage(
+                error,
+                "No se pudo quitar la asignación del docente.",
+            );
+
+            setErrorMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo quitar la asignación.", message);
         } finally {
-            setDeletingEnrollmentId(null);
+            removeInProgressRef.current = false;
+            setIsRemoving(false);
         }
+    }
+
+    if (isLoading) {
+        return (
+            <AthenaLoadingBackground
+                className="max-w-[1450px]"
+                contentClassName="flex min-h-[calc(100dvh-150px)] items-center justify-center"
+            >
+                <div
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Cargando docentes"
+                    className="flex min-h-[240px] w-full max-w-xl flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 px-5 py-6 text-center shadow-sm backdrop-blur-[3px] sm:min-h-[300px] sm:rounded-[28px] sm:px-7 sm:py-8"
+                >
+                    <LoaderCircle className="h-8 w-8 animate-spin text-[var(--primary)] sm:h-9 sm:w-9" />
+
+                    <p className="mt-4 text-sm font-black text-[var(--foreground)] sm:text-base">
+                        Cargando docentes asignados
+                    </p>
+
+                    <p className="mt-1.5 text-xs font-semibold leading-5 text-[var(--muted-foreground)] sm:text-sm">
+                        Estamos preparando asignaciones, cursos y usuarios...
+                    </p>
+                </div>
+            </AthenaLoadingBackground>
+        );
     }
 
     return (
@@ -544,56 +675,28 @@ export default function TeachersPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 2xl:min-w-[620px]">
-                            <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
-                                    Asignaciones
-                                </p>
-                                <p className="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl [@media(max-height:760px)]:text-2xl">
-                                    {isLoading ? "..." : stats.total}
-                                </p>
-                            </div>
-
-                            <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
-                                    Docentes
-                                </p>
-                                <p className="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl [@media(max-height:760px)]:text-2xl">
-                                    {isLoading ? "..." : stats.uniqueTeachers}
-                                </p>
-                            </div>
-
-                            <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
-                                    Cursos
-                                </p>
-                                <p className="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl [@media(max-height:760px)]:text-2xl">
-                                    {isLoading ? "..." : stats.assignedCourses}
-                                </p>
-                            </div>
-
-                            <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
-                                <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
-                                    Aceptados
-                                </p>
-                                <p className="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl [@media(max-height:760px)]:text-2xl">
-                                    {isLoading
-                                        ? "..."
-                                        : stats.acceptedEnrollments}
-                                </p>
-                            </div>
+                            <StatsCard label="Asignaciones" value={stats.total} />
+                            <StatsCard label="Docentes" value={stats.uniqueTeachers} />
+                            <StatsCard label="Cursos" value={stats.assignedCourses} />
+                            <StatsCard
+                                label="Aceptados"
+                                value={stats.acceptedEnrollments}
+                            />
                         </div>
                     </div>
                 </div>
 
-                {notice ? (
+                {errorMessage ? (
                     <div
-                        className={`rounded-xl border px-3 py-3 text-xs font-semibold leading-5 sm:rounded-2xl sm:px-5 sm:py-4 sm:text-sm ${
-                            notice.type === "success"
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-red-200 bg-red-50 text-red-700"
-                        }`}
+                        role="alert"
+                        aria-live="assertive"
+                        className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold leading-5 text-red-700 shadow-sm sm:rounded-2xl sm:px-5 sm:py-4 sm:text-sm"
                     >
-                        {notice.text}
+                        <p className="font-black">
+                            No se pudo completar la operación.
+                        </p>
+
+                        <p className="mt-0.5 break-words">{errorMessage}</p>
                     </div>
                 ) : null}
 
@@ -616,10 +719,7 @@ export default function TeachersPage() {
                                 onClick={openAssignModal}
                                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-bold text-white shadow-sm hover:bg-[#0B163F] sm:h-11 sm:px-4 sm:text-sm lg:px-5"
                             >
-                                <UserPlus
-                                    className="h-4 w-4"
-                                    aria-hidden="true"
-                                />
+                                <UserPlus className="h-4 w-4" aria-hidden="true" />
                                 Asignar docente
                             </button>
 
@@ -630,19 +730,18 @@ export default function TeachersPage() {
                                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 text-xs font-bold text-white shadow-sm hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-4 sm:text-sm lg:px-5"
                             >
                                 <RefreshCw
-                                    className={`h-4 w-4 ${
-                                        isRefreshing ? "animate-spin" : ""
-                                    }`}
+                                    className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""
+                                        }`}
                                     aria-hidden="true"
                                 />
-                                {isRefreshing
-                                    ? "Actualizando..."
-                                    : "Actualizar"}
+                                {isRefreshing ? "Actualizando..." : "Actualizar"}
                             </button>
                         </div>
                     </div>
 
-                    <div className="mt-4 sm:mt-5 [@media(max-height:760px)]:mt-3">
+                    <label className="relative mt-4 block w-full lg:max-w-[520px] sm:mt-5 [@media(max-height:760px)]:mt-3">
+                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
                         <input
                             value={search}
                             onChange={(event) => {
@@ -650,27 +749,15 @@ export default function TeachersPage() {
                                 setCurrentPage(1);
                             }}
                             placeholder="Buscar por docente, curso, rol o ID"
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:px-4 sm:text-sm lg:max-w-[520px]"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:pr-4 sm:text-sm"
                         />
-                    </div>
+                    </label>
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm sm:rounded-3xl">
                     <div className="xl:hidden">
-                        {isLoading ? (
-                            <div className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
-                                Cargando docentes, cursos y usuarios...
-                            </div>
-                        ) : filteredTeachers.length === 0 ? (
-                            <div className="px-4 py-10 text-center">
-                                <p className="text-sm font-bold text-slate-800">
-                                    No hay docentes para mostrar.
-                                </p>
-                                <p className="mt-1 text-sm text-slate-500">
-                                    Presiona Asignar docente para registrar al
-                                    primer profesor de un curso.
-                                </p>
-                            </div>
+                        {filteredTeachers.length === 0 ? (
+                            <EmptyTeachersState />
                         ) : (
                             <div className="grid gap-px bg-slate-100 sm:grid-cols-2">
                                 {paginatedTeachers.map((item) => (
@@ -678,98 +765,43 @@ export default function TeachersPage() {
                                         key={item.id}
                                         className="min-w-0 space-y-3 bg-white p-4"
                                     >
-                                        <div className="flex min-w-0 items-start gap-3">
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white">
-                                                {getTeacherName(item)
-                                                    .charAt(0)
-                                                    .toUpperCase()}
-                                            </div>
-
-                                            <div className="min-w-0 flex-1">
-                                                <p
-                                                    className="truncate text-sm font-bold text-slate-950"
-                                                    title={getTeacherName(item)}
-                                                >
-                                                    {getTeacherName(item)}
-                                                </p>
-                                                <p
-                                                    className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-700 sm:text-sm"
-                                                    title={item.course.name}
-                                                >
-                                                    {item.course.name}
-                                                </p>
-                                            </div>
-                                        </div>
+                                        <TeacherIdentity item={item} showCourse />
 
                                         <div className="flex flex-wrap gap-2">
                                             <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-[11px] font-bold text-blue-700">
                                                 {item.role.name}
                                             </span>
-                                            <span
-                                                className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${getAcceptedBadgeClass(
-                                                    item.accepted,
-                                                )}`}
-                                            >
-                                                {item.accepted === true
-                                                    ? "Aceptado"
-                                                    : "Pendiente"}
-                                            </span>
+
+                                            <AcceptedBadge accepted={item.accepted} />
                                         </div>
 
                                         <div className="rounded-xl bg-slate-50 px-3 py-2.5">
                                             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                                                 Comentario
                                             </p>
+
                                             <p className="mt-1 line-clamp-2 break-words text-xs font-medium leading-5 text-slate-600 sm:text-sm">
-                                                {item.comment ||
-                                                    "Sin comentario"}
+                                                {item.comment || "Sin comentario"}
                                             </p>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    openEditModal(item)
-                                                }
+                                                onClick={() => openEditModal(item)}
                                                 className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-200 px-3 text-xs font-bold text-blue-700 hover:bg-blue-50"
                                             >
-                                                <Pencil
-                                                    className="h-4 w-4"
-                                                    aria-hidden="true"
-                                                />
+                                                <Pencil className="h-4 w-4" aria-hidden="true" />
                                                 Editar
                                             </button>
 
                                             <button
                                                 type="button"
-                                                disabled={
-                                                    deletingEnrollmentId ===
-                                                    item.id
-                                                }
-                                                onClick={() =>
-                                                    void handleDeleteAssignment(
-                                                        item,
-                                                    )
-                                                }
-                                                className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                onClick={() => openRemoveModal(item)}
+                                                className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50"
                                             >
-                                                {deletingEnrollmentId ===
-                                                item.id ? (
-                                                    <LoaderCircle
-                                                        className="h-4 w-4 animate-spin"
-                                                        aria-hidden="true"
-                                                    />
-                                                ) : (
-                                                    <Trash2
-                                                        className="h-4 w-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                )}
-                                                {deletingEnrollmentId ===
-                                                item.id
-                                                    ? "Quitando..."
-                                                    : "Quitar"}
+                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                                Quitar
                                             </button>
                                         </div>
                                     </article>
@@ -782,52 +814,30 @@ export default function TeachersPage() {
                         <table className="w-full min-w-[940px] table-fixed divide-y divide-slate-200">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    <th className="w-[24%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                                        Docente
-                                    </th>
-                                    <th className="w-[27%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 2xl:w-[24%]">
+                                    <TableHeader className="w-[24%]">Docente</TableHeader>
+                                    <TableHeader className="w-[27%] 2xl:w-[24%]">
                                         Curso asignado
-                                    </th>
-                                    <th className="w-[12%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                                    </TableHeader>
+                                    <TableHeader className="w-[12%] text-center">
                                         Rol
-                                    </th>
-                                    <th className="w-[13%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                                    </TableHeader>
+                                    <TableHeader className="w-[13%] text-center">
                                         Estado
-                                    </th>
-                                    <th className="hidden px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 2xl:table-cell 2xl:w-[19%]">
+                                    </TableHeader>
+                                    <TableHeader className="hidden 2xl:table-cell 2xl:w-[19%]">
                                         Comentario
-                                    </th>
-                                    <th className="w-[24%] px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wide text-slate-600 2xl:w-[17%]">
+                                    </TableHeader>
+                                    <TableHeader className="w-[24%] text-right 2xl:w-[17%]">
                                         Acciones
-                                    </th>
+                                    </TableHeader>
                                 </tr>
                             </thead>
 
                             <tbody className="divide-y divide-slate-100">
-                                {isLoading ? (
+                                {filteredTeachers.length === 0 ? (
                                     <tr>
-                                        <td
-                                            colSpan={6}
-                                            className="px-4 py-10 text-center text-sm font-semibold text-slate-500"
-                                        >
-                                            Cargando docentes, cursos y
-                                            usuarios...
-                                        </td>
-                                    </tr>
-                                ) : filteredTeachers.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={6}
-                                            className="px-4 py-10 text-center"
-                                        >
-                                            <p className="text-sm font-bold text-slate-800">
-                                                No hay docentes para mostrar.
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500">
-                                                Presiona Asignar docente para
-                                                registrar al primer profesor de
-                                                un curso.
-                                            </p>
+                                        <td colSpan={6}>
+                                            <EmptyTeachersState />
                                         </td>
                                     </tr>
                                 ) : (
@@ -837,25 +847,7 @@ export default function TeachersPage() {
                                             className="transition hover:bg-blue-50/40"
                                         >
                                             <td className="px-4 py-3">
-                                                <div className="flex min-w-0 items-center gap-3">
-                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white">
-                                                        {getTeacherName(item)
-                                                            .charAt(0)
-                                                            .toUpperCase()}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p
-                                                            className="truncate text-sm font-bold text-slate-950"
-                                                            title={getTeacherName(
-                                                                item,
-                                                            )}
-                                                        >
-                                                            {getTeacherName(
-                                                                item,
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                <TeacherIdentity item={item} />
                                             </td>
 
                                             <td className="px-4 py-3">
@@ -865,9 +857,9 @@ export default function TeachersPage() {
                                                 >
                                                     {item.course.name}
                                                 </p>
+
                                                 <p className="mt-1 line-clamp-1 text-xs font-medium text-slate-500 2xl:hidden">
-                                                    {item.comment ||
-                                                        "Sin comentario"}
+                                                    {item.comment || "Sin comentario"}
                                                 </p>
                                             </td>
 
@@ -878,27 +870,15 @@ export default function TeachersPage() {
                                             </td>
 
                                             <td className="px-4 py-3 text-center">
-                                                <span
-                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getAcceptedBadgeClass(
-                                                        item.accepted,
-                                                    )}`}
-                                                >
-                                                    {item.accepted === true
-                                                        ? "Aceptado"
-                                                        : "Pendiente"}
-                                                </span>
+                                                <AcceptedBadge accepted={item.accepted} />
                                             </td>
 
                                             <td className="hidden px-4 py-3 text-sm font-medium text-slate-500 2xl:table-cell">
                                                 <p
                                                     className="line-clamp-2 break-words"
-                                                    title={
-                                                        item.comment ||
-                                                        "Sin comentario"
-                                                    }
+                                                    title={item.comment || "Sin comentario"}
                                                 >
-                                                    {item.comment ||
-                                                        "Sin comentario"}
+                                                    {item.comment || "Sin comentario"}
                                                 </p>
                                             </td>
 
@@ -910,15 +890,10 @@ export default function TeachersPage() {
                                                         aria-label={`Editar asignación de ${getTeacherName(
                                                             item,
                                                         )}`}
-                                                        onClick={() =>
-                                                            openEditModal(item)
-                                                        }
+                                                        onClick={() => openEditModal(item)}
                                                         className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-200 px-3 text-xs font-bold text-blue-700 hover:bg-blue-50 2xl:px-4"
                                                     >
-                                                        <Pencil
-                                                            className="h-4 w-4"
-                                                            aria-hidden="true"
-                                                        />
+                                                        <Pencil className="h-4 w-4" aria-hidden="true" />
                                                         <span className="hidden 2xl:inline">
                                                             Editar
                                                         </span>
@@ -930,34 +905,12 @@ export default function TeachersPage() {
                                                         aria-label={`Quitar a ${getTeacherName(
                                                             item,
                                                         )} del curso`}
-                                                        disabled={
-                                                            deletingEnrollmentId ===
-                                                            item.id
-                                                        }
-                                                        onClick={() =>
-                                                            void handleDeleteAssignment(
-                                                                item,
-                                                            )
-                                                        }
-                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 2xl:px-4"
+                                                        onClick={() => openRemoveModal(item)}
+                                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-bold text-red-600 hover:bg-red-50 2xl:px-4"
                                                     >
-                                                        {deletingEnrollmentId ===
-                                                        item.id ? (
-                                                            <LoaderCircle
-                                                                className="h-4 w-4 animate-spin"
-                                                                aria-hidden="true"
-                                                            />
-                                                        ) : (
-                                                            <Trash2
-                                                                className="h-4 w-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                        )}
+                                                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                                                         <span className="hidden 2xl:inline">
-                                                            {deletingEnrollmentId ===
-                                                            item.id
-                                                                ? "Quitando..."
-                                                                : "Quitar"}
+                                                            Quitar
                                                         </span>
                                                     </button>
                                                 </div>
@@ -969,58 +922,19 @@ export default function TeachersPage() {
                         </table>
                     </div>
 
-                    <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                        <p className="text-center text-xs font-semibold text-slate-500 sm:text-left sm:text-sm">
-                            Mostrando {paginatedTeachers.length} de{" "}
-                            {filteredTeachers.length} asignaciones
-                        </p>
-
-                        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
-                            <button
-                                type="button"
-                                aria-label="Página anterior"
-                                onClick={() =>
-                                    setCurrentPage((page) =>
-                                        Math.max(1, page - 1),
-                                    )
-                                }
-                                disabled={activePage === 1}
-                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-                            >
-                                <ChevronLeft
-                                    className="h-4 w-4"
-                                    aria-hidden="true"
-                                />
-                                <span className="hidden sm:inline">
-                                    Anterior
-                                </span>
-                            </button>
-
-                            <span className="flex h-9 items-center justify-center whitespace-nowrap rounded-xl bg-slate-100 px-3 text-center text-xs font-bold text-slate-700 sm:px-4 sm:text-sm">
-                                Página {activePage} de {totalPages}
-                            </span>
-
-                            <button
-                                type="button"
-                                aria-label="Página siguiente"
-                                onClick={() =>
-                                    setCurrentPage((page) =>
-                                        Math.min(totalPages, page + 1),
-                                    )
-                                }
-                                disabled={activePage === totalPages}
-                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-                            >
-                                <span className="hidden sm:inline">
-                                    Siguiente
-                                </span>
-                                <ChevronRight
-                                    className="h-4 w-4"
-                                    aria-hidden="true"
-                                />
-                            </button>
-                        </div>
-                    </div>
+                    <Pager
+                        label={`${paginatedTeachers.length} de ${filteredTeachers.length} asignaciones`}
+                        page={activePage}
+                        totalPages={totalPages}
+                        onPrevious={() =>
+                            setCurrentPage((page) => Math.max(1, page - 1))
+                        }
+                        onNext={() =>
+                            setCurrentPage((page) =>
+                                Math.min(totalPages, page + 1),
+                            )
+                        }
+                    />
                 </div>
             </section>
 
@@ -1033,64 +947,37 @@ export default function TeachersPage() {
                         className="flex max-h-[96dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-3xl [@media(max-height:760px)]:max-h-[97dvh]"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="shrink-0 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-4 py-3 text-white sm:px-5 sm:py-4 lg:px-6 [@media(max-height:760px)]:py-3">
-                            <div className="flex items-start justify-between gap-3 sm:gap-4">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 sm:text-xs sm:tracking-[0.25em]">
-                                        Nueva asignación
-                                    </p>
-                                    <h2 className="mt-1.5 text-lg font-bold leading-tight sm:mt-2 sm:text-xl lg:text-2xl">
-                                        Asignar docente a un curso
-                                    </h2>
-                                    <p className="mt-1 hidden text-xs leading-5 text-blue-50 sm:block sm:text-sm">
-                                        Primero selecciona el curso y luego el
-                                        usuario que actuará como profesor.
-                                    </p>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    aria-label="Cerrar modal"
-                                    onClick={closeAssignModal}
-                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20 hover:bg-white/25 sm:w-auto sm:gap-2 sm:px-3 lg:h-10 lg:px-4"
-                                >
-                                    <X
-                                        className="h-4 w-4"
-                                        aria-hidden="true"
-                                    />
-                                    <span className="hidden text-sm font-bold sm:inline">
-                                        Cerrar
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
+                        <ModalHeader
+                            eyebrow="Nueva asignación"
+                            title="Asignar docente a un curso"
+                            description="Primero selecciona el curso y luego el usuario que actuará como profesor."
+                            onClose={closeAssignModal}
+                            closeDisabled={assigningUserId !== null}
+                        />
 
                         <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-3 sm:p-4 lg:p-5 [@media(max-height:760px)]:p-3">
-                            <div className="space-y-3 sm:space-y-4 [@media(max-height:760px)]:space-y-3">
+                            <div className="space-y-3 sm:space-y-4">
                                 <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-2xl sm:p-4">
                                     <div className="grid gap-3 md:grid-cols-2 md:gap-4">
                                         <div>
                                             <label className="mb-1.5 block text-xs font-bold text-slate-700 sm:mb-2 sm:text-sm">
                                                 Curso
+                                                {!selectedCourseId ? (
+                                                    <span className="ml-1 text-red-600">*</span>
+                                                ) : null}
                                             </label>
+
                                             <select
                                                 value={selectedCourseId}
                                                 onChange={(event) => {
-                                                    setSelectedCourseId(
-                                                        event.target.value,
-                                                    );
+                                                    setSelectedCourseId(event.target.value);
                                                     setUserCurrentPage(1);
                                                 }}
                                                 className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:text-sm"
                                             >
-                                                <option value="">
-                                                    Selecciona un curso
-                                                </option>
+                                                <option value="">Selecciona un curso</option>
                                                 {courses.map((course) => (
-                                                    <option
-                                                        key={course.id}
-                                                        value={course.id}
-                                                    >
+                                                    <option key={course.id} value={course.id}>
                                                         {course.name}
                                                     </option>
                                                 ))}
@@ -1101,17 +988,20 @@ export default function TeachersPage() {
                                             <label className="mb-1.5 block text-xs font-bold text-slate-700 sm:mb-2 sm:text-sm">
                                                 Buscar usuario
                                             </label>
-                                            <input
-                                                value={userSearch}
-                                                onChange={(event) => {
-                                                    setUserSearch(
-                                                        event.target.value,
-                                                    );
-                                                    setUserCurrentPage(1);
-                                                }}
-                                                placeholder="Nombre, correo, usuario o departamento"
-                                                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:text-sm"
-                                            />
+
+                                            <label className="relative block">
+                                                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                                                <input
+                                                    value={userSearch}
+                                                    onChange={(event) => {
+                                                        setUserSearch(event.target.value);
+                                                        setUserCurrentPage(1);
+                                                    }}
+                                                    placeholder="Nombre, correo, usuario o departamento"
+                                                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:pr-4 sm:text-sm"
+                                                />
+                                            </label>
                                         </div>
                                     </div>
                                 </div>
@@ -1119,119 +1009,27 @@ export default function TeachersPage() {
                                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:rounded-2xl">
                                     <div className="md:hidden">
                                         {paginatedUsers.length === 0 ? (
-                                            <div className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
-                                                No se encontraron usuarios con
-                                                esa búsqueda.
-                                            </div>
+                                            <EmptyUsersState />
                                         ) : (
                                             <div className="divide-y divide-slate-100">
-                                                {paginatedUsers.map((user) => {
-                                                    const fullName =
-                                                        getUserName(user);
-                                                    const isAssigned =
-                                                        assignedTeacherUserIds.has(
+                                                {paginatedUsers.map((user) => (
+                                                    <UserAssignCard
+                                                        key={user.id}
+                                                        user={user}
+                                                        isAssigned={assignedTeacherUserIds.has(
                                                             user.id,
-                                                        );
-                                                    const isAssigning =
-                                                        assigningUserId ===
-                                                        user.id;
-
-                                                    return (
-                                                        <article
-                                                            key={user.id}
-                                                            className="space-y-3 p-3 sm:p-4"
-                                                        >
-                                                            <div className="flex min-w-0 items-center gap-3">
-                                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white">
-                                                                    {fullName
-                                                                        .charAt(
-                                                                            0,
-                                                                        )
-                                                                        .toUpperCase()}
-                                                                </div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <p
-                                                                        className="truncate text-sm font-bold text-slate-950"
-                                                                        title={
-                                                                            fullName
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            fullName
-                                                                        }
-                                                                    </p>
-                                                                    <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
-                                                                        @
-                                                                        {
-                                                                            user.username
-                                                                        }
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
-                                                                <p className="truncate text-xs font-semibold text-slate-700 sm:text-sm">
-                                                                    {user.email}
-                                                                </p>
-                                                                <p className="mt-1 truncate text-xs font-medium text-slate-500">
-                                                                    {user.departament ||
-                                                                        "Sin departamento"}
-                                                                </p>
-                                                            </div>
-
-                                                            <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
-                                                                <span
-                                                                    className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
-                                                                        isAssigned
-                                                                            ? "bg-blue-100 text-blue-700"
-                                                                            : "bg-slate-100 text-slate-700"
-                                                                    }`}
-                                                                >
-                                                                    {isAssigned
-                                                                        ? "Docente del curso"
-                                                                        : "Disponible"}
-                                                                </span>
-
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        !selectedCourseId ||
-                                                                        isAssigned ||
-                                                                        isAssigning
-                                                                    }
-                                                                    onClick={() =>
-                                                                        void handleAssignTeacher(
-                                                                            user,
-                                                                        )
-                                                                    }
-                                                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-bold text-white hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-                                                                >
-                                                                    {isAssigning ? (
-                                                                        <LoaderCircle
-                                                                            className="h-4 w-4 animate-spin"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                    ) : isAssigned ? (
-                                                                        <Check
-                                                                            className="h-4 w-4"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                    ) : (
-                                                                        <Plus
-                                                                            className="h-4 w-4"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                    )}
-                                                                    {isAssigning
-                                                                        ? "Asignando..."
-                                                                        : isAssigned
-                                                                          ? "Asignado"
-                                                                          : "Asignar"}
-                                                                </button>
-                                                            </div>
-                                                        </article>
-                                                    );
-                                                })}
+                                                        )}
+                                                        isAssigning={
+                                                            assigningUserId === user.id
+                                                        }
+                                                        courseSelected={Boolean(
+                                                            selectedCourseId,
+                                                        )}
+                                                        onAssign={() =>
+                                                            void handleAssignTeacher(user)
+                                                        }
+                                                    />
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -1240,35 +1038,33 @@ export default function TeachersPage() {
                                         <table className="w-full min-w-[760px] table-fixed divide-y divide-slate-200 text-sm">
                                             <thead className="bg-slate-50">
                                                 <tr>
-                                                    <th className="w-[29%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:w-[26%]">
+                                                    <TableHeader className="w-[29%] lg:w-[26%]">
                                                         Usuario
-                                                    </th>
-                                                    <th className="w-[30%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:w-[28%]">
+                                                    </TableHeader>
+                                                    <TableHeader className="w-[30%] lg:w-[28%]">
                                                         Correo
-                                                    </th>
-                                                    <th className="hidden w-[18%] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:table-cell">
+                                                    </TableHeader>
+                                                    <TableHeader className="hidden w-[18%] lg:table-cell">
                                                         Departamento
-                                                    </th>
-                                                    <th className="w-[21%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:w-[15%]">
+                                                    </TableHeader>
+                                                    <TableHeader className="w-[21%] text-center lg:w-[15%]">
                                                         Estado
-                                                    </th>
-                                                    <th className="w-[20%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wide text-slate-600 lg:w-[15%]">
+                                                    </TableHeader>
+                                                    <TableHeader className="w-[20%] text-center lg:w-[15%]">
                                                         Acción
-                                                    </th>
+                                                    </TableHeader>
                                                 </tr>
                                             </thead>
 
                                             <tbody className="divide-y divide-slate-100">
                                                 {paginatedUsers.map((user) => {
-                                                    const fullName =
-                                                        getUserName(user);
+                                                    const fullName = getUserName(user);
                                                     const isAssigned =
                                                         assignedTeacherUserIds.has(
                                                             user.id,
                                                         );
                                                     const isAssigning =
-                                                        assigningUserId ===
-                                                        user.id;
+                                                        assigningUserId === user.id;
 
                                                     return (
                                                         <tr
@@ -1276,45 +1072,15 @@ export default function TeachersPage() {
                                                             className="transition hover:bg-blue-50/40"
                                                         >
                                                             <td className="px-4 py-3">
-                                                                <div className="flex min-w-0 items-center gap-3">
-                                                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white">
-                                                                        {fullName
-                                                                            .charAt(
-                                                                                0,
-                                                                            )
-                                                                            .toUpperCase()}
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <p
-                                                                            className="truncate text-sm font-bold text-slate-950"
-                                                                            title={
-                                                                                fullName
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                fullName
-                                                                            }
-                                                                        </p>
-                                                                        <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
-                                                                            @
-                                                                            {
-                                                                                user.username
-                                                                            }
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
+                                                                <UserIdentity user={user} />
                                                             </td>
 
                                                             <td className="px-4 py-3">
                                                                 <p
                                                                     className="truncate font-semibold text-slate-700"
-                                                                    title={
-                                                                        user.email
-                                                                    }
+                                                                    title={user.email}
                                                                 >
-                                                                    {
-                                                                        user.email
-                                                                    }
+                                                                    {user.email}
                                                                 </p>
                                                                 <p className="mt-0.5 truncate text-xs font-medium text-slate-500 lg:hidden">
                                                                     {user.departament ||
@@ -1330,73 +1096,34 @@ export default function TeachersPage() {
                                                             </td>
 
                                                             <td className="px-4 py-3 text-center">
-                                                                <span
-                                                                    className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${
-                                                                        isAssigned
-                                                                            ? "bg-blue-100 text-blue-700"
-                                                                            : "bg-slate-100 text-slate-700"
-                                                                    }`}
-                                                                >
-                                                                    {isAssigned
-                                                                        ? "Docente del curso"
-                                                                        : "Disponible"}
-                                                                </span>
+                                                                <AvailabilityBadge
+                                                                    isAssigned={isAssigned}
+                                                                />
                                                             </td>
 
                                                             <td className="px-4 py-3 text-center">
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                        !selectedCourseId ||
-                                                                        isAssigned ||
-                                                                        isAssigning
-                                                                    }
-                                                                    onClick={() =>
+                                                                <AssignButton
+                                                                    isAssigned={isAssigned}
+                                                                    isAssigning={isAssigning}
+                                                                    courseSelected={Boolean(
+                                                                        selectedCourseId,
+                                                                    )}
+                                                                    onAssign={() =>
                                                                         void handleAssignTeacher(
                                                                             user,
                                                                         )
                                                                     }
-                                                                    className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-bold text-white hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 xl:px-4"
-                                                                >
-                                                                    {isAssigning ? (
-                                                                        <LoaderCircle
-                                                                            className="h-4 w-4 animate-spin"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                    ) : isAssigned ? (
-                                                                        <Check
-                                                                            className="h-4 w-4"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                    ) : (
-                                                                        <Plus
-                                                                            className="h-4 w-4"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                    )}
-                                                                    <span className="hidden xl:inline">
-                                                                        {isAssigning
-                                                                            ? "Asignando..."
-                                                                            : isAssigned
-                                                                              ? "Asignado"
-                                                                              : "Seleccionar"}
-                                                                    </span>
-                                                                </button>
+                                                                    compact
+                                                                />
                                                             </td>
                                                         </tr>
                                                     );
                                                 })}
 
-                                                {paginatedUsers.length ===
-                                                0 ? (
+                                                {paginatedUsers.length === 0 ? (
                                                     <tr>
-                                                        <td
-                                                            colSpan={5}
-                                                            className="px-4 py-8 text-center text-sm font-semibold text-slate-500"
-                                                        >
-                                                            No se encontraron
-                                                            usuarios con esa
-                                                            búsqueda.
+                                                        <td colSpan={5}>
+                                                            <EmptyUsersState />
                                                         </td>
                                                     </tr>
                                                 ) : null}
@@ -1404,65 +1131,21 @@ export default function TeachersPage() {
                                         </table>
                                     </div>
 
-                                    <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                                        <p className="text-center text-xs font-semibold text-slate-500 sm:text-left sm:text-sm">
-                                            Mostrando {paginatedUsers.length} de{" "}
-                                            {filteredUsers.length} usuarios
-                                        </p>
-
-                                        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
-                                            <button
-                                                type="button"
-                                                aria-label="Página anterior de usuarios"
-                                                onClick={() =>
-                                                    setUserCurrentPage((page) =>
-                                                        Math.max(1, page - 1),
-                                                    )
-                                                }
-                                                disabled={activeUserPage === 1}
-                                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-                                            >
-                                                <ChevronLeft
-                                                    className="h-4 w-4"
-                                                    aria-hidden="true"
-                                                />
-                                                <span className="hidden sm:inline">
-                                                    Anterior
-                                                </span>
-                                            </button>
-
-                                            <span className="flex h-9 items-center justify-center whitespace-nowrap rounded-xl bg-slate-100 px-3 text-center text-xs font-bold text-slate-700 sm:px-4 sm:text-sm">
-                                                Página {activeUserPage} de{" "}
-                                                {userTotalPages}
-                                            </span>
-
-                                            <button
-                                                type="button"
-                                                aria-label="Página siguiente de usuarios"
-                                                onClick={() =>
-                                                    setUserCurrentPage((page) =>
-                                                        Math.min(
-                                                            userTotalPages,
-                                                            page + 1,
-                                                        ),
-                                                    )
-                                                }
-                                                disabled={
-                                                    activeUserPage ===
-                                                    userTotalPages
-                                                }
-                                                className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
-                                            >
-                                                <span className="hidden sm:inline">
-                                                    Siguiente
-                                                </span>
-                                                <ChevronRight
-                                                    className="h-4 w-4"
-                                                    aria-hidden="true"
-                                                />
-                                            </button>
-                                        </div>
-                                    </div>
+                                    <Pager
+                                        label={`${paginatedUsers.length} de ${filteredUsers.length} usuarios`}
+                                        page={activeUserPage}
+                                        totalPages={userTotalPages}
+                                        onPrevious={() =>
+                                            setUserCurrentPage((page) =>
+                                                Math.max(1, page - 1),
+                                            )
+                                        }
+                                        onNext={() =>
+                                            setUserCurrentPage((page) =>
+                                                Math.min(userTotalPages, page + 1),
+                                            )
+                                        }
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -1479,36 +1162,13 @@ export default function TeachersPage() {
                         className="flex max-h-[96dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-3xl [@media(max-height:760px)]:max-h-[97dvh]"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="shrink-0 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-4 py-3 text-white sm:px-6 sm:py-4">
-                            <div className="flex items-start justify-between gap-3 sm:gap-4">
-                                <div className="min-w-0">
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 sm:text-xs sm:tracking-[0.25em]">
-                                        Editar asignación
-                                    </p>
-                                    <h2 className="mt-1.5 text-lg font-bold sm:mt-2 sm:text-xl lg:text-2xl">
-                                        Actualizar docente
-                                    </h2>
-                                    <p className="mt-1 truncate text-xs text-blue-50 sm:text-sm">
-                                        {getTeacherName(editingEnrollment)}
-                                    </p>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    aria-label="Cerrar modal"
-                                    onClick={closeEditModal}
-                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20 hover:bg-white/25 sm:w-auto sm:gap-2 sm:px-3 lg:h-10 lg:px-4"
-                                >
-                                    <X
-                                        className="h-4 w-4"
-                                        aria-hidden="true"
-                                    />
-                                    <span className="hidden text-sm font-bold sm:inline">
-                                        Cerrar
-                                    </span>
-                                </button>
-                            </div>
-                        </div>
+                        <ModalHeader
+                            eyebrow="Editar asignación"
+                            title="Actualizar docente"
+                            description={getTeacherName(editingEnrollment)}
+                            onClose={closeEditModal}
+                            closeDisabled={isSavingEdit}
+                        />
 
                         <form
                             onSubmit={handleUpdateAssignment}
@@ -1518,7 +1178,11 @@ export default function TeachersPage() {
                                 <div>
                                     <label className="mb-1.5 block text-xs font-bold text-slate-700 sm:mb-2 sm:text-sm">
                                         Curso asignado
+                                        {!editForm.courseId ? (
+                                            <span className="ml-1 text-red-600">*</span>
+                                        ) : null}
                                     </label>
+
                                     <select
                                         value={editForm.courseId}
                                         onChange={(event) =>
@@ -1529,14 +1193,9 @@ export default function TeachersPage() {
                                         }
                                         className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:text-sm"
                                     >
-                                        <option value="">
-                                            Selecciona un curso
-                                        </option>
+                                        <option value="">Selecciona un curso</option>
                                         {courses.map((course) => (
-                                            <option
-                                                key={course.id}
-                                                value={course.id}
-                                            >
+                                            <option key={course.id} value={course.id}>
                                                 {course.name}
                                             </option>
                                         ))}
@@ -1547,6 +1206,7 @@ export default function TeachersPage() {
                                     <label className="mb-1.5 block text-xs font-bold text-slate-700 sm:mb-2 sm:text-sm">
                                         Estado
                                     </label>
+
                                     <select
                                         value={editForm.status}
                                         onChange={(event) =>
@@ -1559,12 +1219,8 @@ export default function TeachersPage() {
                                         }
                                         className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:text-sm"
                                     >
-                                        <option value="accepted">
-                                            Aceptado
-                                        </option>
-                                        <option value="pending">
-                                            Pendiente
-                                        </option>
+                                        <option value="accepted">Aceptado</option>
+                                        <option value="pending">Pendiente</option>
                                     </select>
                                 </div>
 
@@ -1572,6 +1228,7 @@ export default function TeachersPage() {
                                     <label className="mb-1.5 block text-xs font-bold text-slate-700 sm:mb-2 sm:text-sm">
                                         Comentario
                                     </label>
+
                                     <textarea
                                         rows={4}
                                         value={editForm.comment}
@@ -1591,10 +1248,12 @@ export default function TeachersPage() {
                                 <button
                                     type="button"
                                     onClick={closeEditModal}
-                                    className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 hover:bg-slate-100 sm:h-11 sm:text-sm"
+                                    disabled={isSavingEdit}
+                                    className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:text-sm"
                                 >
                                     Cancelar
                                 </button>
+
                                 <button
                                     type="submit"
                                     disabled={isSavingEdit}
@@ -1606,15 +1265,409 @@ export default function TeachersPage() {
                                             aria-hidden="true"
                                         />
                                     ) : null}
-                                    {isSavingEdit
-                                        ? "Guardando..."
-                                        : "Guardar cambios"}
+
+                                    {isSavingEdit ? "Guardando..." : "Guardar cambios"}
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             ) : null}
+
+            {removeCandidate ? (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="remove-teacher-title"
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-[2px]"
+                >
+                    <div className="w-full max-w-md overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl">
+                        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                                    <AlertTriangle className="h-5 w-5" />
+                                </div>
+
+                                <div className="min-w-0">
+                                    <h2
+                                        id="remove-teacher-title"
+                                        className="text-base font-black text-slate-950 sm:text-lg"
+                                    >
+                                        Quitar asignación
+                                    </h2>
+
+                                    <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
+                                        La cuenta del usuario no será eliminada.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={closeRemoveModal}
+                                disabled={isRemoving}
+                                aria-label="Cerrar confirmación"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-5 sm:px-6">
+                            <p className="text-sm font-semibold leading-6 text-slate-600">
+                                ¿Seguro que deseas quitar a{" "}
+                                <span className="font-black text-slate-950">
+                                    {getTeacherName(removeCandidate)}
+                                </span>{" "}
+                                del curso{" "}
+                                <span className="font-black text-slate-950">
+                                    {removeCandidate.course.name}
+                                </span>
+                                ?
+                            </p>
+
+                            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={closeRemoveModal}
+                                    disabled={isRemoving}
+                                    className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-5 sm:text-sm"
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => void confirmRemoveAssignment()}
+                                    disabled={isRemoving}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-xs font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:px-5 sm:text-sm"
+                                >
+                                    {isRemoving ? (
+                                        <LoaderCircle className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+
+                                    {isRemoving ? "Quitando..." : "Quitar docente"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </>
+    );
+}
+
+function StatsCard({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-xl bg-white/15 p-3 ring-1 ring-white/20 sm:rounded-2xl sm:p-4 [@media(max-height:760px)]:p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-white/75 sm:text-xs">
+                {label}
+            </p>
+
+            <p className="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl [@media(max-height:760px)]:text-2xl">
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function TableHeader({
+    children,
+    className = "",
+}: {
+    children: React.ReactNode;
+    className?: string;
+}) {
+    return (
+        <th
+            className={`${className} px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600`}
+        >
+            {children}
+        </th>
+    );
+}
+
+function TeacherIdentity({
+    item,
+    showCourse = false,
+}: {
+    item: Enrollment;
+    showCourse?: boolean;
+}) {
+    const teacherName = getTeacherName(item);
+
+    return (
+        <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white">
+                {teacherName.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-slate-950" title={teacherName}>
+                    {teacherName}
+                </p>
+
+                {showCourse ? (
+                    <p
+                        className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-700 sm:text-sm"
+                        title={item.course.name}
+                    >
+                        {item.course.name}
+                    </p>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
+function UserIdentity({ user }: { user: User }) {
+    const fullName = getUserName(user);
+
+    return (
+        <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#172861] text-sm font-bold text-white">
+                {fullName.charAt(0).toUpperCase()}
+            </div>
+
+            <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-950" title={fullName}>
+                    {fullName}
+                </p>
+
+                <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                    @{user.username}
+                </p>
+            </div>
+        </div>
+    );
+}
+
+function AcceptedBadge({ accepted }: { accepted: boolean | null }) {
+    return (
+        <span
+            className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold sm:text-xs ${getAcceptedBadgeClass(
+                accepted,
+            )}`}
+        >
+            {accepted === true ? "Aceptado" : "Pendiente"}
+        </span>
+    );
+}
+
+function AvailabilityBadge({ isAssigned }: { isAssigned: boolean }) {
+    return (
+        <span
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${isAssigned
+                    ? "bg-blue-100 text-blue-700"
+                    : "bg-slate-100 text-slate-700"
+                }`}
+        >
+            {isAssigned ? "Docente del curso" : "Disponible"}
+        </span>
+    );
+}
+
+function AssignButton({
+    isAssigned,
+    isAssigning,
+    courseSelected,
+    onAssign,
+    compact = false,
+}: {
+    isAssigned: boolean;
+    isAssigning: boolean;
+    courseSelected: boolean;
+    onAssign: () => void;
+    compact?: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            disabled={!courseSelected || isAssigned || isAssigning}
+            onClick={onAssign}
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-bold text-white hover:bg-[#0B163F] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 xl:px-4"
+        >
+            {isAssigning ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : isAssigned ? (
+                <Check className="h-4 w-4" aria-hidden="true" />
+            ) : (
+                <Plus className="h-4 w-4" aria-hidden="true" />
+            )}
+
+            {!compact ? (
+                <span>
+                    {isAssigning ? "Asignando..." : isAssigned ? "Asignado" : "Asignar"}
+                </span>
+            ) : (
+                <span className="hidden xl:inline">
+                    {isAssigning
+                        ? "Asignando..."
+                        : isAssigned
+                            ? "Asignado"
+                            : "Seleccionar"}
+                </span>
+            )}
+        </button>
+    );
+}
+
+function UserAssignCard({
+    user,
+    isAssigned,
+    isAssigning,
+    courseSelected,
+    onAssign,
+}: {
+    user: User;
+    isAssigned: boolean;
+    isAssigning: boolean;
+    courseSelected: boolean;
+    onAssign: () => void;
+}) {
+    return (
+        <article className="space-y-3 p-3 sm:p-4">
+            <UserIdentity user={user} />
+
+            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5">
+                <p className="truncate text-xs font-semibold text-slate-700 sm:text-sm">
+                    {user.email}
+                </p>
+
+                <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                    {user.departament || "Sin departamento"}
+                </p>
+            </div>
+
+            <div className="flex flex-col gap-2 xs:flex-row xs:items-center xs:justify-between">
+                <AvailabilityBadge isAssigned={isAssigned} />
+
+                <AssignButton
+                    isAssigned={isAssigned}
+                    isAssigning={isAssigning}
+                    courseSelected={courseSelected}
+                    onAssign={onAssign}
+                />
+            </div>
+        </article>
+    );
+}
+
+function Pager({
+    label,
+    page,
+    totalPages,
+    onPrevious,
+    onNext,
+}: {
+    label: string;
+    page: number;
+    totalPages: number;
+    onPrevious: () => void;
+    onNext: () => void;
+}) {
+    return (
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+            <p className="text-center text-xs font-semibold text-slate-500 sm:text-left sm:text-sm">
+                Mostrando {label}
+            </p>
+
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex">
+                <button
+                    type="button"
+                    aria-label="Página anterior"
+                    onClick={onPrevious}
+                    disabled={page === 1}
+                    className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
+                >
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden sm:inline">Anterior</span>
+                </button>
+
+                <span className="flex h-9 items-center justify-center whitespace-nowrap rounded-xl bg-slate-100 px-3 text-center text-xs font-bold text-slate-700 sm:px-4 sm:text-sm">
+                    Página {page} de {totalPages}
+                </span>
+
+                <button
+                    type="button"
+                    aria-label="Página siguiente"
+                    onClick={onNext}
+                    disabled={page === totalPages}
+                    className="inline-flex h-9 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:text-sm"
+                >
+                    <span className="hidden sm:inline">Siguiente</span>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ModalHeader({
+    eyebrow,
+    title,
+    description,
+    onClose,
+    closeDisabled = false,
+}: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    onClose: () => void;
+    closeDisabled?: boolean;
+}) {
+    return (
+        <div className="shrink-0 bg-gradient-to-br from-[#07111F] via-[#172861] to-[#F97316] px-4 py-3 text-white sm:px-5 sm:py-4 lg:px-6 [@media(max-height:760px)]:py-3">
+            <div className="flex items-start justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-100 sm:text-xs sm:tracking-[0.25em]">
+                        {eyebrow}
+                    </p>
+
+                    <h2 className="mt-1.5 text-lg font-bold leading-tight sm:mt-2 sm:text-xl lg:text-2xl">
+                        {title}
+                    </h2>
+
+                    <p className="mt-1 text-xs leading-5 text-blue-50 sm:text-sm">
+                        {description}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    aria-label="Cerrar modal"
+                    onClick={onClose}
+                    disabled={closeDisabled}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/20 hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:gap-2 sm:px-3 lg:h-10 lg:px-4"
+                >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                    <span className="hidden text-sm font-bold sm:inline">Cerrar</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function EmptyTeachersState() {
+    return (
+        <div className="px-4 py-10 text-center">
+            <p className="text-sm font-bold text-slate-800">
+                No hay docentes para mostrar.
+            </p>
+
+            <p className="mt-1 text-sm text-slate-500">
+                Presiona Asignar docente para registrar al primer profesor de un curso.
+            </p>
+        </div>
+    );
+}
+
+function EmptyUsersState() {
+    return (
+        <div className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+            No se encontraron usuarios con esa búsqueda.
+        </div>
     );
 }

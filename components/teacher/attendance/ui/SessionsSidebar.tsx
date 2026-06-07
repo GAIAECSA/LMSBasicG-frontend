@@ -5,13 +5,14 @@ import { formatDate, formatTime } from "../utils";
 type SessionsSidebarProps = {
     sessions: CourseAttendance[];
     selectedSessionId: string;
+    isDisabled: boolean;
     setSelectedSessionId: (value: string) => void;
-    onCreate: () => void;
 };
 
 export function SessionsSidebar({
     sessions,
     selectedSessionId,
+    isDisabled,
     setSelectedSessionId,
 }: SessionsSidebarProps) {
     return (
@@ -44,10 +45,11 @@ export function SessionsSidebar({
                             <button
                                 key={session.id}
                                 type="button"
+                                disabled={isDisabled}
                                 onClick={() =>
                                     setSelectedSessionId(String(session.id))
                                 }
-                                className={`w-full min-w-0 rounded-xl border p-3 text-left transition active:scale-[0.99] sm:rounded-2xl sm:p-4 ${
+                                className={`w-full min-w-0 rounded-xl border p-3 text-left transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-2xl sm:p-4 ${
                                     active
                                         ? "border-[#172861] bg-white shadow-sm ring-2 ring-blue-100 sm:ring-4"
                                         : "border-slate-200 bg-white hover:border-blue-200"

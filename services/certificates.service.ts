@@ -461,6 +461,17 @@ function normalizeString(value: unknown, fallback: string) {
     return typeof value === "string" ? value : fallback;
 }
 
+function isCertificateTextCase(
+    value: unknown,
+): value is NonNullable<CertificateField["textCase"]> {
+    return (
+        value === "none" ||
+        value === "uppercase" ||
+        value === "lowercase" ||
+        value === "sentence"
+    );
+}
+
 function shouldUseEmptyTemplate(error: unknown) {
     if (!(error instanceof CertificateServiceError)) return false;
 
@@ -624,6 +635,15 @@ function normalizeField(value: unknown, index: number): CertificateField {
                 : "center",
         fieldMode,
         signatureImage,
+        fontFamily: normalizeString(
+            field.fontFamily ?? field.font_family,
+            "helvetica",
+        ),
+        textCase: isCertificateTextCase(field.textCase)
+            ? field.textCase
+            : isCertificateTextCase(field.text_case)
+                ? field.text_case
+                : "none",
     };
 }
 
@@ -673,7 +693,7 @@ function serializeFields(fields: CertificateField[]) {
             field.fieldMode ??
             (isSignatureType(field.type) ? "signature" : "text"),
         signatureImage: null,
-        fontFamily: field.fontFamily ?? "georgia",
+        fontFamily: field.fontFamily ?? "helvetica",
         textCase: field.textCase ?? "none",
     }));
 }

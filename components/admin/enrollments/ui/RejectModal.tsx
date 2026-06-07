@@ -77,12 +77,6 @@ export function RejectModal({
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:space-y-4 sm:p-5 lg:p-6">
-                    {panel.error ? (
-                        <div className="break-words rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                            {panel.error}
-                        </div>
-                    ) : null}
-
                     <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-xs leading-5 text-red-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                         <div className="flex items-start gap-2">
                             <Ban className="mt-0.5 h-4 w-4 shrink-0" />

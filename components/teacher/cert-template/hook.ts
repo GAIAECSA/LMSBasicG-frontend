@@ -6,6 +6,7 @@ import type {
 } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { notify } from "@/lib/notify";
 import { getAllCourses, type Course } from "@/services/courses.service";
 import {
     createCertificateField,
@@ -36,6 +37,18 @@ import { generateCertificatePdf } from "./pdf";
 
 const BACKGROUND_REQUIRED_MESSAGE =
     "Primero sube una imagen de fondo para comenzar a diseñar el certificado.";
+
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
 
 export function useCertTemplate({
     courseId,
@@ -71,12 +84,21 @@ export function useCertTemplate({
         {},
     );
 
-    const [notice, setNotice] = useState("");
     const [error, setError] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
     const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
     const [isAddFieldsOpen, setIsAddFieldsOpen] = useState(false);
+
+    const loadRequestRef = useRef<{
+        courseId: number;
+        sequence: number;
+        promise: Promise<void>;
+    } | null>(null);
+    const loadRequestSequenceRef = useRef(0);
+    const activeActionRef = useRef<"save" | "pdf" | null>(null);
+    const backgroundUploadRef = useRef(false);
+    const signatureUploadsRef = useRef<Set<string>>(new Set());
 
     const courseOptions = useMemo(
         () =>
@@ -119,77 +141,115 @@ export function useCertTemplate({
         : "Volver al curso";
 
     const loadTemplate = useCallback(async () => {
-        try {
-            setIsLoadingTemplate(true);
-            setError("");
-            setNotice("");
+        const requestedCourseId = numericCourseId;
+        const activeRequest = loadRequestRef.current;
 
-            const coursesData = await getAllCourses();
-
-            setCourses(Array.isArray(coursesData) ? coursesData : []);
-
-            if (!numericCourseId || Number.isNaN(numericCourseId)) {
-                setTemplate(null);
-                setBackgroundImageFile(null);
-                setSignatureFiles({});
-                setSelectedFieldId(null);
-                return;
-            }
-
-            const currentTemplate =
-                await getCertificateTemplate(numericCourseId);
-
-            const safeFields = Array.isArray(currentTemplate.fields)
-                ? currentTemplate.fields
-                : [];
-
-            const safeTemplate =
-                safeFields.length > 0
-                    ? {
-                        ...currentTemplate,
-                        fields: safeFields,
-                        qrConfig: normalizeQrConfig(
-                            currentTemplate.qrConfig,
-                        ),
-                    }
-                    : {
-                        ...createEmptyCertificateTemplate(numericCourseId),
-                        backgroundImage: currentTemplate.backgroundImage,
-                        qrConfig: normalizeQrConfig(
-                            currentTemplate.qrConfig,
-                        ),
-                    };
-
-            setTemplate(safeTemplate);
-            setBackgroundImageFile(null);
-            setSignatureFiles({});
-            setSelectedFieldId(safeTemplate.fields[0]?.id ?? null);
-        } catch {
-            if (!numericCourseId || Number.isNaN(numericCourseId)) {
-                setTemplate(null);
-                setBackgroundImageFile(null);
-                setSignatureFiles({});
-                setSelectedFieldId(null);
-                setError("");
-                setNotice("");
-                return;
-            }
-
-            const emptyTemplate =
-                createEmptyCertificateTemplate(numericCourseId);
-
-            setTemplate({
-                ...emptyTemplate,
-                qrConfig: normalizeQrConfig(emptyTemplate.qrConfig),
-            });
-            setBackgroundImageFile(null);
-            setSignatureFiles({});
-            setSelectedFieldId(emptyTemplate.fields[0]?.id ?? null);
-            setError("");
-            setNotice("");
-        } finally {
-            setIsLoadingTemplate(false);
+        if (activeRequest?.courseId === requestedCourseId) {
+            return activeRequest.promise;
         }
+
+        const requestSequence = ++loadRequestSequenceRef.current;
+
+        const promise = (async () => {
+            try {
+                setIsLoadingTemplate(true);
+                setError("");
+
+                const coursesData = await getAllCourses();
+
+                if (requestSequence !== loadRequestSequenceRef.current) {
+                    return;
+                }
+
+                setCourses(Array.isArray(coursesData) ? coursesData : []);
+
+                if (!requestedCourseId || Number.isNaN(requestedCourseId)) {
+                    setTemplate(null);
+                    setBackgroundImageFile(null);
+                    setSignatureFiles({});
+                    setSelectedFieldId(null);
+                    return;
+                }
+
+                const currentTemplate =
+                    await getCertificateTemplate(requestedCourseId);
+
+                if (requestSequence !== loadRequestSequenceRef.current) {
+                    return;
+                }
+
+                const safeFields = Array.isArray(currentTemplate.fields)
+                    ? currentTemplate.fields
+                    : [];
+
+                const safeTemplate =
+                    safeFields.length > 0
+                        ? {
+                            ...currentTemplate,
+                            fields: safeFields,
+                            qrConfig: normalizeQrConfig(
+                                currentTemplate.qrConfig,
+                            ),
+                        }
+                        : {
+                            ...createEmptyCertificateTemplate(
+                                requestedCourseId,
+                            ),
+                            backgroundImage: currentTemplate.backgroundImage,
+                            qrConfig: normalizeQrConfig(
+                                currentTemplate.qrConfig,
+                            ),
+                        };
+
+                setTemplate(safeTemplate);
+                setBackgroundImageFile(null);
+                setSignatureFiles({});
+                setSelectedFieldId(safeTemplate.fields[0]?.id ?? null);
+            } catch {
+                if (requestSequence !== loadRequestSequenceRef.current) {
+                    return;
+                }
+
+                if (!requestedCourseId || Number.isNaN(requestedCourseId)) {
+                    setTemplate(null);
+                    setBackgroundImageFile(null);
+                    setSignatureFiles({});
+                    setSelectedFieldId(null);
+                    setError("No se pudieron cargar los cursos disponibles.");
+                    return;
+                }
+
+                const emptyTemplate =
+                    createEmptyCertificateTemplate(requestedCourseId);
+
+                setTemplate({
+                    ...emptyTemplate,
+                    qrConfig: normalizeQrConfig(emptyTemplate.qrConfig),
+                });
+                setBackgroundImageFile(null);
+                setSignatureFiles({});
+                setSelectedFieldId(emptyTemplate.fields[0]?.id ?? null);
+                setError("");
+            } finally {
+                if (requestSequence === loadRequestSequenceRef.current) {
+                    setIsLoadingTemplate(false);
+
+                    if (
+                        loadRequestRef.current?.sequence === requestSequence
+                    ) {
+                        loadRequestRef.current = null;
+                    }
+                }
+            }
+        })();
+
+        loadRequestRef.current = {
+            courseId: requestedCourseId,
+            sequence: requestSequence,
+            promise,
+        };
+
+        return promise;
     }, [numericCourseId]);
 
     useEffect(() => {
@@ -216,20 +276,27 @@ export function useCertTemplate({
         setIsDraggingQr(false);
         setBackgroundImageFile(null);
         setSignatureFiles({});
-        setNotice("");
         setError("");
     }
 
     function showBackgroundRequiredError() {
-        setNotice("");
-        setError(BACKGROUND_REQUIRED_MESSAGE);
+        notify.warning(BACKGROUND_REQUIRED_MESSAGE);
     }
 
     function canEditCertificate() {
-        if (hasBackgroundImage) return true;
+        if (!hasBackgroundImage) {
+            showBackgroundRequiredError();
+            return false;
+        }
 
-        showBackgroundRequiredError();
-        return false;
+        if (activeActionRef.current) {
+            notify.warning(
+                "Espera a que termine el proceso actual antes de continuar.",
+            );
+            return false;
+        }
+
+        return true;
     }
 
     function updateTemplate(nextTemplate: CertificateTemplate) {
@@ -276,6 +343,25 @@ export function useCertTemplate({
 
         if (!file || !template) return;
 
+        if (backgroundUploadRef.current) {
+            notify.warning("La imagen de fondo ya se está procesando.");
+            event.target.value = "";
+            return;
+        }
+
+        if (activeActionRef.current) {
+            notify.warning(
+                "Espera a que termine el proceso actual antes de cambiar el fondo.",
+            );
+            event.target.value = "";
+            return;
+        }
+
+        backgroundUploadRef.current = true;
+        const dismissLoadingToast = createLoadingToast(
+            "Procesando imagen de fondo...",
+        );
+
         try {
             if (!file.type.startsWith("image/")) {
                 throw new Error("Selecciona un archivo de imagen válido.");
@@ -291,18 +377,19 @@ export function useCertTemplate({
             });
 
             setIsAddFieldsOpen(true);
-            setNotice(
+            setError("");
+            notify.success(
                 "Imagen de fondo cargada correctamente. Ya puedes diseñar el certificado.",
             );
-            setError("");
         } catch (err) {
-            setNotice("");
-            setError(
+            notify.error(
                 err instanceof Error
                     ? err.message
                     : "No se pudo cargar la imagen de fondo.",
             );
         } finally {
+            dismissLoadingToast();
+            backgroundUploadRef.current = false;
             event.target.value = "";
         }
     }
@@ -319,6 +406,15 @@ export function useCertTemplate({
             event.target.value = "";
             return;
         }
+
+        if (signatureUploadsRef.current.has(fieldId)) {
+            notify.warning("La firma seleccionada ya se está procesando.");
+            event.target.value = "";
+            return;
+        }
+
+        signatureUploadsRef.current.add(fieldId);
+        const dismissLoadingToast = createLoadingToast("Procesando firma...");
 
         try {
             if (!file.type.startsWith("image/")) {
@@ -337,16 +433,17 @@ export function useCertTemplate({
                 fieldMode: "signature",
             });
 
-            setNotice("Firma cargada correctamente.");
             setError("");
+            notify.success("Firma cargada correctamente.");
         } catch (err) {
-            setNotice("");
-            setError(
+            notify.error(
                 err instanceof Error
                     ? err.message
                     : "No se pudo cargar la firma.",
             );
         } finally {
+            dismissLoadingToast();
+            signatureUploadsRef.current.delete(fieldId);
             event.target.value = "";
         }
     }
@@ -366,8 +463,8 @@ export function useCertTemplate({
         });
 
         setSelectedFieldId(newField.id);
-        setNotice("Campo agregado correctamente.");
         setError("");
+        notify.success("Campo agregado correctamente.");
     }
 
     function handleDeleteField(fieldId: string) {
@@ -393,8 +490,10 @@ export function useCertTemplate({
             setSelectedFieldId(nextFields[0]?.id ?? null);
         }
 
-        setNotice("Campo eliminado correctamente.");
         setError("");
+        notify.success(
+            "Campo eliminado del diseño. Guarda la plantilla para aplicar el cambio.",
+        );
     }
 
     function handleFieldTypeChange(
@@ -521,11 +620,15 @@ export function useCertTemplate({
     async function handleSaveTemplate() {
         if (!template || !canEditCertificate()) return;
 
-        try {
-            setIsSavingTemplate(true);
-            setError("");
-            setNotice("");
+        activeActionRef.current = "save";
+        setIsSavingTemplate(true);
+        setError("");
 
+        const dismissLoadingToast = createLoadingToast(
+            "Guardando plantilla del certificado...",
+        );
+
+        try {
             const safeTemplate: CertificateTemplate = {
                 ...template,
                 qrConfig: normalizeQrConfig(template.qrConfig),
@@ -574,21 +677,24 @@ export function useCertTemplate({
                 return nextTemplate.fields[0]?.id ?? null;
             });
 
-            setNotice("Plantilla guardada correctamente.");
+            notify.success("Plantilla guardada correctamente.");
         } catch (err) {
             const message =
                 err instanceof Error
                     ? err.message
                     : "No se pudo guardar la plantilla del certificado.";
 
-            setError(
+            const safeMessage =
                 message.includes("403") ||
-                    message.toLowerCase().includes("forbidden") ||
-                    message.toLowerCase().includes("not authenticated")
+                message.toLowerCase().includes("forbidden") ||
+                message.toLowerCase().includes("not authenticated")
                     ? "No tienes permiso para guardar esta plantilla. Inicia sesión nuevamente con un usuario ADMIN o DOCENTE."
-                    : message,
-            );
+                    : message;
+
+            notify.error(safeMessage);
         } finally {
+            dismissLoadingToast();
+            activeActionRef.current = null;
             setIsSavingTemplate(false);
         }
     }
@@ -596,26 +702,32 @@ export function useCertTemplate({
     async function handleGeneratePdf() {
         if (!template || !canEditCertificate()) return;
 
-        try {
-            setIsGenerating(true);
-            setError("");
-            setNotice("");
+        activeActionRef.current = "pdf";
+        setIsGenerating(true);
+        setError("");
 
+        const dismissLoadingToast = createLoadingToast(
+            "Generando certificado PDF...",
+        );
+
+        try {
             await generateCertificatePdf({
                 template,
                 numericCourseId,
             });
 
-            setNotice("Certificado generado correctamente.");
+            notify.success("Certificado PDF generado correctamente.");
         } catch (err) {
             console.error("Error al generar certificado PDF:", err);
 
-            setError(
+            notify.error(
                 err instanceof Error
                     ? `No se pudo generar el PDF: ${err.message}`
                     : "No se pudo generar el PDF del certificado.",
             );
         } finally {
+            dismissLoadingToast();
+            activeActionRef.current = null;
             setIsGenerating(false);
         }
     }
@@ -644,7 +756,6 @@ export function useCertTemplate({
         qrConfig,
         hasBackgroundImage,
 
-        notice,
         error,
         isGenerating,
         isSavingTemplate,

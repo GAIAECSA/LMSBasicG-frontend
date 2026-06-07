@@ -79,7 +79,8 @@ export function CourseSelectionPanel({
                                 )
                             }
                             disabled={
-                                panel.isLoadingCourses
+                                panel.isLoadingCourses ||
+                                panel.isSubmitting
                             }
                             className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 outline-none transition focus:border-[#172861] focus:ring-4 focus:ring-blue-50 disabled:cursor-not-allowed disabled:bg-slate-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-10"
                         >
@@ -126,10 +127,17 @@ export function CourseSelectionPanel({
                         onClick={
                             panel.handleImportCsvClick
                         }
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#e9702c] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#d9601f] active:scale-[0.97] sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                        disabled={
+                            !panel.hasSelectedCourse ||
+                            panel.isSubmitting ||
+                            panel.isReadingFile
+                        }
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#e9702c] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#d9601f] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <Upload className="h-4 w-4 shrink-0" />
-                        Importar CSV
+                        {panel.isReadingFile
+                            ? "Leyendo CSV..."
+                            : "Importar CSV"}
                     </button>
 
                     <button
@@ -140,7 +148,8 @@ export function CourseSelectionPanel({
                             )
                         }
                         disabled={
-                            panel.isRefreshingCourses
+                            panel.isRefreshingCourses ||
+                            panel.isSubmitting
                         }
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-11 sm:rounded-2xl sm:px-0"
                         title="Actualizar cursos"

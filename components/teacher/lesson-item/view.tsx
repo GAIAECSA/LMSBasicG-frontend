@@ -3,9 +3,11 @@
 import type { LessonItemEditorPageProps } from "./types";
 import { useLessonItem } from "./hook";
 import { ErrorState } from "./ui/ErrorState";
+import { Loading } from "./ui/Loading";
 import { Toolbar } from "./ui/Toolbar";
 import { Header } from "./ui/Header";
 import { Alerts } from "./ui/Alerts";
+import { GeneralSection } from "./ui/GeneralSection";
 import { TextSection } from "./ui/TextSection";
 import { FileSection } from "./ui/FileSection";
 import { VideoSection } from "./ui/VideoSection";
@@ -46,28 +48,11 @@ export function LessonItemEditorPage({
 
     const hideToolbarSaveButton = [
         "quiz",
-        "homework",
         "survey",
-        "forum",
     ].includes(item.itemType);
 
     if (item.loading) {
-        return (
-            <section className={PAGE_CONTAINER_CLASS}>
-                <Toolbar
-                    backHref={item.backHref}
-                    reviewHref={reviewHref}
-                    itemType={item.itemType}
-                    formId={
-                        saveInsideContentSection ||
-                            hideToolbarSaveButton
-                            ? undefined
-                            : formId
-                    }
-                    saving={item.saving}
-                />
-            </section>
-        );
+        return <Loading />;
     }
 
     if (!item.loading && item.error && !item.block) {
@@ -108,13 +93,9 @@ export function LessonItemEditorPage({
                 form={item.form}
                 itemType={item.itemType}
                 itemTypeLabel={item.itemTypeLabel}
-                reviewHref={reviewHref}
             />
 
-            <Alerts
-                error={item.error}
-                notice={item.notice}
-            />
+            <Alerts error={item.error} />
 
             <form
                 id={formId}
@@ -126,6 +107,7 @@ export function LessonItemEditorPage({
                 }
             >
                 <div className="min-w-0 space-y-3 sm:space-y-4 lg:space-y-5">
+                    <GeneralSection item={item} />
                     <TextSection item={item} />
                     <FileSection item={item} />
                     <VideoSection item={item} />

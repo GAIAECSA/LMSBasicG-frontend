@@ -129,7 +129,13 @@ export function CourseRoomView({ courseId }: StudentMoocCourseViewProps) {
                 <div className="mb-3 flex min-w-0 flex-col gap-2 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <Breadcrumb courseName={room.courseName} />
 
-                    <TopActions studentInitials={room.studentInitials} />
+                    <TopActions
+                        studentInitials={room.studentInitials}
+                        isRefreshing={room.isRefreshing}
+                        onRefresh={() => {
+                            void room.reloadCourse();
+                        }}
+                    />
                 </div>
 
                 {room.errorMessage ? (

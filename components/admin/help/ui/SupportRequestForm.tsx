@@ -1,11 +1,20 @@
 import {
+    CheckCircle2,
     CircleHelp,
     Clipboard,
+    Loader2,
     Send,
 } from "lucide-react";
-import { SUPPORT_CATEGORIES } from "../constants";
-import type { HelpPageState } from "../hook";
-import { FormAlerts } from "./FormAlerts";
+
+import {
+    SUPPORT_CATEGORIES,
+} from "../constants";
+import type {
+    HelpPageState,
+} from "../hook";
+import {
+    FormAlerts,
+} from "./FormAlerts";
 
 type SupportRequestFormProps = {
     help: HelpPageState;
@@ -14,9 +23,22 @@ type SupportRequestFormProps = {
 export function SupportRequestForm({
     help,
 }: SupportRequestFormProps) {
+    const hasSubject =
+        Boolean(
+            help.form.subject.trim(),
+        );
+
+    const hasMessage =
+        Boolean(
+            help.form.message.trim(),
+        );
+
     return (
         <form
-            onSubmit={help.handleSubmit}
+            onSubmit={
+                help.handleSubmit
+            }
+            noValidate
             className="min-w-0 rounded-2xl border border-[var(--border)] p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-5"
             style={{
                 background:
@@ -42,23 +64,27 @@ export function SupportRequestForm({
 
                 <div className="w-fit max-w-full rounded-xl bg-[var(--muted)] px-3 py-1.5 text-[10px] font-black text-[var(--muted-foreground)] sm:rounded-2xl sm:text-xs">
                     Usuario:{" "}
+
                     <span
                         title={
                             help.userName
                         }
                         className="break-words text-[var(--foreground)] [overflow-wrap:anywhere]"
                     >
-                        {help.userName}
+                        {
+                            help.userName
+                        }
                     </span>
                 </div>
             </div>
 
             <FormAlerts
-                error={help.error}
-                copied={help.copied}
+                error={
+                    help.error
+                }
             />
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2 sm:mt-4">
+            <div className="mt-3 grid gap-3 sm:mt-4 md:grid-cols-2">
                 <label className="block min-w-0">
                     <span className="text-[11px] font-black text-[var(--foreground)] sm:text-xs">
                         Categoría
@@ -66,19 +92,30 @@ export function SupportRequestForm({
 
                     <select
                         value={
-                            help.form.category
+                            help.form
+                                .category
                         }
-                        onChange={(event) =>
+                        onChange={(
+                            event,
+                        ) => {
                             help.handleCategoryChange(
-                                event.target.value,
-                            )
-                        }
+                                event
+                                    .target
+                                    .value,
+                            );
+                        }}
+                        aria-label="Categoría de soporte"
                         className="mt-1.5 h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--foreground)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         {SUPPORT_CATEGORIES.map(
-                            (category) => (
+                            (
+                                category,
+                            ) => (
                                 <option
                                     key={
+                                        category
+                                    }
+                                    value={
                                         category
                                     }
                                 >
@@ -94,19 +131,36 @@ export function SupportRequestForm({
                 <label className="block min-w-0">
                     <span className="text-[11px] font-black text-[var(--foreground)] sm:text-xs">
                         Asunto
+
+                        {!hasSubject ? (
+                            <span className="ml-1 text-red-600">
+                                *
+                            </span>
+                        ) : null}
                     </span>
 
                     <input
+                        type="text"
                         value={
-                            help.form.subject
+                            help.form
+                                .subject
                         }
-                        onChange={(event) =>
+                        onChange={(
+                            event,
+                        ) => {
                             help.handleChange(
                                 "subject",
-                                event.target.value,
-                            )
-                        }
-                        className="mt-1.5 h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-semibold text-[var(--foreground)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                                event
+                                    .target
+                                    .value,
+                            );
+                        }}
+                        required
+                        aria-required="true"
+                        className={`mt-1.5 h-10 w-full rounded-xl border bg-[var(--card)] px-3 text-xs font-semibold text-[var(--foreground)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm ${hasSubject
+                                ? "border-[var(--border)]"
+                                : "border-red-200"
+                            }`}
                         placeholder="Ejemplo: No puedo ver mi curso"
                     />
                 </label>
@@ -114,19 +168,35 @@ export function SupportRequestForm({
                 <label className="block min-w-0 md:col-span-2">
                     <span className="text-[11px] font-black text-[var(--foreground)] sm:text-xs">
                         Detalle del problema
+
+                        {!hasMessage ? (
+                            <span className="ml-1 text-red-600">
+                                *
+                            </span>
+                        ) : null}
                     </span>
 
                     <textarea
                         value={
-                            help.form.message
+                            help.form
+                                .message
                         }
-                        onChange={(event) =>
+                        onChange={(
+                            event,
+                        ) => {
                             help.handleChange(
                                 "message",
-                                event.target.value,
-                            )
-                        }
-                        className="mt-1.5 min-h-[96px] w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-xs font-semibold leading-5 text-[var(--foreground)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30 sm:min-h-[108px] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+                                event
+                                    .target
+                                    .value,
+                            );
+                        }}
+                        required
+                        aria-required="true"
+                        className={`mt-1.5 min-h-[96px] w-full resize-y rounded-xl border bg-[var(--card)] px-3 py-2.5 text-xs font-semibold leading-5 text-[var(--foreground)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30 sm:min-h-[108px] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm sm:leading-6 ${hasMessage
+                                ? "border-[var(--border)]"
+                                : "border-red-200"
+                            }`}
                         placeholder="Describe qué necesitas o cuál es el problema."
                     />
                 </label>
@@ -135,13 +205,27 @@ export function SupportRequestForm({
             <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:grid-cols-2 sm:gap-3">
                 <button
                     type="button"
-                    onClick={() =>
-                        void help.handleCopy()
+                    onClick={() => {
+                        void help.handleCopy();
+                    }}
+                    disabled={
+                        help.isCopying
                     }
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] active:scale-[0.97] sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 text-xs font-black text-[var(--foreground)] shadow-sm transition hover:bg-[var(--muted)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
-                    <Clipboard className="h-4 w-4" />
-                    Copiar solicitud
+                    {help.isCopying ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : help.copied ? (
+                        <CheckCircle2 className="h-4 w-4 text-[var(--success)]" />
+                    ) : (
+                        <Clipboard className="h-4 w-4" />
+                    )}
+
+                    {help.isCopying
+                        ? "Copiando..."
+                        : help.copied
+                            ? "Solicitud copiada"
+                            : "Copiar solicitud"}
                 </button>
 
                 <button
@@ -149,6 +233,7 @@ export function SupportRequestForm({
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-3 text-xs font-black text-[var(--primary-foreground)] shadow-sm transition hover:opacity-90 active:scale-[0.97] sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
                     <Send className="h-4 w-4" />
+
                     Enviar por correo
                 </button>
             </div>

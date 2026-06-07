@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { notify } from "@/lib/notify";
 import { getAcceptedStudentEnrollmentsByCourse } from "@/services/enrollments.service";
 import { getForumResponsesByLessonBlock } from "@/services/forum-response.service";
 import {
@@ -16,7 +17,7 @@ import {
     updateQuizzResponse,
 } from "@/services/quizz-response.service";
 import { getSurveyResponsesByLessonBlock } from "@/services/survey-response.service";
-import { BLOCK_TYPE_IDS, STUDENT_ROLE_ID } from "./constants";
+import { BLOCK_TYPE_IDS } from "./constants";
 import type {
     GradeFormState,
     LessonItemReviewPageProps,
@@ -65,6 +66,12 @@ function readNumber(value: unknown): number | null {
     return null;
 }
 
+function getErrorMessage(error: unknown) {
+    return error instanceof Error
+        ? error.message
+        : "Ocurrió un error inesperado.";
+}
+
 function getGradeFormFromRow(
     row: {
         score?: string | number | null;
@@ -78,96 +85,6 @@ function getGradeFormFromRow(
                 : "",
         comment: row?.comment ?? "",
     };
-}
-
-function getEnrollmentIdFromEnrollment(enrollment: unknown): number | null {
-    const record = toRecord(enrollment);
-
-    if (!record) return null;
-
-    return (
-        readNumber(record.id) ??
-        readNumber(record.enrollment_id) ??
-        readNumber(record.enrollmentId)
-    );
-}
-
-function getEnrollmentRoleId(enrollment: unknown): number | null {
-    const record = toRecord(enrollment);
-
-    if (!record) return null;
-
-    const user =
-        toRecord(record.user) ??
-        toRecord(record.student) ??
-        toRecord(record.person);
-
-    const role =
-        toRecord(record.role) ??
-        toRecord(user?.role) ??
-        toRecord(user?.user_role);
-
-    return (
-        readNumber(record.role_id) ??
-        readNumber(record.roleId) ??
-        readNumber(user?.role_id) ??
-        readNumber(user?.roleId) ??
-        readNumber(role?.id)
-    );
-}
-
-function isStudentEnrollment(enrollment: unknown) {
-    const roleId = getEnrollmentRoleId(enrollment);
-
-    if (!roleId) return true;
-
-    return roleId === STUDENT_ROLE_ID;
-}
-
-function getStudentNameFromEnrollment(enrollment: unknown) {
-    const record = toRecord(enrollment);
-
-    if (!record) return "Estudiante";
-
-    const user =
-        toRecord(record.user) ??
-        toRecord(record.student) ??
-        toRecord(record.person);
-
-    const firstname =
-        readText(user?.firstname) ||
-        readText(user?.first_name) ||
-        readText(user?.names);
-
-    const lastname =
-        readText(user?.lastname) ||
-        readText(user?.last_name) ||
-        readText(user?.surnames);
-
-    const fullName = `${firstname} ${lastname}`.trim();
-
-    return (
-        fullName ||
-        readText(user?.name) ||
-        readText(user?.full_name) ||
-        readText(user?.email) ||
-        readText(record.student_name) ||
-        readText(record.user_name) ||
-        "Estudiante"
-    );
-}
-
-function getStudentEmailFromEnrollment(enrollment: unknown) {
-    const record = toRecord(enrollment);
-
-    if (!record) return "";
-
-    const user =
-        toRecord(record.user) ??
-        toRecord(record.student) ??
-        toRecord(record.person);
-
-    return readText(user?.email) || readText(record.email);
 }
 
 function getEnrollmentIdFromResponse(response: unknown): number | null {
@@ -320,7 +237,10 @@ export function useLessonItemReview({
     const [refreshing, setRefreshing] = useState(false);
     const [savingGrade, setSavingGrade] = useState(false);
     const [error, setError] = useState("");
-    const [notice, setNotice] = useState("");
+
+    const loadingDataRef = useRef(false);
+    const savingGradeRef = useRef(false);
+    const selectedEnrollmentIdRef = useRef<number | null>(null);
 
     const [block, setBlock] = useState<LessonBlockData | null>(null);
 
@@ -403,7 +323,7 @@ export function useLessonItemReview({
         Boolean(selectedRow?.hasSubmission);
 
     const loadResponses = useCallback(
-        async (currentItemType = itemType) => {
+        async (currentItemType: ReturnType<typeof getItemTypeFromBlock>) => {
             if (!Number.isFinite(numericItemId) || numericItemId <= 0) {
                 return [];
             }
@@ -426,120 +346,166 @@ export function useLessonItemReview({
 
             return [];
         },
-        [itemType, numericItemId],
+        [numericItemId],
     );
 
-    const loadData = useCallback(async () => {
-        setError("");
-        setNotice("");
-        setRefreshing(true);
+    const loadData = useCallback(
+        async (showFeedback = false) => {
+            if (loadingDataRef.current) {
+                if (showFeedback) {
+                    notify.warning(
+                        "La actualización de la revisión ya está en proceso.",
+                    );
+                }
 
-        try {
-            if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
-                throw new Error("No se pudo identificar el curso.");
+                return;
             }
 
-            if (!Number.isFinite(numericItemId) || numericItemId <= 0) {
-                throw new Error("No se pudo identificar el ítem.");
+            if (savingGradeRef.current && showFeedback) {
+                notify.warning(
+                    "Espera a que termine el guardado de la calificación.",
+                );
+                return;
             }
 
-            const currentBlock = await getLessonBlock(numericItemId);
-            const currentItemType = getItemTypeFromBlock(currentBlock);
+            loadingDataRef.current = true;
+            setError("");
+            setRefreshing(showFeedback);
 
-            const surveyBlocksPromise =
-                currentItemType === "survey"
-                    ? getDefaultLessonBlocksByCourseAndType(
-                        numericCourseId,
-                        BLOCK_TYPE_IDS.survey,
-                    ).catch(() => [])
-                    : Promise.resolve([]);
+            const loadingToastId = showFeedback
+                ? notify.loading("Actualizando revisión...")
+                : null;
 
-            const [
-                currentEnrollments,
-                currentResponses,
-                currentSurveyBlocks,
-            ] = await Promise.all([
-                getAcceptedStudentEnrollmentsByCourse(numericCourseId),
-                loadResponses(currentItemType),
-                surveyBlocksPromise,
-            ]);
+            let loadingToastDismissed = false;
 
-            const safeEnrollments = Array.isArray(currentEnrollments)
-                ? currentEnrollments
-                : [];
+            function dismissLoadingToast() {
+                if (loadingToastId === null || loadingToastDismissed) return;
 
-            const safeResponses = Array.isArray(currentResponses)
-                ? currentResponses
-                : [];
-
-            const safeSurveyBlocks = Array.isArray(currentSurveyBlocks)
-                ? currentSurveyBlocks.filter(
-                    (surveyBlock) =>
-                        getItemTypeFromBlock(surveyBlock) === "survey",
-                )
-                : [];
-
-            if (
-                currentItemType === "survey" &&
-                !safeSurveyBlocks.some(
-                    (surveyBlock) => surveyBlock.id === currentBlock.id,
-                )
-            ) {
-                safeSurveyBlocks.push(currentBlock);
+                notify.dismiss(loadingToastId);
+                loadingToastDismissed = true;
             }
 
-            safeSurveyBlocks.sort(
-                (first, second) =>
-                    Number(first.order ?? 0) - Number(second.order ?? 0),
-            );
+            try {
+                if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
+                    throw new Error("No se pudo identificar el curso.");
+                }
 
-            const currentRows =
-                currentItemType === "forum"
-                    ? buildForumStudentRows({
-                        itemType: currentItemType,
-                        enrollments: safeEnrollments as EnrollmentList,
-                        responses: safeResponses,
-                    })
-                    : getNormalRows({
-                        itemType: currentItemType,
-                        enrollments: safeEnrollments as EnrollmentList,
-                        responses: safeResponses,
-                    });
+                if (!Number.isFinite(numericItemId) || numericItemId <= 0) {
+                    throw new Error("No se pudo identificar el ítem.");
+                }
 
-            const nextSelectedRow =
-                currentRows.find(
-                    (row) => row.enrollmentId === selectedEnrollmentId,
-                ) ??
-                currentRows[0] ??
-                null;
+                const currentBlock = await getLessonBlock(numericItemId);
+                const currentItemType = getItemTypeFromBlock(currentBlock);
 
-            setBlock(currentBlock);
-            setSurveyBlocks(
-                currentItemType === "survey" ? safeSurveyBlocks : [],
-            );
-            setEnrollments(safeEnrollments as EnrollmentList);
-            setResponses(safeResponses);
-            setSelectedEnrollmentIdState(
-                nextSelectedRow?.enrollmentId ?? null,
-            );
-            setGradeForm(getGradeFormFromRow(nextSelectedRow));
-        } catch (loadError) {
-            const message =
-                loadError instanceof Error
-                    ? loadError.message
-                    : "No se pudo cargar la revisión del ítem.";
+                const surveyBlocksPromise =
+                    currentItemType === "survey"
+                        ? getDefaultLessonBlocksByCourseAndType(
+                              numericCourseId,
+                              BLOCK_TYPE_IDS.survey,
+                          ).catch(() => [])
+                        : Promise.resolve([]);
 
-            setError(message);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [
-        loadResponses,
-        numericCourseId,
-        numericItemId,
-        selectedEnrollmentId,
-    ]);
+                const [
+                    currentEnrollments,
+                    currentResponses,
+                    currentSurveyBlocks,
+                ] = await Promise.all([
+                    getAcceptedStudentEnrollmentsByCourse(numericCourseId),
+                    loadResponses(currentItemType),
+                    surveyBlocksPromise,
+                ]);
+
+                const safeEnrollments = Array.isArray(currentEnrollments)
+                    ? currentEnrollments
+                    : [];
+
+                const safeResponses = Array.isArray(currentResponses)
+                    ? currentResponses
+                    : [];
+
+                const safeSurveyBlocks = Array.isArray(currentSurveyBlocks)
+                    ? currentSurveyBlocks.filter(
+                          (surveyBlock) =>
+                              getItemTypeFromBlock(surveyBlock) === "survey",
+                      )
+                    : [];
+
+                if (
+                    currentItemType === "survey" &&
+                    !safeSurveyBlocks.some(
+                        (surveyBlock) => surveyBlock.id === currentBlock.id,
+                    )
+                ) {
+                    safeSurveyBlocks.push(currentBlock);
+                }
+
+                safeSurveyBlocks.sort(
+                    (first, second) =>
+                        Number(first.order ?? 0) - Number(second.order ?? 0),
+                );
+
+                const currentRows =
+                    currentItemType === "forum"
+                        ? buildForumStudentRows({
+                              itemType: currentItemType,
+                              enrollments: safeEnrollments as EnrollmentList,
+                              responses: safeResponses,
+                          })
+                        : getNormalRows({
+                              itemType: currentItemType,
+                              enrollments: safeEnrollments as EnrollmentList,
+                              responses: safeResponses,
+                          });
+
+                const nextSelectedRow =
+                    currentRows.find(
+                        (row) =>
+                            row.enrollmentId ===
+                            selectedEnrollmentIdRef.current,
+                    ) ??
+                    currentRows[0] ??
+                    null;
+
+                const nextSelectedEnrollmentId =
+                    nextSelectedRow?.enrollmentId ?? null;
+
+                selectedEnrollmentIdRef.current = nextSelectedEnrollmentId;
+
+                setBlock(currentBlock);
+                setSurveyBlocks(
+                    currentItemType === "survey" ? safeSurveyBlocks : [],
+                );
+                setEnrollments(safeEnrollments as EnrollmentList);
+                setResponses(safeResponses);
+                setSelectedEnrollmentIdState(nextSelectedEnrollmentId);
+                setGradeForm(getGradeFormFromRow(nextSelectedRow));
+
+                if (showFeedback) {
+                    dismissLoadingToast();
+                    notify.success("Revisión actualizada correctamente.");
+                }
+            } catch (loadError) {
+                const message = getErrorMessage(loadError);
+
+                setError(message);
+                dismissLoadingToast();
+
+                if (showFeedback) {
+                    notify.error(message);
+                }
+            } finally {
+                dismissLoadingToast();
+                loadingDataRef.current = false;
+                setLoading(false);
+                setRefreshing(false);
+            }
+        },
+        [loadResponses, numericCourseId, numericItemId],
+    );
+
+    const handleRefresh = useCallback(async () => {
+        await loadData(true);
+    }, [loadData]);
 
     const setSelectedEnrollmentId = useCallback(
         (enrollmentId: number | null) => {
@@ -548,7 +514,10 @@ export function useLessonItemReview({
                 rows[0] ??
                 null;
 
-            setSelectedEnrollmentIdState(nextRow?.enrollmentId ?? null);
+            const nextEnrollmentId = nextRow?.enrollmentId ?? null;
+
+            selectedEnrollmentIdRef.current = nextEnrollmentId;
+            setSelectedEnrollmentIdState(nextEnrollmentId);
             setGradeForm(getGradeFormFromRow(nextRow));
         },
         [rows],
@@ -571,29 +540,49 @@ export function useLessonItemReview({
     }, [rows, selectedIndex, setSelectedEnrollmentId]);
 
     async function handleSaveGrade() {
+        if (savingGradeRef.current) {
+            notify.warning("El guardado de la calificación ya está en proceso.");
+            return;
+        }
+
+        if (loadingDataRef.current) {
+            notify.warning("Espera a que termine la actualización de la revisión.");
+            return;
+        }
+
         setError("");
-        setNotice("");
 
         if (itemType === "forum" || itemType === "survey") {
-            setNotice(
+            notify.warning(
                 "Este tipo de ítem solo requiere revisión y no necesita calificación numérica.",
             );
             return;
         }
 
         if (!selectedRow?.responseId) {
-            setError("Selecciona una entrega o respuesta para calificar.");
+            notify.warning("Selecciona una entrega o respuesta para calificar.");
             return;
         }
 
         const score = Number(gradeForm.score);
 
-        if (!Number.isFinite(score) || score < 0) {
-            setError("Ingresa una nota válida.");
+        if (!Number.isFinite(score) || score < 0 || score > 10) {
+            notify.warning("Ingresa una nota válida entre 0 y 10.");
             return;
         }
 
+        savingGradeRef.current = true;
         setSavingGrade(true);
+
+        const loadingToastId = notify.loading("Guardando calificación...");
+        let loadingToastDismissed = false;
+
+        function dismissLoadingToast() {
+            if (loadingToastDismissed) return;
+
+            notify.dismiss(loadingToastId);
+            loadingToastDismissed = true;
+        }
 
         try {
             if (itemType === "homework") {
@@ -602,8 +591,9 @@ export function useLessonItemReview({
                     comment: gradeForm.comment,
                 });
 
-                setNotice("Tarea calificada correctamente.");
                 await loadData();
+                dismissLoadingToast();
+                notify.success("Tarea calificada correctamente.");
                 return;
             }
 
@@ -619,22 +609,24 @@ export function useLessonItemReview({
                         minimumScore > 0 ? score >= minimumScore : true,
                 });
 
-                setNotice("Evaluación actualizada correctamente.");
                 await loadData();
+                dismissLoadingToast();
+                notify.success("Evaluación actualizada correctamente.");
                 return;
             }
 
-            setError(
+            notify.warning(
                 "Este tipo de ítem no permite calificación desde esta pantalla.",
             );
         } catch (saveError) {
-            const message =
-                saveError instanceof Error
-                    ? saveError.message
-                    : "No se pudo guardar la calificación.";
+            const message = getErrorMessage(saveError);
 
             setError(message);
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            savingGradeRef.current = false;
             setSavingGrade(false);
         }
     }
@@ -660,7 +652,6 @@ export function useLessonItemReview({
         refreshing,
         savingGrade,
         error,
-        notice,
 
         block,
         surveyBlocks,
@@ -689,7 +680,7 @@ export function useLessonItemReview({
         setSelectedEnrollmentId,
         loadData,
         loadResponses,
-        handleRefresh: loadData,
+        handleRefresh,
 
         handleSaveGrade,
         goToPreviousStudent,

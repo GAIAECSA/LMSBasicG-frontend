@@ -8,13 +8,17 @@ import {
     Save,
     UserRound,
 } from "lucide-react";
+
 import type {
     UserProfileFormState,
 } from "../hook";
-import { ProfileField } from "./ProfileField";
+import {
+    ProfileField,
+} from "./ProfileField";
 
 type ProfileFormCardProps = {
-    profile: UserProfileFormState;
+    profile:
+    UserProfileFormState;
 };
 
 export function ProfileFormCard({
@@ -25,6 +29,7 @@ export function ProfileFormCard({
             onSubmit={
                 profile.handleSubmit
             }
+            noValidate
             className="rounded-2xl border border-[var(--border)] p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-5"
             style={{
                 background:
@@ -47,17 +52,20 @@ export function ProfileFormCard({
                         }
                         className="mt-0.5 truncate text-[11px] font-semibold text-[var(--muted-foreground)] sm:text-xs"
                     >
-                        Usuario logeado:{" "}
-                        {profile.fullName}
+                        Usuario autenticado:{" "}
+                        {
+                            profile.fullName
+                        }
                     </p>
                 </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+            <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <ProfileField
                     label="Usuario"
                     value={
-                        profile.form.username
+                        profile.form
+                            .username
                     }
                     placeholder="Nombre de usuario"
                     readOnly
@@ -67,7 +75,8 @@ export function ProfileFormCard({
                 <ProfileField
                     label="Cédula / identificación"
                     value={
-                        profile.form.idnumber
+                        profile.form
+                            .idnumber
                     }
                     placeholder="Identificación no disponible"
                     Icon={
@@ -80,99 +89,121 @@ export function ProfileFormCard({
                 <ProfileField
                     label="Departamento"
                     value={
-                        profile.form.departament
+                        profile.form
+                            .departament
                     }
                     placeholder="Ingrese su departamento"
                     Icon={
                         Building2
                     }
-                    onChange={(value) =>
+                    onChange={(
+                        value,
+                    ) => {
                         profile.handleChange(
                             "departament",
                             value,
-                        )
-                    }
+                        );
+                    }}
                 />
 
                 <ProfileField
                     label="Nombres"
                     value={
-                        profile.form.firstname
+                        profile.form
+                            .firstname
                     }
                     placeholder="Ingrese sus nombres"
                     required
-                    onChange={(value) =>
+                    onChange={(
+                        value,
+                    ) => {
                         profile.handleChange(
                             "firstname",
                             value,
-                        )
-                    }
+                        );
+                    }}
                 />
 
                 <ProfileField
                     label="Apellidos"
                     value={
-                        profile.form.lastname
+                        profile.form
+                            .lastname
                     }
                     placeholder="Ingrese sus apellidos"
                     required
-                    onChange={(value) =>
+                    onChange={(
+                        value,
+                    ) => {
                         profile.handleChange(
                             "lastname",
                             value,
-                        )
-                    }
+                        );
+                    }}
                 />
 
                 <ProfileField
                     label="Correo electrónico"
                     type="email"
                     value={
-                        profile.form.email
+                        profile.form
+                            .email
                     }
                     placeholder="correo@ejemplo.com"
-                    Icon={Mail}
+                    Icon={
+                        Mail
+                    }
                     required
-                    onChange={(value) =>
+                    onChange={(
+                        value,
+                    ) => {
                         profile.handleChange(
                             "email",
                             value,
-                        )
-                    }
+                        );
+                    }}
                 />
 
                 <ProfileField
                     label="Teléfono"
                     value={
-                        profile.form.phone_number
+                        profile.form
+                            .phone_number
                     }
                     placeholder="Ingrese su teléfono"
-                    Icon={Phone}
-                    onChange={(value) =>
+                    Icon={
+                        Phone
+                    }
+                    onChange={(
+                        value,
+                    ) => {
                         profile.handleChange(
                             "phone_number",
                             value,
-                        )
-                    }
+                        );
+                    }}
                 />
 
                 <ProfileField
                     label="Nueva contraseña"
                     type="password"
                     value={
-                        profile.form.password
+                        profile.form
+                            .password
                     }
                     placeholder="Dejar vacío para no cambiar"
                     Icon={
                         LockKeyhole
                     }
-                    helperText="Solo se actualizará cuando escribas una nueva contraseña."
-                    onChange={(value) =>
+                    helperText="Solo se actualizará cuando escribas una nueva contraseña de al menos 6 caracteres."
+                    onChange={(
+                        value,
+                    ) => {
                         profile.handleChange(
                             "password",
                             value,
-                        )
-                    }
+                        );
+                    }}
                 />
             </div>
 

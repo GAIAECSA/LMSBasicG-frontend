@@ -18,7 +18,7 @@ export function CertificateTemplateWorkspace({
         return (
             <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3">
                 <div className="mx-auto w-full max-w-[1480px]">
-                    <Loading numericCourseId={cert.numericCourseId} />
+                    <Loading />
                 </div>
             </div>
         );
@@ -74,7 +74,7 @@ export function CertificateTemplateWorkspace({
                     />
                 </div>
 
-                <Alerts error={cert.error} notice={cert.notice} />
+                <Alerts error={cert.error} />
 
                 <SidePanel
                     disabled={!cert.hasBackgroundImage}

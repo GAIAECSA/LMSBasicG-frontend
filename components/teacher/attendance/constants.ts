@@ -13,8 +13,8 @@ export const ATTENDANCE_STATUS_OPTIONS: StatusOption[] = [
         className: "bg-green-50 text-green-700 ring-1 ring-green-200",
     },
     {
-        value: "AUSENTE",
-        label: "Ausente",
+        value: "FALTA",
+        label: "Falta",
         className: "bg-red-50 text-red-700 ring-1 ring-red-200",
     },
 ];

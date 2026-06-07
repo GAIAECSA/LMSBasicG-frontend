@@ -1,4 +1,6 @@
-import { CalendarDays } from "lucide-react";
+import {
+    CalendarDays,
+} from "lucide-react";
 
 export function CalendarEmptyState() {
     return (
@@ -6,15 +8,15 @@ export function CalendarEmptyState() {
             <CalendarDays className="mx-auto h-10 w-10 text-[var(--muted-foreground)] sm:h-12 sm:w-12" />
 
             <h2 className="mt-3 text-lg font-black text-[var(--foreground)] sm:text-xl">
-                No hay actividades en el calendario
+                No hay actividades programadas
             </h2>
 
             <p className="mx-auto mt-1.5 max-w-2xl text-xs font-semibold leading-5 text-[var(--muted-foreground)] sm:text-sm sm:leading-6">
-                Los bloques de lección existen, pero ninguno tiene una fecha registrada en{" "}
-                <span className="font-black">
-                    date_available
-                </span>
-                .
+                Cuando se publiquen tareas,
+                evaluaciones, encuestas u otras
+                actividades con una fecha
+                disponible, aparecerán en este
+                calendario.
             </p>
         </div>
     );

@@ -2,8 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+    AlertCircle,
     ChevronLeft,
     ChevronRight,
     ExternalLink,
@@ -12,6 +13,8 @@ import {
     RefreshCw,
     X,
 } from "lucide-react";
+import { AthenaLoadingBackground } from "@/components/ui/AthenaLoadingBackground";
+import { notify } from "@/lib/notify";
 import {
     getEnrollmentsByRole,
     resolveEnrollmentVoucherUrl,
@@ -21,11 +24,6 @@ import { getAllCourses, type Course } from "@/services/courses.service";
 
 const STUDENT_ROLE_ID = 4;
 const ROWS_PER_PAGE = 7;
-
-type Notice =
-    | { type: "success"; text: string }
-    | { type: "error"; text: string }
-    | null;
 
 type StatusFilter = "all" | "accepted" | "pending";
 
@@ -57,7 +55,7 @@ export default function StudentsPage() {
     const [items, setItems] = useState<Enrollment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [notice, setNotice] = useState<Notice>(null);
+    const [errorMessage, setErrorMessage] = useState("");
 
     const [search, setSearch] = useState("");
     const [courseFilterId, setCourseFilterId] = useState(0);
@@ -67,22 +65,30 @@ export default function StudentsPage() {
     const [voucherModalUrl, setVoucherModalUrl] = useState<string | null>(null);
     const [voucherModalTitle, setVoucherModalTitle] = useState("Comprobante");
 
-    const showNotice = useCallback((type: "success" | "error", text: string) => {
-        setNotice({ type, text });
-
-        window.setTimeout(() => {
-            setNotice((current) => (current?.text === text ? null : current));
-        }, 2800);
-    }, []);
+    const refreshInProgressRef = useRef(false);
 
     const loadStudents = useCallback(
         async (showSuccess = false) => {
+            if (showSuccess && refreshInProgressRef.current) {
+                return;
+            }
+
+            const toastId = showSuccess
+                ? notify.loading(
+                    "Actualizando estudiantes...",
+                    "Estamos consultando las matrículas registradas.",
+                )
+                : null;
+
             try {
                 if (showSuccess) {
+                    refreshInProgressRef.current = true;
                     setIsRefreshing(true);
                 } else {
                     setIsLoading(true);
                 }
+
+                setErrorMessage("");
 
                 const [coursesData, enrollmentsData] = await Promise.all([
                     getAllCourses(),
@@ -95,10 +101,12 @@ export default function StudentsPage() {
                 );
                 setCurrentPage(1);
 
-                if (showSuccess) {
-                    showNotice(
-                        "success",
-                        "Lista de estudiantes actualizada correctamente.",
+                if (toastId !== null) {
+                    notify.dismiss(toastId);
+
+                    notify.success(
+                        "Estudiantes actualizados.",
+                        "La lista de matrículas se encuentra al día.",
                     );
                 }
             } catch (error) {
@@ -109,13 +117,25 @@ export default function StudentsPage() {
 
                 setCourses([]);
                 setItems([]);
-                showNotice("error", message);
+                setErrorMessage(message);
+
+                if (toastId !== null) {
+                    notify.dismiss(toastId);
+                }
+
+                notify.error(
+                    showSuccess
+                        ? "No se pudo actualizar la lista."
+                        : "No se pudieron cargar los estudiantes.",
+                    message,
+                );
             } finally {
                 setIsLoading(false);
                 setIsRefreshing(false);
+                refreshInProgressRef.current = false;
             }
         },
-        [showNotice],
+        [],
     );
 
     useEffect(() => {
@@ -203,6 +223,32 @@ export default function StudentsPage() {
         setVoucherModalTitle(`Comprobante - ${getStudentName(item)}`);
     };
 
+    if (isLoading) {
+        return (
+            <AthenaLoadingBackground
+                className="max-w-[1450px]"
+                contentClassName="flex min-h-[calc(100dvh-150px)] items-center justify-center"
+            >
+                <div
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Cargando estudiantes"
+                    className="flex min-h-[240px] w-full max-w-xl flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--card)]/80 px-5 py-6 text-center shadow-sm backdrop-blur-[3px] sm:min-h-[300px] sm:rounded-[28px] sm:px-7 sm:py-8"
+                >
+                    <LoaderCircle className="h-8 w-8 animate-spin text-[var(--primary)] sm:h-9 sm:w-9" />
+
+                    <p className="mt-4 text-sm font-black text-[var(--foreground)] sm:text-base">
+                        Cargando estudiantes matriculados
+                    </p>
+
+                    <p className="mt-1.5 text-xs font-semibold leading-5 text-[var(--muted-foreground)] sm:text-sm">
+                        Estamos preparando las matrículas registradas...
+                    </p>
+                </div>
+            </AthenaLoadingBackground>
+        );
+    }
+
     return (
         <section className="min-w-0 space-y-4 sm:space-y-5 [&_button:not(:disabled)]:cursor-pointer [&_button:not(:disabled)]:select-none [&_button:not(:disabled)]:transition-all [&_button:not(:disabled)]:duration-150 [&_button:not(:disabled)]:ease-out [&_button:not(:disabled):active]:translate-y-px [&_button:not(:disabled):active]:scale-[0.97] [&_button:not(:disabled):active]:brightness-95 [&_button:not(:disabled):active]:shadow-inner">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
@@ -263,14 +309,23 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            {notice ? (
+            {errorMessage ? (
                 <div
-                    className={`rounded-xl border px-3 py-3 text-xs font-semibold leading-5 sm:rounded-2xl sm:px-4 sm:text-sm ${notice.type === "success"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-red-200 bg-red-50 text-red-700"
-                        }`}
+                    role="alert"
+                    aria-live="assertive"
+                    className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-xs font-semibold leading-5 text-red-700 shadow-sm sm:rounded-2xl sm:px-4 sm:py-4 sm:text-sm"
                 >
-                    {notice.text}
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
+
+                    <div className="min-w-0">
+                        <p className="font-black">
+                            No se pudo cargar la lista de estudiantes.
+                        </p>
+
+                        <p className="mt-0.5 break-words">
+                            {errorMessage}
+                        </p>
+                    </div>
                 </div>
             ) : null}
 

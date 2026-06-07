@@ -4,10 +4,18 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import { usePathname } from "next/navigation";
+
 import { useAuth } from "@/hooks/useAuth";
+import { getAuthSession } from "@/lib/auth";
+import {
+    getEffectiveRoleByPathname,
+    roleLabels,
+} from "@/lib/constants";
+import { notify } from "@/lib/notify";
 import {
     getAllCourses,
     type Course,
@@ -16,11 +24,7 @@ import {
     getEnrollmentsByUser,
     type Enrollment,
 } from "@/services/enrollments.service";
-import { getAuthSession } from "@/lib/auth";
-import {
-    getEffectiveRoleByPathname,
-    roleLabels,
-} from "@/lib/constants";
+
 import type {
     CourseFilter,
     CourseProgressMap,
@@ -39,25 +43,49 @@ import {
     toNumericId,
 } from "./utils";
 
+function getErrorMessage(
+    error: unknown,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    return "No se pudieron cargar tus cursos.";
+}
+
 export function useStudentCourses() {
     const pathname =
         usePathname();
 
-    const { user } = useAuth();
+    const { user } =
+        useAuth();
 
     const authSession =
         getAuthSession();
 
     const sessionUser =
         authSession?.user as
-            | SessionUserWithRole
-            | undefined;
+        | SessionUserWithRole
+        | undefined;
 
     const currentUserId =
         toNumericId(
             user?.id ??
-                sessionUser?.id,
+            sessionUser?.id,
         ) ?? 0;
+
+    const refreshInProgressRef =
+        useRef(false);
 
     const [
         enrollments,
@@ -135,16 +163,16 @@ export function useStudentCourses() {
                                     enrollment as EnrollmentWithExtraFields
                                 ).course
                                     ?.id ??
-                                    (
-                                        enrollment as EnrollmentWithExtraFields
-                                    )
-                                        .course_id ??
-                                    0,
+                                (
+                                    enrollment as EnrollmentWithExtraFields
+                                )
+                                    .course_id ??
+                                0,
                             );
 
                         const course =
                             coursesById[
-                                courseId
+                            courseId
                             ] ??
                             (
                                 enrollment as EnrollmentWithExtraFields
@@ -178,16 +206,16 @@ export function useStudentCourses() {
                                     enrollment as EnrollmentWithExtraFields
                                 ).course
                                     ?.id ??
-                                    (
-                                        enrollment as EnrollmentWithExtraFields
-                                    )
-                                        .course_id ??
-                                    0,
+                                (
+                                    enrollment as EnrollmentWithExtraFields
+                                )
+                                    .course_id ??
+                                0,
                             );
 
                         const course =
                             coursesById[
-                                courseId
+                            courseId
                             ] ??
                             (
                                 enrollment as EnrollmentWithExtraFields
@@ -236,13 +264,13 @@ export function useStudentCourses() {
 
             const localSessionUser =
                 session?.user as
-                    | SessionUserWithRole
-                    | undefined;
+                | SessionUserWithRole
+                | undefined;
 
             const userId =
                 Number(
                     user?.id ??
-                        localSessionUser?.id,
+                    localSessionUser?.id,
                 );
 
             if (
@@ -279,10 +307,10 @@ export function useStudentCourses() {
                     enrollmentsResponse,
                 )
                     ? getUniqueActiveCourseEnrollments(
-                          enrollmentsResponse,
-                          localSessionUser,
-                          userId,
-                      )
+                        enrollmentsResponse,
+                        localSessionUser,
+                        userId,
+                    )
                     : [];
 
             const coursesMap =
@@ -305,47 +333,93 @@ export function useStudentCourses() {
             };
         }, [user?.id]);
 
-    async function handleRefreshCourses() {
-        try {
+    const handleRefreshCourses =
+        useCallback(async () => {
+            if (
+                refreshInProgressRef.current
+            ) {
+                return;
+            }
+
+            refreshInProgressRef.current =
+                true;
+
             setIsRefreshing(true);
             setErrorMessage("");
 
-            const data =
-                await loadMyCourses();
+            const toastId =
+                notify.loading(
+                    "Actualizando tus cursos...",
+                    "Estamos consultando la información más reciente.",
+                );
 
-            setEnrollments(
-                data.myCourseEnrollments,
-            );
+            try {
+                const data =
+                    await loadMyCourses();
 
-            setCoursesById(
-                data.coursesMap,
-            );
+                setEnrollments(
+                    data.myCourseEnrollments,
+                );
 
-            setProgressByEnrollment(
-                data.progressMap,
-            );
-        } catch (error) {
-            setEnrollments([]);
-            setCoursesById({});
-            setProgressByEnrollment(
-                {},
-            );
+                setCoursesById(
+                    data.coursesMap,
+                );
 
-            setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "No se pudieron cargar tus cursos.",
-            );
-        } finally {
-            setIsRefreshing(false);
-        }
-    }
+                setProgressByEnrollment(
+                    data.progressMap,
+                );
+
+                notify.dismiss(
+                    toastId,
+                );
+
+                notify.success(
+                    "Cursos actualizados correctamente.",
+                    "Tu listado y progreso se encuentran al día.",
+                );
+            } catch (error) {
+                const message =
+                    getErrorMessage(
+                        error,
+                    );
+
+                /*
+                 * No se borran los cursos visibles.
+                 * Si falla una actualización manual,
+                 * se conserva la última información cargada.
+                 */
+                setErrorMessage(
+                    message,
+                );
+
+                notify.dismiss(
+                    toastId,
+                );
+
+                notify.error(
+                    "No se pudieron actualizar tus cursos.",
+                    message,
+                );
+            } finally {
+                refreshInProgressRef.current =
+                    false;
+
+                setIsRefreshing(
+                    false,
+                );
+            }
+        }, [loadMyCourses]);
 
     useEffect(() => {
-        let isMounted = true;
+        let isMounted =
+            true;
 
         const timer =
             window.setTimeout(() => {
+                setIsLoading(
+                    true,
+                );
+
                 loadMyCourses()
                     .then((data) => {
                         if (!isMounted) {
@@ -373,6 +447,11 @@ export function useStudentCourses() {
                             return;
                         }
 
+                        console.error(
+                            "Error al cargar los cursos del estudiante:",
+                            error,
+                        );
+
                         setEnrollments(
                             [],
                         );
@@ -386,10 +465,9 @@ export function useStudentCourses() {
                         );
 
                         setErrorMessage(
-                            error instanceof
-                                Error
-                                ? error.message
-                                : "No se pudieron cargar tus cursos.",
+                            getErrorMessage(
+                                error,
+                            ),
                         );
                     })
                     .finally(() => {

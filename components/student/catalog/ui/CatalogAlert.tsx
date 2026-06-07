@@ -1,36 +1,38 @@
 import {
     AlertCircle,
-    CheckCircle2,
 } from "lucide-react";
 
 type CatalogAlertProps = {
-    type: "success" | "error";
     message: string;
 };
 
 export function CatalogAlert({
-    type,
     message,
 }: CatalogAlertProps) {
-    if (!message) return null;
-
-    const isSuccess = type === "success";
+    if (!message) {
+        return null;
+    }
 
     return (
         <div
-            className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-xs font-bold leading-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm ${
-                isSuccess
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700"
-            }`}
+            role="alert"
+            aria-live="assertive"
+            className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 shadow-sm sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
         >
-            {isSuccess ? (
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
-            ) : (
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
-            )}
+            <AlertCircle
+                aria-hidden="true"
+                className="mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5"
+            />
 
-            <span className="min-w-0 break-words">{message}</span>
+            <div className="min-w-0">
+                <p className="font-black">
+                    No se pudo cargar el catálogo.
+                </p>
+
+                <p className="mt-0.5 break-words">
+                    {message}
+                </p>
+            </div>
         </div>
     );
 }

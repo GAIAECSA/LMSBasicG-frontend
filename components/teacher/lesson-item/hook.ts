@@ -10,6 +10,7 @@ import {
     type LessonBlock,
     type LessonBlockPayload,
 } from "@/services/lessons.service";
+import { notify } from "@/lib/notify";
 import { emptyForm } from "./constants";
 import { getForumResponsesByBlock, getSurveyResponsesByBlock } from "./api";
 import type {
@@ -21,7 +22,6 @@ import type {
 import {
     buildLessonBlockPayload,
     createQuestion,
-    createSurveyQuestion,
     getErrorMessage,
     getExistingFileUrl,
     getFormFromBlock,
@@ -221,30 +221,6 @@ function getSafeFormFromBlock(block: LessonBlock): FormState {
     return baseForm;
 }
 
-function normalizeQuizQuestionsForApi(questions: QuizQuestionFormItem[]) {
-    return questions.map((question, index) => {
-        const options = normalizeOptions(question.options);
-
-        const correctAnswer = Math.trunc(
-            getSafeNumber(question.correct_answer, 0),
-        );
-
-        const safeCorrectAnswer =
-            correctAnswer >= 0 && correctAnswer < options.length
-                ? correctAnswer
-                : 0;
-
-        return {
-            id: Math.trunc(getSafeNumber(question.id, index + 1)),
-            question: getSafeText(question.question).trim(),
-            options,
-            correct_answer: safeCorrectAnswer,
-            correctAnswer: safeCorrectAnswer,
-            points: getSafeNumber(question.points, 0),
-        };
-    });
-}
-
 function buildSurveyContent(block: LessonBlock, form: FormState) {
     const currentContent = getContentRecord(block.content);
     const blockRecord = block as unknown as Record<string, unknown>;
@@ -326,7 +302,6 @@ export function useLessonItem({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-    const [notice, setNotice] = useState("");
     const [block, setBlock] = useState<LessonBlock | null>(null);
     const [form, setForm] = useState<FormState>(emptyForm);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -337,6 +312,10 @@ export function useLessonItem({
         [],
     );
     const [loadingResponses, setLoadingResponses] = useState(false);
+
+    const loadingDetailRef = useRef(false);
+    const loadingResponsesRef = useRef(false);
+    const savingRef = useRef(false);
 
     const itemType = getItemType(block);
     const itemTypeLabel = getItemTypeLabel(itemType);
@@ -362,7 +341,10 @@ export function useLessonItem({
                 : [];
 
     const loadActivityResponses = useCallback(
-        async (currentBlock: LessonBlock | null) => {
+        async (
+            currentBlock: LessonBlock | null,
+            showFeedback = false,
+        ) => {
             if (!currentBlock?.id) {
                 setSurveyResponses([]);
                 setForumResponses([]);
@@ -377,9 +359,33 @@ export function useLessonItem({
                 return;
             }
 
-            try {
-                setLoadingResponses(true);
+            if (loadingResponsesRef.current) {
+                if (showFeedback) {
+                    notify.warning(
+                        "La consulta de respuestas ya está en proceso.",
+                    );
+                }
 
+                return;
+            }
+
+            loadingResponsesRef.current = true;
+            setLoadingResponses(true);
+
+            const loadingToastId = showFeedback
+                ? notify.loading("Actualizando respuestas...")
+                : null;
+
+            let loadingToastDismissed = false;
+
+            function dismissLoadingToast() {
+                if (loadingToastId === null || loadingToastDismissed) return;
+
+                notify.dismiss(loadingToastId);
+                loadingToastDismissed = true;
+            }
+
+            try {
                 if (currentItemType === "survey") {
                     const responses = await getSurveyResponsesByBlock(
                         currentBlock.id,
@@ -387,31 +393,49 @@ export function useLessonItem({
 
                     setSurveyResponses(sortResponsesByDate(responses));
                     setForumResponses([]);
-                    return;
+                } else {
+                    const responses = await getForumResponsesByBlock(
+                        currentBlock.id,
+                    );
+
+                    setForumResponses(sortResponsesByDate(responses));
+                    setSurveyResponses([]);
                 }
 
-                const responses = await getForumResponsesByBlock(
-                    currentBlock.id,
-                );
-
-                setForumResponses(sortResponsesByDate(responses));
-                setSurveyResponses([]);
+                if (showFeedback) {
+                    dismissLoadingToast();
+                    notify.success("Respuestas actualizadas correctamente.");
+                }
             } catch (err) {
                 setSurveyResponses([]);
                 setForumResponses([]);
-                setError(getErrorMessage(err));
+
+                dismissLoadingToast();
+                notify.error(getErrorMessage(err));
             } finally {
+                dismissLoadingToast();
+                loadingResponsesRef.current = false;
                 setLoadingResponses(false);
             }
         },
         [],
     );
 
+    const handleRefreshActivityResponses = useCallback(
+        async (currentBlock: LessonBlock | null) => {
+            await loadActivityResponses(currentBlock, true);
+        },
+        [loadActivityResponses],
+    );
+
     const loadDetail = useCallback(async () => {
+        if (loadingDetailRef.current) return;
+
+        loadingDetailRef.current = true;
+
         try {
             setLoading(true);
             setError("");
-            setNotice("");
             setSelectedFile(null);
 
             if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
@@ -430,11 +454,15 @@ export function useLessonItem({
             setForm(getSafeFormFromBlock(currentBlock));
             void loadActivityResponses(currentBlock);
         } catch (err) {
-            setError(getErrorMessage(err));
+            const message = getErrorMessage(err);
+
+            setError(message);
             setBlock(null);
             setSurveyResponses([]);
             setForumResponses([]);
+            notify.error(message);
         } finally {
+            loadingDetailRef.current = false;
             setLoading(false);
         }
     }, [numericCourseId, numericItemId, loadActivityResponses]);
@@ -671,27 +699,29 @@ export function useLessonItem({
     function handleSelectedFile(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
 
-        if (!file) return;
+        if (!file) return false;
 
         if (itemType === "image") {
             const allowedImageTypes = ["image/png", "image/jpeg", "image/webp"];
 
             if (!allowedImageTypes.includes(file.type)) {
-                setError("Solo puedes subir imágenes PNG, JPG o WEBP.");
+                notify.warning("Solo puedes subir imágenes PNG, JPG o WEBP.");
                 event.target.value = "";
-                return;
+                return false;
             }
         }
 
         if (itemType === "pdf" && file.type !== "application/pdf") {
-            setError("Solo puedes subir archivos PDF.");
+            notify.warning("Solo puedes subir archivos PDF.");
             event.target.value = "";
-            return;
+            return false;
         }
 
         setError("");
         setSelectedFile(file);
         event.target.value = "";
+
+        return true;
     }
 
     function validateForm() {
@@ -830,23 +860,49 @@ export function useLessonItem({
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
+        if (savingRef.current) {
+            notify.warning("El guardado ya está en proceso.");
+            return;
+        }
+
+        if (!block) {
+            const message = "No se encontró el bloque seleccionado.";
+
+            setError(message);
+            notify.error(message);
+            return;
+        }
+
+        if (!Number.isFinite(numericItemId) || numericItemId <= 0) {
+            const message = "No se pudo identificar el bloque seleccionado.";
+
+            setError(message);
+            notify.error(message);
+            return;
+        }
+
         try {
-            setSaving(true);
-            setError("");
-            setNotice("");
-
-            if (!block) {
-                throw new Error("No se encontró el bloque seleccionado.");
-            }
-
-            if (!Number.isFinite(numericItemId) || numericItemId <= 0) {
-                throw new Error(
-                    "No se pudo identificar el bloque seleccionado.",
-                );
-            }
-
             validateForm();
+        } catch (err) {
+            notify.warning(getErrorMessage(err));
+            return;
+        }
 
+        savingRef.current = true;
+        setSaving(true);
+        setError("");
+
+        const loadingToastId = notify.loading("Guardando información...");
+        let loadingToastDismissed = false;
+
+        function dismissLoadingToast() {
+            if (loadingToastDismissed) return;
+
+            notify.dismiss(loadingToastId);
+            loadingToastDismissed = true;
+        }
+
+        try {
             const payload = buildSafePayload(
                 block,
                 itemType,
@@ -863,19 +919,22 @@ export function useLessonItem({
              */
             const refreshedBlock = await getLessonBlock(numericItemId);
 
-            console.log(
-                "BLOQUE REFRESCADO DESPUÉS DEL PUT:",
-                JSON.stringify(refreshedBlock, null, 2),
-            );
-
             setBlock(refreshedBlock);
             setForm(getSafeFormFromBlock(refreshedBlock));
             setSelectedFile(null);
-            setNotice("Información guardada correctamente.");
             void loadActivityResponses(refreshedBlock);
+
+            dismissLoadingToast();
+            notify.success("Información guardada correctamente.");
         } catch (err) {
-            setError(getErrorMessage(err));
+            const message = getErrorMessage(err);
+
+            setError(message);
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            savingRef.current = false;
             setSaving(false);
         }
     }
@@ -890,7 +949,6 @@ export function useLessonItem({
         loading,
         saving,
         error,
-        notice,
         block,
         form,
         selectedFile,
@@ -908,10 +966,10 @@ export function useLessonItem({
         setForm,
         setSelectedFile,
         setError,
-        setNotice,
 
         loadDetail,
         loadActivityResponses,
+        handleRefreshActivityResponses,
 
         handleAddQuestion,
         handleRemoveQuestion,

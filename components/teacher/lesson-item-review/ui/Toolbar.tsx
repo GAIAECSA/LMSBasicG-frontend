@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 
 type ToolbarProps = {
     backHref: string;
@@ -11,7 +11,11 @@ type ToolbarProps = {
     onRefresh: () => Promise<void>;
 };
 
-export function Toolbar({ backHref }: ToolbarProps) {
+export function Toolbar({
+    backHref,
+    refreshing,
+    onRefresh,
+}: ToolbarProps) {
     const pathname = usePathname();
 
     const isAdminRoute = pathname.startsWith("/admin/modules");
@@ -40,6 +44,23 @@ export function Toolbar({ backHref }: ToolbarProps) {
                     Volver a módulos
                 </span>
             </Link>
+
+            <button
+                type="button"
+                disabled={refreshing}
+                onClick={() => void onRefresh()}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 text-xs font-black text-[#172861] transition hover:bg-blue-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-2xl sm:px-4 sm:text-sm"
+            >
+                <RefreshCw
+                    className={`h-4 w-4 shrink-0 ${
+                        refreshing ? "animate-spin" : ""
+                    }`}
+                />
+
+                <span className="truncate">
+                    {refreshing ? "Actualizando..." : "Actualizar"}
+                </span>
+            </button>
         </div>
     );
 }

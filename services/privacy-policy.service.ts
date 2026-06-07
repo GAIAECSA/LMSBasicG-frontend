@@ -11,6 +11,159 @@ import {
 const PRIVACY_POLICY_ENDPOINT = `${API_URL}/api/v1/privacy-policy`;
 const USER_PRIVACY_POLICY_ENDPOINT = `${API_URL}/api/v1/user-privacy-policy`;
 
+export function resolvePrivacyPolicyFileUrl(
+    fileUrl?: string | null,
+): string {
+    const cleanFileUrl =
+        String(fileUrl ?? "")
+            .trim()
+            .replace(/\\/g, "/");
+
+    if (!cleanFileUrl) {
+        return "";
+    }
+
+    if (
+        cleanFileUrl.startsWith("http://") ||
+        cleanFileUrl.startsWith("https://") ||
+        cleanFileUrl.startsWith("blob:") ||
+        cleanFileUrl.startsWith("data:")
+    ) {
+        return cleanFileUrl;
+    }
+
+    const cleanApiUrl =
+        API_URL.replace(/\/+$/, "");
+
+    const cleanRelativePath =
+        cleanFileUrl.replace(/^\/+/, "");
+
+    return `${cleanApiUrl}/${cleanRelativePath}`;
+}
+
+function getPrivacyPolicyFileErrorMessage(
+    value: unknown,
+    fallback: string,
+): string {
+    if (
+        typeof value === "object" &&
+        value !== null
+    ) {
+        const record =
+            value as Record<string, unknown>;
+
+        if (
+            typeof record.detail === "string" &&
+            record.detail.trim()
+        ) {
+            return record.detail.trim();
+        }
+
+        if (
+            typeof record.message === "string" &&
+            record.message.trim()
+        ) {
+            return record.message.trim();
+        }
+    }
+
+    return fallback;
+}
+
+export async function createPrivacyPolicyPdfPreviewUrl(
+    fileUrl: string,
+    accessToken?: string,
+): Promise<string> {
+    const resolvedFileUrl =
+        resolvePrivacyPolicyFileUrl(
+            fileUrl,
+        );
+
+    if (!resolvedFileUrl) {
+        throw new Error(
+            "La política no tiene un archivo asociado.",
+        );
+    }
+
+    const response =
+        await fetch(resolvedFileUrl, {
+            method: "GET",
+            headers: withBearerToken(
+                {},
+                accessToken,
+            ),
+            cache: "no-store",
+        });
+
+    if (!response.ok) {
+        let errorMessage =
+            `No se pudo cargar el PDF de la política. Código ${response.status}.`;
+
+        try {
+            const data =
+                await response.json();
+
+            errorMessage =
+                getPrivacyPolicyFileErrorMessage(
+                    data,
+                    errorMessage,
+                );
+        } catch {
+            // La respuesta del archivo puede no ser JSON.
+        }
+
+        throw new Error(errorMessage);
+    }
+
+    const blob =
+        await response.blob();
+
+    if (!blob.size) {
+        throw new Error(
+            "El archivo PDF recibido está vacío.",
+        );
+    }
+
+    const responseContentType =
+        String(
+            response.headers.get(
+                "content-type",
+            ) ?? "",
+        )
+            .trim()
+            .toLowerCase();
+
+    const blobContentType =
+        String(blob.type ?? "")
+            .trim()
+            .toLowerCase();
+
+    const cleanResolvedFileUrl =
+        resolvedFileUrl
+            .split("?")[0]
+            .split("#")[0]
+            .toLowerCase();
+
+    const isPdf =
+        responseContentType.includes(
+            "application/pdf",
+        ) ||
+        blobContentType.includes(
+            "application/pdf",
+        ) ||
+        cleanResolvedFileUrl.endsWith(
+            ".pdf",
+        );
+
+    if (!isPdf) {
+        throw new Error(
+            "El archivo asociado a la política no es un PDF válido.",
+        );
+    }
+
+    return URL.createObjectURL(blob);
+}
+
 export type PrivacyPolicy = {
     id: number;
     title: string;

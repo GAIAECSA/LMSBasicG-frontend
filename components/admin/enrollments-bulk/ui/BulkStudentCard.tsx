@@ -67,7 +67,8 @@ export function BulkStudentCard({
                             row.localId,
                         )
                     }
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-100 bg-white text-rose-600 transition hover:bg-rose-50 active:scale-[0.96] sm:h-10 sm:w-10 sm:rounded-2xl"
+                    disabled={panel.isSubmitting}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-100 bg-white text-rose-600 transition hover:bg-rose-50 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10 sm:rounded-2xl"
                     title="Eliminar estudiante"
                     aria-label="Eliminar estudiante"
                 >
@@ -117,7 +118,8 @@ export function BulkStudentCard({
                                 field.placeholder
                             }
                             disabled={
-                                !panel.hasSelectedCourse
+                                !panel.hasSelectedCourse ||
+                                panel.isSubmitting
                             }
                             className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-10"
                         />

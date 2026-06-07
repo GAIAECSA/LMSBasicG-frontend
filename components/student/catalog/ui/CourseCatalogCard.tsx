@@ -10,6 +10,7 @@ import {
     Percent,
     RefreshCw,
 } from "lucide-react";
+
 import type {
     CatalogCourse,
     CourseEnrollmentInfo,
@@ -29,27 +30,38 @@ import {
 type CourseCatalogCardProps = {
     course: CatalogCourse;
     enrollmentInfo: CourseEnrollmentInfo;
-    onEnroll: () => void;
 };
 
 export function CourseCatalogCard({
     course,
     enrollmentInfo,
-    onEnroll,
 }: CourseCatalogCardProps) {
-    const imageUrl = getCourseImage(course);
-    const originalPrice = getOriginalPrice(course);
-    const hasOffer = hasCourseOffer(course);
-    const openEnrollment = isCourseOpen(course);
-    const isMdt = isMdtCourse(course);
+    const imageUrl =
+        getCourseImage(course);
+
+    const originalPrice =
+        getOriginalPrice(course);
+
+    const hasOffer =
+        hasCourseOffer(course);
+
+    const openEnrollment =
+        isCourseOpen(course);
+
+    const isMdt =
+        isMdtCourse(course);
 
     return (
         <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md sm:rounded-[22px]">
             <div className="relative h-[170px] overflow-hidden bg-slate-100 sm:h-[180px]">
                 {imageUrl ? (
                     <Image
-                        src={imageUrl}
-                        alt={course.name}
+                        src={
+                            imageUrl
+                        }
+                        alt={
+                            course.name
+                        }
                         fill
                         unoptimized
                         sizes="(max-width: 640px) 100vw, 420px"
@@ -65,7 +77,9 @@ export function CourseCatalogCard({
 
                 <div className="absolute left-3 top-3 flex max-w-[calc(100%-86px)] flex-wrap gap-1.5">
                     <Badge className="bg-[#00469B] text-white">
-                        {formatLevel(course.level)}
+                        {formatLevel(
+                            course.level,
+                        )}
                     </Badge>
 
                     {isMdt ? (
@@ -76,7 +90,8 @@ export function CourseCatalogCard({
 
                     {openEnrollment ? (
                         <Badge className="bg-emerald-500 text-white">
-                            Matrícula abierta
+                            Matrícula
+                            abierta
                         </Badge>
                     ) : null}
                 </div>
@@ -84,22 +99,33 @@ export function CourseCatalogCard({
                 {hasOffer ? (
                     <span className="absolute right-3 top-3 inline-flex min-h-[52px] min-w-[52px] flex-col items-center justify-center rounded-xl bg-orange-500 px-2 py-1 text-center text-[10px] font-black uppercase leading-4 text-white shadow-md ring-1 ring-orange-300">
                         Oferta
+
                         <strong className="block text-sm">
-                            -{getDiscountPercentage(course)}%
+                            -
+                            {getDiscountPercentage(
+                                course,
+                            )}
+                            %
                         </strong>
                     </span>
                 ) : null}
 
                 <div className="absolute inset-x-0 bottom-0 p-3.5">
                     <p className="text-[10px] font-black text-white/80 sm:text-[11px]">
-                        {getCourseCategory(course)}
+                        {getCourseCategory(
+                            course,
+                        )}
                     </p>
 
                     <h3
-                        title={course.name}
+                        title={
+                            course.name
+                        }
                         className="mt-0.5 line-clamp-2 break-words text-base font-black leading-5 text-white [overflow-wrap:anywhere] sm:text-lg sm:leading-6"
                     >
-                        {course.name}
+                        {
+                            course.name
+                        }
                     </h3>
                 </div>
             </div>
@@ -118,12 +144,16 @@ export function CourseCatalogCard({
 
                         <div className="mt-1 flex min-w-0 flex-wrap items-end gap-x-2 gap-y-1">
                             <p className="truncate text-xl font-black text-orange-600">
-                                {formatPrice(course)}
+                                {formatPrice(
+                                    course,
+                                )}
                             </p>
 
                             {originalPrice ? (
                                 <p className="truncate pb-0.5 text-xs font-bold text-slate-500 line-through">
-                                    {originalPrice}
+                                    {
+                                        originalPrice
+                                    }
                                 </p>
                             ) : null}
                         </div>
@@ -132,20 +162,30 @@ export function CourseCatalogCard({
                     {hasOffer ? (
                         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-orange-100 px-2.5 py-1 text-[10px] font-black text-orange-700">
                             <Percent className="h-3 w-3" />
-                            -{getDiscountPercentage(course)}% OFF
+
+                            -
+                            {getDiscountPercentage(
+                                course,
+                            )}
+                            % OFF
                         </span>
                     ) : (
                         <EnrollmentBadge
-                            state={enrollmentInfo.state}
+                            state={
+                                enrollmentInfo.state
+                            }
                         />
                     )}
                 </div>
 
                 <div className="mt-4">
                     <CourseAction
-                        course={course}
-                        enrollmentInfo={enrollmentInfo}
-                        onEnroll={onEnroll}
+                        course={
+                            course
+                        }
+                        enrollmentInfo={
+                            enrollmentInfo
+                        }
                     />
                 </div>
             </div>
@@ -174,25 +214,33 @@ function EnrollmentBadge({
 }: {
     state: CourseEnrollmentInfo["state"];
 }) {
-    if (state === "approved") {
+    if (
+        state === "approved"
+    ) {
         return (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase text-emerald-700">
                 <CheckCircle2 className="h-3 w-3" />
+
                 Activa
             </span>
         );
     }
 
-    if (state === "pending") {
+    if (
+        state === "pending"
+    ) {
         return (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-black uppercase text-orange-700">
                 <Clock3 className="h-3 w-3" />
+
                 Revisión
             </span>
         );
     }
 
-    if (state === "rejected") {
+    if (
+        state === "rejected"
+    ) {
         return (
             <span className="inline-flex shrink-0 rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black uppercase text-red-700">
                 Rechazada
@@ -206,22 +254,29 @@ function EnrollmentBadge({
 function CourseAction({
     course,
     enrollmentInfo,
-    onEnroll,
 }: CourseCatalogCardProps) {
-    if (enrollmentInfo.state === "approved") {
+    if (
+        enrollmentInfo.state ===
+        "approved"
+    ) {
         return (
             <Link
                 href={`/student/courses/${course.id}`}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#00469B] px-4 text-sm font-black !text-white transition hover:bg-[#003A81] active:scale-[0.97]"
             >
                 <GraduationCap className="h-4 w-4" />
+
                 Entrar al aula
+
                 <ArrowRight className="h-4 w-4" />
             </Link>
         );
     }
 
-    if (enrollmentInfo.state === "pending") {
+    if (
+        enrollmentInfo.state ===
+        "pending"
+    ) {
         return (
             <button
                 type="button"
@@ -229,12 +284,16 @@ function CourseAction({
                 className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-orange-50 px-4 text-sm font-black text-orange-700 ring-1 ring-orange-100"
             >
                 <Clock3 className="h-4 w-4" />
+
                 Solicitud pendiente
             </button>
         );
     }
 
-    if (enrollmentInfo.state === "closed") {
+    if (
+        enrollmentInfo.state ===
+        "closed"
+    ) {
         return (
             <button
                 type="button"
@@ -242,27 +301,29 @@ function CourseAction({
                 className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-500"
             >
                 <LockKeyhole className="h-4 w-4" />
+
                 Matrícula cerrada
             </button>
         );
     }
 
     return (
-        <button
-            type="button"
-            onClick={onEnroll}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#00469B] px-4 text-sm font-black text-white transition hover:bg-[#003A81] active:scale-[0.97]"
+        <Link
+            href={`/student/enrollment/${course.id}`}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#00469B] px-4 text-sm font-black !text-white transition hover:bg-[#003A81] active:scale-[0.97]"
         >
-            {enrollmentInfo.state === "rejected" ? (
+            {enrollmentInfo.state ===
+                "rejected" ? (
                 <RefreshCw className="h-4 w-4" />
             ) : (
                 <BookOpen className="h-4 w-4" />
             )}
 
-            {enrollmentInfo.state === "rejected"
+            {enrollmentInfo.state ===
+                "rejected"
                 ? "Solicitar nuevamente"
                 : "Matricularme"}
-        </button>
+        </Link>
     );
 }
 

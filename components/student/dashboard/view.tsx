@@ -5,7 +5,6 @@ import { DashboardAlert } from "./ui/DashboardAlert";
 import { DashboardLoading } from "./ui/DashboardLoading";
 import { MyCoursesSection } from "./ui/MyCoursesSection";
 import { PendingEnrollmentsPanel } from "./ui/PendingEnrollmentsPanel";
-import { RecommendedCourses } from "./ui/RecommendedCourses";
 import { StudentHero } from "./ui/StudentHero";
 import { SummaryCards } from "./ui/SummaryCards";
 
@@ -61,11 +60,6 @@ export function StudentDashboardView() {
                     />
                 </div>
 
-                <RecommendedCourses
-                    courses={
-                        dashboard.recommendedCourses
-                    }
-                />
             </div>
         </section>
     );

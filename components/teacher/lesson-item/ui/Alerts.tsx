@@ -1,22 +1,13 @@
 type AlertsProps = {
     error: string;
-    notice: string;
 };
 
-export function Alerts({ error, notice }: AlertsProps) {
-    return (
-        <>
-            {error ? (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold leading-5 text-red-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                    {error}
-                </div>
-            ) : null}
+export function Alerts({ error }: AlertsProps) {
+    if (!error) return null;
 
-            {notice ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-semibold leading-5 text-emerald-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                    {notice}
-                </div>
-            ) : null}
-        </>
+    return (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold leading-5 text-red-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
+            {error}
+        </div>
     );
 }

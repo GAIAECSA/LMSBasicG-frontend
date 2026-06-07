@@ -94,12 +94,6 @@ export function EnrollmentFormModal({
                     className="flex min-h-0 flex-1 flex-col"
                 >
                     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:space-y-4 sm:p-5 lg:p-6 [@media(max-height:760px)]:space-y-3 [@media(max-height:760px)]:p-4">
-                        {panel.error ? (
-                            <div className="break-words rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                                {panel.error}
-                            </div>
-                        ) : null}
-
                         <div className="rounded-xl border border-orange-100 bg-orange-50 px-3 py-2.5 text-xs font-semibold leading-5 text-orange-800 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                             Estado inicial:{" "}
                             <span className="font-bold">

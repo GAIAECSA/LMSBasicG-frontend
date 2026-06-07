@@ -1,7 +1,16 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
+
+import { notify } from "@/lib/notify";
+
 import {
     createCourseAttendance,
     deleteCourseAttendance,
@@ -13,13 +22,16 @@ import {
     type AttendanceState,
     type CourseAttendance,
 } from "@/services/attendance.service";
+
 import { ATTENDANCE_STATUS_OPTIONS } from "./constants";
+
 import type {
     AttendanceFormState,
     AttendanceModalMode,
     AttendanceSummary,
     TeacherAttendanceWorkspaceProps,
 } from "./types";
+
 import {
     buildFormFromSession,
     buildInitialForm,
@@ -29,6 +41,22 @@ import {
     sortAttendancesByStudent,
     sortSessionsByDateDesc,
 } from "./utils";
+
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
+
+function getAttendanceState(attendance: Attendance): AttendanceState {
+    return attendance.attendance_state ?? attendance.state ?? "PENDIENTE";
+}
 
 export function useAttendance({
     courseId,
@@ -41,6 +69,7 @@ export function useAttendance({
     const [searchTerm, setSearchTerm] = useState("");
 
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [isLoadingAttendances, setIsLoadingAttendances] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [updatingAttendanceId, setUpdatingAttendanceId] = useState<
@@ -61,6 +90,20 @@ export function useAttendance({
     const [deleteSession, setDeleteSession] =
         useState<CourseAttendance | null>(null);
 
+    const hasLoadedOnceRef = useRef(false);
+    const sessionsLoadingRef = useRef(false);
+    const sessionMutationRef = useRef(false);
+    const attendanceMutationRef = useRef(false);
+    const attendanceRequestIdRef = useRef(0);
+    const loadingAttendanceSessionIdRef = useRef("");
+    const lastLoadedAttendanceSessionIdRef = useRef("");
+    const selectedSessionIdRef = useRef("");
+
+    const selectSessionId = useCallback((value: string) => {
+        selectedSessionIdRef.current = value;
+        setSelectedSessionId(value);
+    }, []);
+
     const selectedSession = useMemo(
         () =>
             sessions.find(
@@ -74,9 +117,9 @@ export function useAttendance({
 
         if (!cleanSearchTerm) return attendances;
 
-        return attendances.filter((attendance: Attendance) => {
+        return attendances.filter((attendance) => {
             const studentName = getStudentName(attendance).toLowerCase();
-            const status = String(attendance.state).toLowerCase();
+            const status = String(getAttendanceState(attendance)).toLowerCase();
 
             return (
                 studentName.includes(cleanSearchTerm) ||
@@ -87,23 +130,20 @@ export function useAttendance({
     }, [attendances, searchTerm]);
 
     const summary = useMemo<AttendanceSummary>(() => {
-        const total = attendances.length;
-
         const countByStatus = ATTENDANCE_STATUS_OPTIONS.reduce<
             Record<string, number>
         >((accumulator, option) => {
             accumulator[option.value] = attendances.filter(
-                (attendance: Attendance) =>
-                    attendance.state === option.value,
+                (attendance) => getAttendanceState(attendance) === option.value,
             ).length;
 
             return accumulator;
         }, {});
 
         return {
-            total,
+            total: attendances.length,
             present: countByStatus.PRESENTE ?? 0,
-            absent: countByStatus.AUSENTE ?? 0,
+            absent: countByStatus.FALTA ?? 0,
             late: countByStatus.ATRASO ?? 0,
             pending: countByStatus.PENDIENTE ?? 0,
             justified: countByStatus.JUSTIFICADO ?? 0,
@@ -112,11 +152,73 @@ export function useAttendance({
 
     const backHref = `/teacher/courses/${numericCourseId}`;
 
+    const loadAttendances = useCallback(
+        async (sessionId: string, force = false): Promise<boolean> => {
+            const cleanSessionId = String(sessionId ?? "").trim();
+
+            if (!cleanSessionId) {
+                attendanceRequestIdRef.current += 1;
+                loadingAttendanceSessionIdRef.current = "";
+                lastLoadedAttendanceSessionIdRef.current = "";
+                setAttendances([]);
+                setIsLoadingAttendances(false);
+                return true;
+            }
+
+            if (
+                !force &&
+                (lastLoadedAttendanceSessionIdRef.current === cleanSessionId ||
+                    loadingAttendanceSessionIdRef.current === cleanSessionId)
+            ) {
+                return true;
+            }
+
+            const requestId = attendanceRequestIdRef.current + 1;
+            attendanceRequestIdRef.current = requestId;
+            loadingAttendanceSessionIdRef.current = cleanSessionId;
+
+            try {
+                setIsLoadingAttendances(true);
+                setErrorMessage("");
+
+                const data = await getAttendancesByCourseAttendance(
+                    Number(cleanSessionId),
+                );
+
+                if (attendanceRequestIdRef.current !== requestId) {
+                    return true;
+                }
+
+                setAttendances(sortAttendancesByStudent(data));
+                lastLoadedAttendanceSessionIdRef.current = cleanSessionId;
+
+                return true;
+            } catch (error) {
+                if (attendanceRequestIdRef.current !== requestId) {
+                    return false;
+                }
+
+                const message = getErrorMessage(error);
+
+                setAttendances([]);
+                setErrorMessage(message);
+
+                return false;
+            } finally {
+                if (attendanceRequestIdRef.current === requestId) {
+                    loadingAttendanceSessionIdRef.current = "";
+                    setIsLoadingAttendances(false);
+                }
+            }
+        },
+        [],
+    );
+
     const loadSessions = useCallback(
         async (preferredSessionId?: string) => {
             if (!Number.isFinite(numericCourseId) || numericCourseId <= 0) {
                 setSessions([]);
-                setSelectedSessionId("");
+                selectSessionId("");
                 throw new Error("ID del curso no válido.");
             }
 
@@ -125,61 +227,103 @@ export function useAttendance({
 
             setSessions(orderedSessions);
 
-            const nextSelectedSessionId =
+            const requestedSessionId =
                 preferredSessionId ||
-                selectedSessionId ||
+                selectedSessionIdRef.current ||
                 String(orderedSessions[0]?.id ?? "");
 
             const sessionExists = orderedSessions.some(
-                (session: CourseAttendance) =>
-                    String(session.id) === nextSelectedSessionId,
+                (session) => String(session.id) === requestedSessionId,
             );
 
-            setSelectedSessionId(sessionExists ? nextSelectedSessionId : "");
+            const nextSelectedSessionId = sessionExists
+                ? requestedSessionId
+                : String(orderedSessions[0]?.id ?? "");
+
+            selectSessionId(nextSelectedSessionId);
+
+            return nextSelectedSessionId;
         },
-        [numericCourseId, selectedSessionId],
+        [numericCourseId, selectSessionId],
     );
 
-    const loadAttendances = useCallback(async (sessionId: string) => {
-        if (!sessionId) {
-            setAttendances([]);
-            return;
-        }
-
-        try {
-            setIsLoadingAttendances(true);
-            setActionError("");
-
-            const data = await getAttendancesByCourseAttendance(
-                Number(sessionId),
-            );
-
-            setAttendances(sortAttendancesByStudent(data));
-        } catch (error) {
-            setAttendances([]);
-            setActionError(getErrorMessage(error));
-        } finally {
-            setIsLoadingAttendances(false);
-        }
-    }, []);
-
     const refreshAll = useCallback(
-        async (preferredSessionId?: string) => {
+        async (preferredSessionId?: string, showRefresh = false) => {
+            if (sessionsLoadingRef.current) {
+                if (showRefresh) {
+                    notify.warning(
+                        "La actualización de asistencias ya está en proceso.",
+                    );
+                }
+
+                return;
+            }
+
+            if (
+                showRefresh &&
+                (sessionMutationRef.current || attendanceMutationRef.current)
+            ) {
+                notify.warning(
+                    "Espera a que termine la acción en curso antes de actualizar.",
+                );
+                return;
+            }
+
+            sessionsLoadingRef.current = true;
+
+            const isInitialLoad = !hasLoadedOnceRef.current;
+            const dismissLoadingToast = showRefresh
+                ? createLoadingToast("Actualizando asistencias...")
+                : null;
+
             try {
-                setIsLoading(true);
+                if (isInitialLoad) {
+                    setIsLoading(true);
+                }
+
+                if (showRefresh) {
+                    setIsRefreshing(true);
+                }
+
                 setErrorMessage("");
                 setActionError("");
 
-                await loadSessions(preferredSessionId);
+                const nextSelectedSessionId =
+                    await loadSessions(preferredSessionId);
+
+                const attendanceLoaded = await loadAttendances(
+                    nextSelectedSessionId,
+                    true,
+                );
+
+                if (!attendanceLoaded) {
+                    throw new Error(
+                        "No se pudieron cargar los registros de asistencia.",
+                    );
+                }
+
+                if (showRefresh) {
+                    dismissLoadingToast?.();
+                    notify.success("Asistencias actualizadas correctamente.");
+                }
             } catch (error) {
-                setErrorMessage(getErrorMessage(error));
-                setSessions([]);
-                setAttendances([]);
+                const message = getErrorMessage(error);
+
+                setErrorMessage(message);
+                dismissLoadingToast?.();
+
+                if (showRefresh) {
+                    notify.error(message);
+                }
             } finally {
+                dismissLoadingToast?.();
+                sessionsLoadingRef.current = false;
+                hasLoadedOnceRef.current = true;
                 setIsLoading(false);
+                setIsRefreshing(false);
             }
         },
-        [loadSessions],
+        [loadAttendances, loadSessions],
     );
 
     useEffect(() => {
@@ -190,7 +334,7 @@ export function useAttendance({
         return () => {
             window.clearTimeout(timeoutId);
         };
-    }, [numericCourseId, refreshAll]);
+    }, [refreshAll]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -202,7 +346,31 @@ export function useAttendance({
         };
     }, [selectedSessionId, loadAttendances]);
 
+    function beginSessionMutation(message: string) {
+        if (sessionsLoadingRef.current) {
+            notify.warning("Espera a que termine la actualización en curso.");
+            return false;
+        }
+
+        if (sessionMutationRef.current || attendanceMutationRef.current) {
+            notify.warning(message);
+            return false;
+        }
+
+        sessionMutationRef.current = true;
+        return true;
+    }
+
+    function endSessionMutation() {
+        sessionMutationRef.current = false;
+    }
+
     function openCreateModal() {
+        if (sessionsLoadingRef.current || sessionMutationRef.current) {
+            notify.warning("Espera a que termine la acción en curso.");
+            return;
+        }
+
         setModalMode("create");
         setEditingSession(null);
         setFormState(buildInitialForm());
@@ -210,6 +378,11 @@ export function useAttendance({
     }
 
     function openEditModal(session: CourseAttendance) {
+        if (sessionsLoadingRef.current || sessionMutationRef.current) {
+            notify.warning("Espera a que termine la acción en curso.");
+            return;
+        }
+
         setModalMode("edit");
         setEditingSession(session);
         setFormState(buildFormFromSession(session));
@@ -222,26 +395,72 @@ export function useAttendance({
         setModalMode(null);
         setEditingSession(null);
         setFormState(buildInitialForm());
+        setActionError("");
     }
 
     function closeModalForce() {
         setModalMode(null);
         setEditingSession(null);
         setFormState(buildInitialForm());
+        setActionError("");
+    }
+
+    function openDeleteModal(session: CourseAttendance) {
+        if (sessionsLoadingRef.current || sessionMutationRef.current) {
+            notify.warning("Espera a que termine la acción en curso.");
+            return;
+        }
+
+        setActionError("");
+        setDeleteSession(session);
+    }
+
+    function closeDeleteModal() {
+        if (isSaving) return;
+
+        setDeleteSession(null);
+        setActionError("");
     }
 
     async function handleSubmitSession(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         if (!formState.day) {
-            setActionError("Selecciona la fecha de la asistencia.");
+            notify.warning("Selecciona la fecha de la asistencia.");
             return;
         }
 
         if (!formState.start_time || !formState.end_time) {
-            setActionError("Ingresa hora de inicio y hora de fin.");
+            notify.warning("Ingresa hora de inicio y hora de fin.");
             return;
         }
+
+        if (formState.end_time <= formState.start_time) {
+            notify.warning("La hora de fin debe ser posterior a la hora de inicio.");
+            return;
+        }
+
+        if (
+            modalMode === "edit" &&
+            !editingSession
+        ) {
+            notify.error("No se encontró la sesión que deseas editar.");
+            return;
+        }
+
+        if (
+            !beginSessionMutation(
+                "Ya existe una sesión de asistencia procesándose.",
+            )
+        ) {
+            return;
+        }
+
+        const dismissLoadingToast = createLoadingToast(
+            modalMode === "create"
+                ? "Creando sesión de asistencia..."
+                : "Actualizando sesión de asistencia...",
+        );
 
         try {
             setIsSaving(true);
@@ -259,7 +478,9 @@ export function useAttendance({
 
                 closeModalForce();
                 await refreshAll(String(createdSession.id));
-                setSelectedSessionId(String(createdSession.id));
+
+                dismissLoadingToast();
+                notify.success("Sesión de asistencia creada correctamente.");
                 return;
             }
 
@@ -271,17 +492,37 @@ export function useAttendance({
 
                 closeModalForce();
                 await refreshAll(String(updatedSession.id));
-                setSelectedSessionId(String(updatedSession.id));
+
+                dismissLoadingToast();
+                notify.success("Sesión de asistencia actualizada correctamente.");
             }
         } catch (error) {
-            setActionError(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setActionError(message);
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
             setIsSaving(false);
+            endSessionMutation();
         }
     }
 
     async function handleDeleteSession() {
         if (!deleteSession) return;
+
+        if (
+            !beginSessionMutation(
+                "Ya existe una sesión de asistencia procesándose.",
+            )
+        ) {
+            return;
+        }
+
+        const dismissLoadingToast = createLoadingToast(
+            "Eliminando sesión de asistencia...",
+        );
 
         try {
             setIsSaving(true);
@@ -290,12 +531,21 @@ export function useAttendance({
             await deleteCourseAttendance(deleteSession.id);
 
             setDeleteSession(null);
-            setSelectedSessionId("");
+            selectSessionId("");
             await refreshAll();
+
+            dismissLoadingToast();
+            notify.success("Sesión de asistencia eliminada correctamente.");
         } catch (error) {
-            setActionError(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setActionError(message);
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
             setIsSaving(false);
+            endSessionMutation();
         }
     }
 
@@ -305,7 +555,25 @@ export function useAttendance({
     ) => {
         if (!attendance.id) return;
 
+        if (getAttendanceState(attendance) === status) {
+            return;
+        }
+
+        if (
+            sessionsLoadingRef.current ||
+            sessionMutationRef.current ||
+            attendanceMutationRef.current
+        ) {
+            notify.warning("Espera a que termine la actualización en curso.");
+            return;
+        }
+
+        attendanceMutationRef.current = true;
         setUpdatingAttendanceId(attendance.id);
+
+        const dismissLoadingToast = createLoadingToast(
+            `Actualizando asistencia de ${getStudentName(attendance)}...`,
+        );
 
         try {
             const updatedAttendance = await updateAttendance(attendance.id, {
@@ -315,24 +583,39 @@ export function useAttendance({
                 deleted: attendance.deleted ?? false,
             });
 
-            setAttendances((prev) =>
-                prev.map((item) =>
+            setAttendances((currentAttendances) =>
+                currentAttendances.map((item) =>
                     item.id === attendance.id
                         ? {
-                            ...item,
-                            ...updatedAttendance,
-                            state: status,
-                            attendance_state: status,
-                        }
+                              ...item,
+                              ...updatedAttendance,
+                              state: status,
+                              attendance_state: status,
+                          }
                         : item,
                 ),
             );
+
+            dismissLoadingToast();
+            notify.success("Estado de asistencia actualizado correctamente.");
         } catch (error) {
-            console.error("Error actualizando asistencia:", error);
+            const message = getErrorMessage(error);
+
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            attendanceMutationRef.current = false;
             setUpdatingAttendanceId(null);
         }
     };
+
+    const isBusy =
+        isLoading ||
+        isRefreshing ||
+        isLoadingAttendances ||
+        isSaving ||
+        updatingAttendanceId !== null;
 
     return {
         numericCourseId,
@@ -347,8 +630,10 @@ export function useAttendance({
         summary,
 
         isLoading,
+        isRefreshing,
         isLoadingAttendances,
         isSaving,
+        isBusy,
         updatingAttendanceId,
 
         errorMessage,
@@ -359,15 +644,16 @@ export function useAttendance({
         editingSession,
         deleteSession,
 
-        setSelectedSessionId,
         setSearchTerm,
         setFormState,
-        setDeleteSession,
+        selectSessionId,
 
         refreshAll,
         openCreateModal,
         openEditModal,
         closeModal,
+        openDeleteModal,
+        closeDeleteModal,
         handleSubmitSession,
         handleDeleteSession,
         handleChangeAttendanceStatus,

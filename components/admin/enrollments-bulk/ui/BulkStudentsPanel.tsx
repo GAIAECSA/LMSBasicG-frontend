@@ -36,6 +36,10 @@ export function BulkStudentsPanel({
                     <button
                         type="button"
                         onClick={panel.addRow}
+                        disabled={
+                            !panel.hasSelectedCourse ||
+                            panel.isSubmitting
+                        }
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#172861] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#0B163F] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <Plus className="h-4 w-4 shrink-0" />
@@ -45,7 +49,8 @@ export function BulkStudentsPanel({
                     <button
                         type="button"
                         onClick={panel.clearRows}
-                        className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                        disabled={panel.isSubmitting}
+                        className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         Limpiar
                     </button>

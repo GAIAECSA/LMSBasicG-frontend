@@ -668,7 +668,7 @@ function SidebarUserMenu({
                     }}
                 >
                     <Link
-                        href="/admin/profile"
+                        href="/profile"
                         onClick={handleCloseMenu}
                         className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-black text-white/90 transition-colors duration-150 hover:bg-white/10 hover:text-white sm:rounded-2xl"
                     >
@@ -832,7 +832,7 @@ export function Sidebar({
 
                         <div className="shrink-0 space-y-2 border-t border-white/12 p-3">
                             <Link
-                                href="/admin/help"
+                                href="/help"
                                 onClick={closeMobileSidebar}
                                 className="flex min-h-[40px] items-center gap-3 rounded-xl px-3 text-[13px] font-bold text-white/78 transition-colors duration-150 hover:bg-white/10 hover:text-white"
                             >
@@ -926,7 +926,7 @@ export function Sidebar({
                     `}
                 >
                     <Link
-                        href="/admin/help"
+                        href="/help"
                         title={collapsed ? "Ayuda y soporte" : undefined}
                         className={`
                             flex min-h-[42px] items-center rounded-xl

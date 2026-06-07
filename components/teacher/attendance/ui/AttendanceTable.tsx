@@ -31,6 +31,7 @@ type AttendanceTableProps = {
     searchTerm: string;
     isLoadingAttendances: boolean;
     updatingAttendanceId: number | null;
+    isActionBusy: boolean;
     setSearchTerm: (value: string) => void;
     onEditSession: (
         session: CourseAttendance,
@@ -128,6 +129,7 @@ export function AttendanceTable({
     searchTerm,
     isLoadingAttendances,
     updatingAttendanceId,
+    isActionBusy,
     setSearchTerm,
     onEditSession,
     onDeleteSession,
@@ -164,7 +166,8 @@ export function AttendanceTable({
                                     selectedSession,
                                 )
                             }
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 active:scale-[0.97] sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm"
+                            disabled={isActionBusy}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm"
                         >
                             <Edit3 className="h-4 w-4 shrink-0" />
 
@@ -180,7 +183,8 @@ export function AttendanceTable({
                                     selectedSession,
                                 )
                             }
-                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700 ring-1 ring-red-100 transition hover:bg-red-100 active:scale-[0.97] sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm"
+                            disabled={isActionBusy}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700 ring-1 ring-red-100 transition hover:bg-red-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm"
                         >
                             <Trash2 className="h-4 w-4 shrink-0" />
 
@@ -205,7 +209,8 @@ export function AttendanceTable({
                             )
                         }
                         placeholder="Buscar estudiante..."
-                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:pl-11 sm:pr-4 sm:text-sm [@media(max-height:760px)]:h-10"
+                        disabled={isActionBusy}
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:pl-11 sm:pr-4 sm:text-sm [@media(max-height:760px)]:h-10"
                     />
                 </label>
 
@@ -237,6 +242,9 @@ export function AttendanceTable({
                     }
                     updatingAttendanceId={
                         updatingAttendanceId
+                    }
+                    isActionBusy={
+                        isActionBusy
                     }
                     onChangeAttendanceStatus={
                         onChangeAttendanceStatus
@@ -301,10 +309,12 @@ function EmptyStudents() {
 function AttendanceRows({
     filteredAttendances,
     updatingAttendanceId,
+    isActionBusy,
     onChangeAttendanceStatus,
 }: {
     filteredAttendances: Attendance[];
     updatingAttendanceId: number | null;
+    isActionBusy: boolean;
     onChangeAttendanceStatus: (
         attendance: Attendance,
         status: AttendanceState,
@@ -344,6 +354,9 @@ function AttendanceRows({
                                         updatingAttendanceId ===
                                         attendance.id
                                     }
+                                    statusChangesDisabled={
+                                        isActionBusy
+                                    }
                                     onChangeAttendanceStatus={
                                         onChangeAttendanceStatus
                                     }
@@ -366,6 +379,9 @@ function AttendanceRows({
                                 updatingAttendanceId ===
                                 attendance.id
                             }
+                            statusChangesDisabled={
+                                isActionBusy
+                            }
                             onChangeAttendanceStatus={
                                 onChangeAttendanceStatus
                             }
@@ -380,10 +396,12 @@ function AttendanceRows({
 function AttendanceDesktopRow({
     attendance,
     updating,
+    statusChangesDisabled,
     onChangeAttendanceStatus,
 }: {
     attendance: Attendance;
     updating: boolean;
+    statusChangesDisabled: boolean;
     onChangeAttendanceStatus: (
         attendance: Attendance,
         status: AttendanceState,
@@ -437,6 +455,7 @@ function AttendanceDesktopRow({
                         currentState
                     }
                     updating={updating}
+                    disabled={statusChangesDisabled}
                     onChangeAttendanceStatus={
                         onChangeAttendanceStatus
                     }
@@ -450,10 +469,12 @@ function AttendanceDesktopRow({
 function AttendanceMobileCard({
     attendance,
     updating,
+    statusChangesDisabled,
     onChangeAttendanceStatus,
 }: {
     attendance: Attendance;
     updating: boolean;
+    statusChangesDisabled: boolean;
     onChangeAttendanceStatus: (
         attendance: Attendance,
         status: AttendanceState,
@@ -510,6 +531,7 @@ function AttendanceMobileCard({
                         currentState
                     }
                     updating={updating}
+                    disabled={statusChangesDisabled}
                     onChangeAttendanceStatus={
                         onChangeAttendanceStatus
                     }
@@ -523,12 +545,14 @@ function StatusButtons({
     attendance,
     currentState,
     updating,
+    disabled,
     onChangeAttendanceStatus,
     compact = false,
 }: {
     attendance: Attendance;
     currentState: AttendanceState;
     updating: boolean;
+    disabled: boolean;
     onChangeAttendanceStatus: (
         attendance: Attendance,
         status: AttendanceState,
@@ -542,7 +566,11 @@ function StatusButtons({
                     <button
                         key={option.value}
                         type="button"
-                        disabled={updating}
+                        disabled={
+                            disabled ||
+                            updating ||
+                            currentState === option.value
+                        }
                         onClick={() =>
                             onChangeAttendanceStatus(
                                 attendance,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Course } from "@/services/courses.service";
 import { getCourseById } from "@/services/courses.service";
 import { getModulesByCourse } from "@/services/modules.service";
@@ -40,6 +40,7 @@ import {
     updateHomeworkResponse,
 } from "@/services/homework-response.service";
 import { getAuthSession } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 import { MAX_QUIZ_ATTEMPTS } from "./constants";
 import {
     canMarkAttendance,
@@ -205,6 +206,9 @@ function getAnsweredForumBlockIds(
 
 export function useCourseRoom(courseId: string) {
     const numericCourseId = useMemo(() => Number(courseId), [courseId]);
+
+    const refreshInProgressRef = useRef(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     const [modules, setModules] = useState<ModuleView[]>([]);
     const [selectedBlock, setSelectedBlock] = useState<LessonBlock | null>(
@@ -432,9 +436,23 @@ export function useCourseRoom(courseId: string) {
         return studentResponse;
     }
 
-    const loadCourseContent = useCallback(async () => {
-        try {
+    const loadCourseContent = useCallback(async (manualRefresh = false) => {
+        if (manualRefresh && refreshInProgressRef.current) return;
+
+        let toastId: string | number | undefined;
+
+        if (manualRefresh) {
+            refreshInProgressRef.current = true;
+            setIsRefreshing(true);
+            toastId = notify.loading(
+                "Actualizando aula...",
+                "Estamos consultando el contenido más reciente del curso.",
+            );
+        } else {
             setLoading(true);
+        }
+
+        try {
             setErrorMessage("");
             setCertificateMessage("");
 
@@ -566,14 +584,6 @@ export function useCourseRoom(courseId: string) {
             setCourse(currentCourseDetail);
             setIsMdtCourse(currentIsMdtCourse);
 
-            console.log("ROOM MDT DEBUG", {
-                courseId: numericCourseId,
-                isMdtCourse: currentIsMdtCourse,
-                idnumber: currentStudentIdNumber,
-                course: currentCourseDetail,
-                enrollmentUser,
-            });
-
             setCourseName(
                 currentCourseDetail?.name ||
                 activeEnrollment.course?.name ||
@@ -633,8 +643,36 @@ export function useCourseRoom(courseId: string) {
                     [modulesWithLessons[0].lessons[0].id]: true,
                 });
             }
+
+            if (manualRefresh) {
+                if (toastId !== undefined) {
+                    notify.dismiss(toastId);
+                    toastId = undefined;
+                }
+
+                notify.success(
+                    "Aula actualizada correctamente.",
+                    "El contenido y tu progreso se encuentran al día.",
+                );
+            }
         } catch (error) {
-            setErrorMessage(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setErrorMessage(message);
+
+            if (manualRefresh) {
+                if (toastId !== undefined) {
+                    notify.dismiss(toastId);
+                    toastId = undefined;
+                }
+
+                notify.error(
+                    "No se pudo actualizar el aula.",
+                    message,
+                );
+
+                return;
+            }
 
             setModules([]);
             setSelectedBlock(null);
@@ -676,7 +714,16 @@ export function useCourseRoom(courseId: string) {
             setAttendanceCodeBySession({});
             setAttendanceMessage("");
         } finally {
-            setLoading(false);
+            if (toastId !== undefined) {
+                notify.dismiss(toastId);
+            }
+
+            if (manualRefresh) {
+                refreshInProgressRef.current = false;
+                setIsRefreshing(false);
+            } else {
+                setLoading(false);
+            }
         }
     }, [numericCourseId]);
 
@@ -744,9 +791,12 @@ export function useCourseRoom(courseId: string) {
         }
 
         if (!studentUserId || !enrollmentId || !numericCourseId) {
-            setCertificateMessage(
-                "No se pudo identificar al estudiante o la matrícula.",
-            );
+            const message =
+                "No se pudo identificar al estudiante o la matrícula.";
+
+            setCertificateMessage(message);
+            notify.error("No se pudo generar el certificado.", message);
+
             return null;
         }
 
@@ -757,11 +807,19 @@ export function useCourseRoom(courseId: string) {
                 nextQuizResponses,
             )
         ) {
-            setCertificateMessage(
-                "Primero debes completar el 100% del curso y aprobar las evaluaciones.",
-            );
+            const message =
+                "Primero debes completar el 100% del curso y aprobar las evaluaciones.";
+
+            setCertificateMessage(message);
+            notify.info("Certificado todavía bloqueado.", message);
+
             return null;
         }
+
+        const toastId = notify.loading(
+            "Generando certificado...",
+            "Estamos preparando tu certificado institucional.",
+        );
 
         try {
             setCertificateGenerating(true);
@@ -770,9 +828,13 @@ export function useCourseRoom(courseId: string) {
             const template = await getCertificateTemplate(numericCourseId);
 
             if (!template.id) {
-                setCertificateMessage(
-                    "Curso terminado, pero aún no existe una plantilla de certificado para este curso.",
-                );
+                const message =
+                    "Curso terminado, pero aún no existe una plantilla de certificado para este curso.";
+
+                setCertificateMessage(message);
+                notify.dismiss(toastId);
+                notify.warning("Plantilla no disponible.", message);
+
                 return null;
             }
 
@@ -805,17 +867,26 @@ export function useCourseRoom(courseId: string) {
                 "Tu certificado se generó correctamente. Ahora puedes visualizarlo.",
             );
 
+            notify.dismiss(toastId);
+            notify.success(
+                "Certificado generado correctamente.",
+                "El archivo ya se encuentra disponible para visualizar o descargar.",
+            );
+
             return generated;
         } catch (error) {
-            const message = getErrorMessage(error);
+            const rawMessage = getErrorMessage(error);
 
-            setCertificateMessage(
-                message.includes("403") ||
-                    message.toLowerCase().includes("forbidden") ||
-                    message.toLowerCase().includes("permisos")
+            const message =
+                rawMessage.includes("403") ||
+                rawMessage.toLowerCase().includes("forbidden") ||
+                rawMessage.toLowerCase().includes("permisos")
                     ? "No se pudo generar el certificado porque el backend no permite que el estudiante cree o actualice certificados."
-                    : message,
-            );
+                    : rawMessage;
+
+            setCertificateMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo generar el certificado.", message);
 
             return null;
         } finally {
@@ -827,9 +898,12 @@ export function useCourseRoom(courseId: string) {
         setCertificateMessage("");
 
         if (!courseCompleted) {
-            setCertificateMessage(
-                `El certificado se habilitará cuando llegues al 100%. Progreso actual: ${progress}%.`,
-            );
+            const message =
+                `El certificado se habilitará cuando llegues al 100%. Progreso actual: ${progress}%.`;
+
+            setCertificateMessage(message);
+            notify.info("Certificado todavía bloqueado.", message);
+
             return;
         }
 
@@ -847,12 +921,17 @@ export function useCourseRoom(courseId: string) {
             quizResponses,
         );
 
+        if (!generated) return;
+
         const generatedUrl = getCertificateTargetUrl(generated);
 
         if (!generatedUrl) {
-            setCertificateMessage(
-                "No se pudo generar o visualizar el certificado.",
-            );
+            const message =
+                "El certificado fue generado, pero todavía no tiene un archivo disponible.";
+
+            setCertificateMessage(message);
+            notify.warning("Archivo no disponible.", message);
+
             return;
         }
 
@@ -877,13 +956,26 @@ export function useCourseRoom(courseId: string) {
         }
     }
 
-    async function markBlockAsCompleted(blockId: number) {
+    async function markBlockAsCompleted(
+        blockId: number,
+        options?: {
+            showToast?: boolean;
+        },
+    ) {
+        const showToast = options?.showToast ?? true;
+
         if (completedBlocks.includes(blockId)) return completedBlocks;
 
         if (!enrollmentId) {
-            setErrorMessage(
-                "No se pudo identificar la matrícula del estudiante.",
-            );
+            const message =
+                "No se pudo identificar la matrícula del estudiante.";
+
+            setErrorMessage(message);
+
+            if (showToast) {
+                notify.error("No se pudo actualizar el progreso.", message);
+            }
+
             return null;
         }
 
@@ -901,14 +993,28 @@ export function useCourseRoom(courseId: string) {
             await completeBlockProgress(enrollmentId, blockId);
 
             const progressResponse = await refreshProgress(enrollmentId);
+            const completedBlockIds = getCompletedBlockIds(progressResponse);
 
-            return getCompletedBlockIds(progressResponse);
+            if (showToast) {
+                notify.success(
+                    "Contenido completado.",
+                    "Tu progreso dentro del curso fue actualizado.",
+                );
+            }
+
+            return completedBlockIds;
         } catch (error) {
+            const message = getErrorMessage(error);
+
             setCompletedBlocks((current) =>
                 current.filter((currentBlockId) => currentBlockId !== blockId),
             );
 
-            setErrorMessage(getErrorMessage(error));
+            setErrorMessage(message);
+
+            if (showToast) {
+                notify.error("No se pudo actualizar el progreso.", message);
+            }
 
             return null;
         } finally {
@@ -972,23 +1078,35 @@ export function useCourseRoom(courseId: string) {
             return;
         }
 
+        if (studentResponseSaving) return;
+
         if (!enrollmentId) {
-            setStudentResponseMessage(
-                "No se pudo identificar la matrícula del estudiante.",
-            );
+            const message =
+                "No se pudo identificar la matrícula del estudiante.";
+
+            setStudentResponseMessage(message);
+            notify.error("No se pudo enviar la tarea.", message);
+
             return;
         }
 
         const cleanAnswer = homeworkText.trim();
 
         if (!homeworkFile) {
-            setStudentResponseMessage(
-                "Selecciona un archivo antes de enviar la tarea.",
-            );
+            const message =
+                "Selecciona un archivo antes de enviar la tarea.";
+
+            setStudentResponseMessage(message);
+            notify.warning("Archivo requerido.", message);
+
             return;
         }
 
         const existing = homeworkResponses[selectedBlock.id] ?? null;
+        const toastId = notify.loading(
+            existing?.id ? "Actualizando tarea..." : "Enviando tarea...",
+            "Estamos guardando tu archivo de evidencia.",
+        );
 
         try {
             setStudentResponseSaving(true);
@@ -1046,17 +1164,28 @@ export function useCourseRoom(courseId: string) {
             }));
 
             await refreshStudentResponsesForBlock(selectedBlock);
-            await markBlockAsCompleted(selectedBlock.id);
+            await markBlockAsCompleted(selectedBlock.id, {
+                showToast: false,
+            });
 
             setHomeworkFile(null);
 
-            setStudentResponseMessage(
-                wasUpdate
-                    ? "Tarea actualizada correctamente."
-                    : "Tarea enviada correctamente.",
+            const message = wasUpdate
+                ? "Tarea actualizada correctamente."
+                : "Tarea enviada correctamente.";
+
+            setStudentResponseMessage(message);
+            notify.dismiss(toastId);
+            notify.success(
+                wasUpdate ? "Tarea actualizada." : "Tarea enviada.",
+                message,
             );
         } catch (error) {
-            setStudentResponseMessage(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setStudentResponseMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo guardar la tarea.", message);
         } finally {
             setStudentResponseSaving(false);
         }
@@ -1067,10 +1196,15 @@ export function useCourseRoom(courseId: string) {
             return;
         }
 
+        if (studentResponseSaving) return;
+
         if (!enrollmentId) {
-            setStudentResponseMessage(
-                "No se pudo identificar la matrícula del estudiante.",
-            );
+            const message =
+                "No se pudo identificar la matrícula del estudiante.";
+
+            setStudentResponseMessage(message);
+            notify.error("No se pudo enviar la encuesta.", message);
+
             return;
         }
 
@@ -1080,6 +1214,15 @@ export function useCourseRoom(courseId: string) {
             selectedContent.items,
         );
 
+        if (questions.length === 0) {
+            const message = "Esta encuesta todavía no tiene preguntas.";
+
+            setStudentResponseMessage(message);
+            notify.warning("Encuesta sin preguntas.", message);
+
+            return;
+        }
+
         const hasMissingRequired = questions.some(
             (question) =>
                 question.required &&
@@ -1087,9 +1230,12 @@ export function useCourseRoom(courseId: string) {
         );
 
         if (hasMissingRequired) {
-            setStudentResponseMessage(
-                "Responde todas las preguntas obligatorias antes de guardar.",
-            );
+            const message =
+                "Responde todas las preguntas obligatorias antes de guardar.";
+
+            setStudentResponseMessage(message);
+            notify.warning("Encuesta incompleta.", message);
+
             return;
         }
 
@@ -1108,6 +1254,11 @@ export function useCourseRoom(courseId: string) {
             answers: surveyAnswers,
         };
 
+        const toastId = notify.loading(
+            existing?.id ? "Actualizando encuesta..." : "Enviando encuesta...",
+            "Estamos registrando tus respuestas.",
+        );
+
         try {
             setStudentResponseSaving(true);
             setStudentResponseMessage("");
@@ -1122,15 +1273,26 @@ export function useCourseRoom(courseId: string) {
             }));
 
             await refreshStudentResponsesForBlock(selectedBlock);
-            await markBlockAsCompleted(selectedBlock.id);
+            await markBlockAsCompleted(selectedBlock.id, {
+                showToast: false,
+            });
 
-            setStudentResponseMessage(
-                existing?.id
-                    ? "Encuesta actualizada correctamente."
-                    : "Encuesta enviada correctamente.",
+            const message = existing?.id
+                ? "Encuesta actualizada correctamente."
+                : "Encuesta enviada correctamente.";
+
+            setStudentResponseMessage(message);
+            notify.dismiss(toastId);
+            notify.success(
+                existing?.id ? "Encuesta actualizada." : "Encuesta enviada.",
+                message,
             );
         } catch (error) {
-            setStudentResponseMessage(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setStudentResponseMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo guardar la encuesta.", message);
         } finally {
             setStudentResponseSaving(false);
         }
@@ -1161,34 +1323,58 @@ export function useCourseRoom(courseId: string) {
     );
 
     async function handleSubmitForumResponse() {
+        if (studentResponseSaving) return;
+
+        if (!selectedBlock?.id) {
+            const message = "No se encontró el foro seleccionado.";
+
+            setStudentResponseMessage(message);
+            notify.error("No se pudo publicar la participación.", message);
+
+            return;
+        }
+
+        const validEnrollmentId = Number(enrollmentId);
+
+        if (!Number.isFinite(validEnrollmentId) || validEnrollmentId <= 0) {
+            const message = "ID de matrícula no válido.";
+
+            setStudentResponseMessage(message);
+            notify.error("No se pudo publicar la participación.", message);
+
+            return;
+        }
+
+        const validLessonBlockId = Number(selectedBlock.id);
+
+        if (!Number.isFinite(validLessonBlockId) || validLessonBlockId <= 0) {
+            const message = "ID de bloque no válido.";
+
+            setStudentResponseMessage(message);
+            notify.error("No se pudo publicar la participación.", message);
+
+            return;
+        }
+
+        const comment = forumText.trim();
+
+        if (!comment) {
+            const message = "Escribe tu participación antes de publicar.";
+
+            setStudentResponseMessage(message);
+            notify.warning("Participación requerida.", message);
+
+            return;
+        }
+
+        const toastId = notify.loading(
+            "Publicando participación...",
+            "Estamos registrando tu comentario en el foro.",
+        );
+
         try {
             setStudentResponseSaving(true);
             setStudentResponseMessage("");
-
-            if (!selectedBlock?.id) {
-                throw new Error("No se encontró el foro seleccionado.");
-            }
-
-            const validEnrollmentId = Number(enrollmentId);
-
-            if (!Number.isFinite(validEnrollmentId) || validEnrollmentId <= 0) {
-                throw new Error("ID de matrícula no válido.");
-            }
-
-            const validLessonBlockId = Number(selectedBlock.id);
-
-            if (
-                !Number.isFinite(validLessonBlockId) ||
-                validLessonBlockId <= 0
-            ) {
-                throw new Error("ID de bloque no válido.");
-            }
-
-            const comment = forumText.trim();
-
-            if (!comment) {
-                throw new Error("Escribe tu participación antes de publicar.");
-            }
 
             await createForumResponse({
                 enrollment_id: validEnrollmentId,
@@ -1198,18 +1384,27 @@ export function useCourseRoom(courseId: string) {
             });
 
             await refreshForumResponses(validLessonBlockId);
-            await markBlockAsCompleted(validLessonBlockId);
+            await markBlockAsCompleted(validLessonBlockId, {
+                showToast: false,
+            });
 
             setForumText("");
-            setStudentResponseMessage(
-                "Participación publicada correctamente. Actividad realizada.",
-            );
+
+            const message =
+                "Participación publicada correctamente. Actividad realizada.";
+
+            setStudentResponseMessage(message);
+            notify.dismiss(toastId);
+            notify.success("Participación publicada.", message);
         } catch (error) {
-            setStudentResponseMessage(
+            const message =
                 error instanceof Error
                     ? error.message
-                    : "No se pudo publicar la participación.",
-            );
+                    : "No se pudo publicar la participación.";
+
+            setStudentResponseMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo publicar la participación.", message);
         } finally {
             setStudentResponseSaving(false);
         }
@@ -1224,9 +1419,12 @@ export function useCourseRoom(courseId: string) {
 
     async function handleMarkAttendance(sessionId: number) {
         if (!enrollmentId) {
-            setAttendanceMessage(
-                "No se pudo identificar la matrícula del estudiante.",
-            );
+            const message =
+                "No se pudo identificar la matrícula del estudiante.";
+
+            setAttendanceMessage(message);
+            notify.error("No se pudo registrar la asistencia.", message);
+
             return;
         }
 
@@ -1234,7 +1432,11 @@ export function useCourseRoom(courseId: string) {
             attendanceSessions.find((item) => item.id === sessionId) ?? null;
 
         if (!session) {
-            setAttendanceMessage("No se encontró la sesión seleccionada.");
+            const message = "No se encontró la sesión seleccionada.";
+
+            setAttendanceMessage(message);
+            notify.error("No se pudo registrar la asistencia.", message);
+
             return;
         }
 
@@ -1244,20 +1446,31 @@ export function useCourseRoom(courseId: string) {
         );
 
         if (!canMarkAttendance(session, existingRecord)) {
-            setAttendanceMessage(
-                "Esta sesión no está habilitada para registrar asistencia.",
-            );
+            const message =
+                "Esta sesión no está habilitada para registrar asistencia.";
+
+            setAttendanceMessage(message);
+            notify.info("Asistencia no disponible.", message);
+
             return;
         }
 
         const code = String(attendanceCodeBySession[sessionId] ?? "").trim();
 
         if (session.requires_code && !code) {
-            setAttendanceMessage(
-                "Ingresa el código de asistencia indicado por el docente.",
-            );
+            const message =
+                "Ingresa el código de asistencia indicado por el docente.";
+
+            setAttendanceMessage(message);
+            notify.warning("Código requerido.", message);
+
             return;
         }
+
+        const toastId = notify.loading(
+            "Registrando asistencia...",
+            "Estamos validando la sesión seleccionada.",
+        );
 
         try {
             setAttendanceSavingSessionId(sessionId);
@@ -1281,9 +1494,17 @@ export function useCourseRoom(courseId: string) {
                 [sessionId]: "",
             }));
 
-            setAttendanceMessage("Asistencia registrada correctamente.");
+            const message = "Asistencia registrada correctamente.";
+
+            setAttendanceMessage(message);
+            notify.dismiss(toastId);
+            notify.success("Asistencia registrada.", message);
         } catch (error) {
-            setAttendanceMessage(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setAttendanceMessage(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo registrar la asistencia.", message);
         } finally {
             setAttendanceSavingSessionId(null);
         }
@@ -1297,12 +1518,20 @@ export function useCourseRoom(courseId: string) {
     }
 
     async function handleSubmitQuiz() {
-        if (!selectedBlock) return;
+        if (!selectedBlock || getLessonItemType(selectedBlock) !== "quiz") {
+            return;
+        }
+
+        if (quizSaving) return;
 
         const questions = normalizeQuizQuestions(selectedContent.questions);
 
         if (questions.length === 0) {
-            setQuizResult("Esta evaluación todavía no tiene preguntas.");
+            const message = "Esta evaluación todavía no tiene preguntas.";
+
+            setQuizResult(message);
+            notify.warning("Evaluación sin preguntas.", message);
+
             return;
         }
 
@@ -1311,12 +1540,22 @@ export function useCourseRoom(courseId: string) {
         );
 
         if (hasUnansweredQuestion) {
-            setQuizResult("Responde todas las preguntas antes de finalizar.");
+            const message =
+                "Responde todas las preguntas antes de finalizar.";
+
+            setQuizResult(message);
+            notify.warning("Evaluación incompleta.", message);
+
             return;
         }
 
         if (!enrollmentId) {
-            setQuizResult("No se pudo identificar la matrícula del estudiante.");
+            const message =
+                "No se pudo identificar la matrícula del estudiante.";
+
+            setQuizResult(message);
+            notify.error("No se pudo enviar la evaluación.", message);
+
             return;
         }
 
@@ -1339,9 +1578,12 @@ export function useCourseRoom(courseId: string) {
         const currentAttempts = getQuizAttemptsCount(storedResponse);
 
         if (currentAttempts >= MAX_QUIZ_ATTEMPTS) {
-            setQuizResult(
-                "Ya alcanzaste el máximo de 3 intentos para esta evaluación.",
-            );
+            const message =
+                "Ya alcanzaste el máximo de 3 intentos para esta evaluación.";
+
+            setQuizResult(message);
+            notify.warning("Intentos agotados.", message);
+
             return;
         }
 
@@ -1375,6 +1617,11 @@ export function useCourseRoom(courseId: string) {
             history: [...previous.history, attemptRecord],
         };
 
+        const toastId = notify.loading(
+            "Enviando evaluación...",
+            `Estamos registrando tu intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}.`,
+        );
+
         try {
             setQuizSaving(true);
             setQuizResult("");
@@ -1396,25 +1643,37 @@ export function useCourseRoom(courseId: string) {
 
             setQuizResponses((current) => upsertQuizResponse(current, saved));
 
-            if (isPassed) {
-                await markBlockAsCompleted(selectedBlock.id);
+            notify.dismiss(toastId);
 
-                setQuizResult(
-                    `Evaluación aprobada. Intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}.`,
-                );
+            if (isPassed) {
+                await markBlockAsCompleted(selectedBlock.id, {
+                    showToast: false,
+                });
+
+                const message =
+                    `Evaluación aprobada. Intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}.`;
+
+                setQuizResult(message);
+                notify.success("Evaluación aprobada.", message);
 
                 return;
             }
 
             const remaining = MAX_QUIZ_ATTEMPTS - nextAttempt;
 
-            setQuizResult(
+            const message =
                 remaining <= 0
                     ? `Evaluación no aprobada. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}. Ya no tienes intentos disponibles.`
-                    : `Evaluación no aprobada. Intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}. Te quedan ${remaining} intento(s).`,
-            );
+                    : `Evaluación no aprobada. Intento ${nextAttempt} de ${MAX_QUIZ_ATTEMPTS}. Puntaje obtenido: ${score}. Mínimo requerido: ${minimumScore}. Te quedan ${remaining} intento(s).`;
+
+            setQuizResult(message);
+            notify.warning("Evaluación no aprobada.", message);
         } catch (error) {
-            setQuizResult(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setQuizResult(message);
+            notify.dismiss(toastId);
+            notify.error("No se pudo enviar la evaluación.", message);
         } finally {
             setQuizSaving(false);
         }
@@ -1471,6 +1730,7 @@ export function useCourseRoom(courseId: string) {
         studentResponseMessage,
 
         loading,
+        isRefreshing,
         errorMessage,
 
         studentUserId,
@@ -1537,7 +1797,7 @@ export function useCourseRoom(courseId: string) {
         handleQuizAnswer,
         handleSubmitQuiz,
 
-        reloadCourse: loadCourseContent,
+        reloadCourse: () => loadCourseContent(true),
 
         refreshAttendance: () =>
             enrollmentId

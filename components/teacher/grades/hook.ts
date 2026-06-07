@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { notify } from "@/lib/notify";
 import { getAllCourses, type Course } from "@/services/courses.service";
 import {
     createCertificateFromTemplate,
@@ -25,10 +26,10 @@ import {
     updateQuizzResponse,
 } from "@/services/quizz-response.service";
 import {
-    getHomeworkResponsesByLessonBlockFlexible,
-    normalizeList,
-    updateHomeworkResponseFlexible,
-} from "./api";
+    getHomeworkResponsesByLessonBlock,
+    gradeHomeworkResponse,
+} from "@/services/homework-response.service";
+import { normalizeList } from "./api";
 import type {
     EnrollmentGroup,
     GradeBlockInfo,
@@ -44,6 +45,8 @@ import {
     getEnrollmentId,
     getErrorMessage,
     getGroupAverage,
+    getMaxScore,
+    getQuizQuestions,
     getScore,
     getStudentName,
     getUserId,
@@ -55,6 +58,18 @@ import {
 } from "./utils";
 
 const ROWS_PER_PAGE = 7;
+
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
 
 export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
     const pathname = usePathname();
@@ -94,12 +109,20 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
         useState<number | null>(null);
 
     const [errorMessage, setErrorMessage] = useState("");
-    const [notice, setNotice] = useState("");
 
     const [groupModal, setGroupModal] = useState<GroupModalState | null>(null);
     const [editScores, setEditScores] = useState<Record<number, string>>({});
     const [editPassed, setEditPassed] = useState<Record<number, boolean>>({});
     const [modalError, setModalError] = useState("");
+
+    const loadRequestRef = useRef<{
+        courseId: number;
+        sequence: number;
+        promise: Promise<void>;
+    } | null>(null);
+    const loadRequestSequenceRef = useRef(0);
+    const savingResponseRef = useRef<number | null>(null);
+    const generatingCertificateRef = useRef<number | null>(null);
 
     const courseOptions = useMemo(
         () => [...courses].sort((a: Course, b: Course) => a.name.localeCompare(b.name)),
@@ -271,108 +294,164 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
 
     const loadGrades = useCallback(
         async (showRefresh = false) => {
-            try {
+            const requestedCourseId = currentCourseId;
+            const activeRequest = loadRequestRef.current;
+
+            if (activeRequest?.courseId === requestedCourseId) {
                 if (showRefresh) {
-                    setIsRefreshing(true);
-                } else {
-                    setIsLoading(true);
+                    notify.warning(
+                        "La actualización de calificaciones ya está en proceso.",
+                    );
                 }
 
-                setErrorMessage("");
-                setNotice("");
+                return activeRequest.promise;
+            }
 
-                if (!currentCourseId || currentCourseId <= 0) {
-                    const coursesData = await getAllCourses();
-                    const safeCourses = normalizeList<Course>(coursesData);
-
-                    setCourses(safeCourses);
-                    setCourse(null);
-                    setActivityBlocks([]);
-                    setGrades([]);
-                    setCertificates([]);
-                    setCurrentPage(1);
-                    return;
-                }
-
-                const [
-                    coursesData,
-                    courseModulesData,
-                    courseCertificatesData,
-                ] = await Promise.all([
-                    getAllCourses(),
-                    getModulesByCourse(currentCourseId),
-                    getCertificatesByCourse(currentCourseId),
-                ]);
-
-                const safeCourses = normalizeList<Course>(coursesData);
-                const courseModules =
-                    normalizeList<CourseModule>(courseModulesData);
-                const courseCertificates =
-                    normalizeList<Certificate>(courseCertificatesData);
-
-                setCourses(safeCourses);
-
-                const currentCourse =
-                    safeCourses.find(
-                        (courseItem: Course) =>
-                            Number(courseItem.id) === currentCourseId,
-                    ) ?? null;
-
-                const blockResults = await Promise.all(
-                    sortByOrder<CourseModule>(courseModules).map(
-                        async (moduleItem: CourseModule) => {
-                            const lessonsData = await getLessonsByModule(
-                                moduleItem.id,
-                            );
-
-                            const lessons = normalizeList<Lesson>(lessonsData);
-
-                            const lessonBlockResults = await Promise.all(
-                                sortByOrder<Lesson>(lessons).map(
-                                    async (lessonItem: Lesson) => {
-                                        const blocksData =
-                                            await getLessonBlocksByLesson(
-                                                lessonItem.id,
-                                            );
-
-                                        const blocks =
-                                            normalizeList<LessonBlock>(
-                                                blocksData,
-                                            );
-
-                                        return sortByOrder<LessonBlock>(blocks)
-                                            .filter(
-                                                (block: LessonBlock) =>
-                                                    block.is_active !== false &&
-                                                    (isQuizBlock(block) ||
-                                                        isHomeworkBlock(block)),
-                                            )
-                                            .map((block: LessonBlock) => ({
-                                                module: moduleItem,
-                                                lesson: lessonItem,
-                                                block,
-                                                kind: isQuizBlock(block)
-                                                    ? ("quiz" as const)
-                                                    : ("homework" as const),
-                                            }));
-                                    },
-                                ),
-                            );
-
-                            return lessonBlockResults.flat();
-                        },
-                    ),
+            if (savingResponseRef.current !== null) {
+                notify.warning(
+                    "Espera a que termine el guardado de la calificación.",
                 );
+                return;
+            }
 
-                const currentActivityBlocks: GradeBlockInfo[] =
-                    blockResults.flat();
+            if (generatingCertificateRef.current !== null) {
+                notify.warning(
+                    "Espera a que termine el proceso del certificado.",
+                );
+                return;
+            }
 
-                const responseResults = await Promise.all(
-                    currentActivityBlocks.map(
-                        async (blockInfo: GradeBlockInfo) => {
-                            if (blockInfo.kind === "quiz") {
+            const requestSequence = ++loadRequestSequenceRef.current;
+            const dismissLoadingToast = showRefresh
+                ? createLoadingToast("Actualizando calificaciones...")
+                : null;
+
+            const promise = (async () => {
+                try {
+                    if (showRefresh) {
+                        setIsRefreshing(true);
+                    } else {
+                        setIsLoading(true);
+                    }
+
+                    setErrorMessage("");
+
+                    if (!requestedCourseId || requestedCourseId <= 0) {
+                        const coursesData = await getAllCourses();
+                        const safeCourses = normalizeList<Course>(coursesData);
+
+                        if (requestSequence !== loadRequestSequenceRef.current) {
+                            return;
+                        }
+
+                        setCourses(safeCourses);
+                        setCourse(null);
+                        setActivityBlocks([]);
+                        setGrades([]);
+                        setCertificates([]);
+                        setCurrentPage(1);
+
+                        if (showRefresh) {
+                            notify.success("Cursos actualizados correctamente.");
+                        }
+
+                        return;
+                    }
+
+                    const [
+                        coursesData,
+                        courseModulesData,
+                        courseCertificatesData,
+                    ] = await Promise.all([
+                        getAllCourses(),
+                        getModulesByCourse(requestedCourseId),
+                        getCertificatesByCourse(requestedCourseId),
+                    ]);
+
+                    const safeCourses = normalizeList<Course>(coursesData);
+                    const courseModules =
+                        normalizeList<CourseModule>(courseModulesData);
+                    const courseCertificates =
+                        normalizeList<Certificate>(courseCertificatesData);
+
+                    const currentCourse =
+                        safeCourses.find(
+                            (courseItem: Course) =>
+                                Number(courseItem.id) === requestedCourseId,
+                        ) ?? null;
+
+                    const blockResults = await Promise.all(
+                        sortByOrder<CourseModule>(courseModules).map(
+                            async (moduleItem: CourseModule) => {
+                                const lessonsData = await getLessonsByModule(
+                                    moduleItem.id,
+                                );
+
+                                const lessons = normalizeList<Lesson>(lessonsData);
+
+                                const lessonBlockResults = await Promise.all(
+                                    sortByOrder<Lesson>(lessons).map(
+                                        async (lessonItem: Lesson) => {
+                                            const blocksData =
+                                                await getLessonBlocksByLesson(
+                                                    lessonItem.id,
+                                                );
+
+                                            const blocks =
+                                                normalizeList<LessonBlock>(
+                                                    blocksData,
+                                                );
+
+                                            return sortByOrder<LessonBlock>(blocks)
+                                                .filter(
+                                                    (block: LessonBlock) =>
+                                                        block.is_active !== false &&
+                                                        (isQuizBlock(block) ||
+                                                            isHomeworkBlock(block)),
+                                                )
+                                                .map((block: LessonBlock) => ({
+                                                    module: moduleItem,
+                                                    lesson: lessonItem,
+                                                    block,
+                                                    kind: isQuizBlock(block)
+                                                        ? ("quiz" as const)
+                                                        : ("homework" as const),
+                                                }));
+                                        },
+                                    ),
+                                );
+
+                                return lessonBlockResults.flat();
+                            },
+                        ),
+                    );
+
+                    const currentActivityBlocks: GradeBlockInfo[] =
+                        blockResults.flat();
+
+                    const responseResults = await Promise.all(
+                        currentActivityBlocks.map(
+                            async (blockInfo: GradeBlockInfo) => {
+                                if (blockInfo.kind === "quiz") {
+                                    const responsesData =
+                                        await getQuizzResponsesByLessonBlock(
+                                            blockInfo.block.id,
+                                        );
+
+                                    const responses =
+                                        normalizeList<GradeResponse>(responsesData);
+
+                                    return responses.map(
+                                        (response: GradeResponse): GradeRow => ({
+                                            kind: "quiz",
+                                            blockInfo,
+                                            response,
+                                        }),
+                                    );
+                                }
+
                                 const responsesData =
-                                    await getQuizzResponsesByLessonBlock(
+                                    await getHomeworkResponsesByLessonBlock(
                                         blockInfo.block.id,
                                     );
 
@@ -381,63 +460,87 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
 
                                 return responses.map(
                                     (response: GradeResponse): GradeRow => ({
-                                        kind: "quiz",
+                                        kind: "homework",
                                         blockInfo,
                                         response,
                                     }),
                                 );
-                            }
-
-                            const responses =
-                                await getHomeworkResponsesByLessonBlockFlexible(
-                                    blockInfo.block.id,
-                                );
-
-                            return responses.map(
-                                (response: GradeResponse): GradeRow => ({
-                                    kind: "homework",
-                                    blockInfo,
-                                    response,
-                                }),
-                            );
-                        },
-                    ),
-                );
-
-                const currentGrades = responseResults
-                    .flat()
-                    .filter(
-                        (row: GradeRow) => Number(row.response.id) > 0,
-                    )
-                    .sort(
-                        (a: GradeRow, b: GradeRow) =>
-                            new Date(
-                                b.response.updated_at ??
-                                b.response.created_at ??
-                                "",
-                            ).getTime() -
-                            new Date(
-                                a.response.updated_at ??
-                                a.response.created_at ??
-                                "",
-                            ).getTime(),
+                            },
+                        ),
                     );
 
-                setCourse(currentCourse);
-                setActivityBlocks(currentActivityBlocks);
-                setGrades(currentGrades);
-                setCertificates(courseCertificates);
-                setCurrentPage(1);
-            } catch (error) {
-                setErrorMessage(getErrorMessage(error));
-                setCourse(null);
-                setActivityBlocks([]);
-                setGrades([]);
-                setCertificates([]);
-            } finally {
-                setIsLoading(false);
-                setIsRefreshing(false);
-            }
+                    const currentGrades = responseResults
+                        .flat()
+                        .filter(
+                            (row: GradeRow) => Number(row.response.id) > 0,
+                        )
+                        .sort(
+                            (a: GradeRow, b: GradeRow) =>
+                                new Date(
+                                    b.response.updated_at ??
+                                        b.response.created_at ??
+                                        "",
+                                ).getTime() -
+                                new Date(
+                                    a.response.updated_at ??
+                                        a.response.created_at ??
+                                        "",
+                                ).getTime(),
+                        );
+
+                    if (requestSequence !== loadRequestSequenceRef.current) {
+                        return;
+                    }
+
+                    setCourses(safeCourses);
+                    setCourse(currentCourse);
+                    setActivityBlocks(currentActivityBlocks);
+                    setGrades(currentGrades);
+                    setCertificates(courseCertificates);
+                    setCurrentPage(1);
+
+                    if (showRefresh) {
+                        notify.success("Calificaciones actualizadas correctamente.");
+                    }
+                } catch (error) {
+                    if (requestSequence !== loadRequestSequenceRef.current) {
+                        return;
+                    }
+
+                    const message = getErrorMessage(error);
+
+                    setErrorMessage(message);
+                    setCourse(null);
+                    setActivityBlocks([]);
+                    setGrades([]);
+                    setCertificates([]);
+
+                    if (showRefresh) {
+                        notify.error(message);
+                    }
+                } finally {
+                    dismissLoadingToast?.();
+
+                    if (requestSequence === loadRequestSequenceRef.current) {
+                        setIsLoading(false);
+                        setIsRefreshing(false);
+                    }
+
+                    if (
+                        loadRequestRef.current?.sequence === requestSequence
+                    ) {
+                        loadRequestRef.current = null;
+                    }
+                }
+            })();
+
+            loadRequestRef.current = {
+                courseId: requestedCourseId,
+                sequence: requestSequence,
+                promise,
+            };
+
+            return promise;
         },
         [currentCourseId],
     );
@@ -464,7 +567,6 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
         setSelectedBlockId(0);
         setCurrentPage(1);
         setErrorMessage("");
-        setNotice("");
         setGroupModal(null);
     }
 
@@ -481,17 +583,20 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
         setEditScores(scores);
         setEditPassed(passed);
         setModalError("");
-        setNotice("");
         setErrorMessage("");
+    }
+
+    function resetGroupModalState() {
+        setGroupModal(null);
+        setEditScores({});
+        setEditPassed({});
+        setModalError("");
     }
 
     function closeGroupModal() {
         if (savingResponseId || generatingCertificateUserId) return;
 
-        setGroupModal(null);
-        setEditScores({});
-        setEditPassed({});
-        setModalError("");
+        resetGroupModalState();
     }
 
     function updateCertificateState(certificate: Certificate) {
@@ -581,31 +686,61 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
     async function handleSaveGrade(row: GradeRow) {
         const responseId = row.response.id;
         const parsedScore = Number(editScores[responseId]);
+        const maximumScore =
+            row.kind === "quiz" ? getMaxScore(getQuizQuestions(row)) : 0;
 
         if (!Number.isFinite(parsedScore) || parsedScore < 0) {
-            setModalError("Ingresa un puntaje válido.");
+            const message = "Ingresa un puntaje válido.";
+
+            setModalError(message);
+            notify.warning(message);
             return;
         }
 
-        try {
-            setSavingResponseId(responseId);
-            setModalError("");
+        if (maximumScore > 0 && parsedScore > maximumScore) {
+            const message = `La nota de la prueba no puede superar ${maximumScore}.`;
 
-            const payload = {
-                response: normalizeResponseToString(row.response.response),
-                score: parsedScore,
-                grade: parsedScore,
-                is_passed: editPassed[responseId] ?? false,
-                isPassed: editPassed[responseId] ?? false,
-            };
+            setModalError(message);
+            notify.warning(message);
+            return;
+        }
+
+        if (savingResponseRef.current !== null) {
+            notify.warning("Ya se está guardando una calificación.");
+            return;
+        }
+
+        if (generatingCertificateRef.current !== null) {
+            notify.warning(
+                "Espera a que termine el proceso del certificado.",
+            );
+            return;
+        }
+
+        savingResponseRef.current = responseId;
+        setSavingResponseId(responseId);
+        setModalError("");
+
+        const dismissLoadingToast = createLoadingToast(
+            "Guardando calificación...",
+        );
+
+        try {
+            const passed = editPassed[responseId] ?? false;
 
             const updatedResponse =
                 row.kind === "quiz"
-                    ? await updateQuizzResponse(responseId, payload)
-                    : await updateHomeworkResponseFlexible(
-                        responseId,
-                        payload,
-                    );
+                    ? await updateQuizzResponse(responseId, {
+                        response: normalizeResponseToString(
+                            row.response.response,
+                        ),
+                        score: parsedScore,
+                        is_passed: passed,
+                    })
+                    : await gradeHomeworkResponse(responseId, {
+                        score: parsedScore,
+                        status: "CALIFICADO",
+                    });
 
             replaceGradeResponse({
                 ...row.response,
@@ -615,85 +750,113 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
                 id: responseId,
                 score: parsedScore,
                 grade: parsedScore,
-                is_passed: editPassed[responseId] ?? false,
+                is_passed: passed,
             });
 
             if (currentCourseId > 0) {
-                const freshCertificatesData =
-                    await getCertificatesByCourse(currentCourseId);
+                try {
+                    const freshCertificatesData =
+                        await getCertificatesByCourse(currentCourseId);
 
-                const freshCertificates =
-                    normalizeList<Certificate>(freshCertificatesData);
+                    const freshCertificates =
+                        normalizeList<Certificate>(freshCertificatesData);
 
-                setCertificates(freshCertificates);
+                    setCertificates(freshCertificates);
 
-                setGroupModal((current: GroupModalState | null) => {
-                    if (!current) return current;
+                    setGroupModal((current: GroupModalState | null) => {
+                        if (!current) return current;
 
-                    const freshCertificate =
-                        freshCertificates.find(
-                            (item: Certificate) =>
-                                Number(item.user_id) ===
-                                Number(current.group.userId) &&
-                                Number(item.course_id) ===
-                                Number(currentCourseId) &&
-                                item.is_valid !== false,
-                        ) ??
-                        freshCertificates.find(
-                            (item: Certificate) =>
-                                Number(item.user_id) ===
-                                Number(current.group.userId) &&
-                                Number(item.course_id) ===
-                                Number(currentCourseId),
-                        ) ??
-                        current.group.certificate ??
-                        null;
+                        const freshCertificate =
+                            freshCertificates.find(
+                                (item: Certificate) =>
+                                    Number(item.user_id) ===
+                                        Number(current.group.userId) &&
+                                    Number(item.course_id) ===
+                                        Number(currentCourseId) &&
+                                    item.is_valid !== false,
+                            ) ??
+                            freshCertificates.find(
+                                (item: Certificate) =>
+                                    Number(item.user_id) ===
+                                        Number(current.group.userId) &&
+                                    Number(item.course_id) ===
+                                        Number(currentCourseId),
+                            ) ??
+                            current.group.certificate ??
+                            null;
 
-                    return {
-                        group: {
-                            ...current.group,
-                            certificate: freshCertificate,
-                        },
-                    };
-                });
+                        return {
+                            group: {
+                                ...current.group,
+                                certificate: freshCertificate,
+                            },
+                        };
+                    });
+                } catch {
+                    notify.warning(
+                        "La nota se guardó, pero no se pudo actualizar la información del certificado.",
+                    );
+                }
             }
 
-            setNotice(
-                "Calificación actualizada correctamente. El promedio del certificado fue actualizado.",
+            notify.success(
+                "Calificación actualizada correctamente.",
             );
+
+            resetGroupModalState();
         } catch (error) {
-            setModalError(getErrorMessage(error));
+            const message = getErrorMessage(error);
+
+            setModalError(message);
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            savingResponseRef.current = null;
             setSavingResponseId(null);
         }
     }
 
     async function handleGenerateOrReissueCertificate(group: EnrollmentGroup) {
         if (!course || !currentCourseId || !group.userId) {
-            setErrorMessage("No se pudo identificar el curso o el estudiante.");
+            notify.error("No se pudo identificar el curso o el estudiante.");
             return;
         }
 
         if (group.rows.length === 0) {
-            setErrorMessage(
-                "No hay calificaciones para generar el certificado.",
-            );
+            notify.warning("No hay calificaciones para generar el certificado.");
             return;
         }
 
         if (group.failedCount > 0) {
-            setErrorMessage(
+            notify.warning(
                 "No se puede generar el certificado porque el estudiante tiene actividades no aprobadas.",
             );
             return;
         }
 
-        try {
-            setGeneratingCertificateUserId(group.userId);
-            setErrorMessage("");
-            setNotice("");
-            setModalError("");
+        if (generatingCertificateRef.current !== null) {
+            notify.warning("Ya se está procesando un certificado.");
+            return;
+        }
 
+        if (savingResponseRef.current !== null) {
+            notify.warning(
+                "Espera a que termine el guardado de la calificación.",
+            );
+            return;
+        }
+
+        generatingCertificateRef.current = group.userId;
+        setGeneratingCertificateUserId(group.userId);
+        setModalError("");
+
+        const dismissLoadingToast = createLoadingToast(
+            group.certificate
+                ? "Reemitiendo certificado..."
+                : "Generando certificado...",
+        );
+
+        try {
             const template = await getCertificateTemplate(currentCourseId);
 
             if (!template.id) {
@@ -755,21 +918,27 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
 
             const wasOpened = openCertificateByRoute(certificate);
 
-            setNotice(
-                existingCertificate
-                    ? wasOpened
+            if (existingCertificate) {
+                notify.success(
+                    wasOpened
                         ? "Certificado reemitido correctamente y abierto en otra pestaña."
-                        : "Certificado reemitido correctamente, pero no se pudo abrir porque no tiene código."
-                    : wasOpened
+                        : "Certificado reemitido correctamente, pero no se pudo abrir porque no tiene código.",
+                );
+            } else {
+                notify.success(
+                    wasOpened
                         ? "Certificado generado correctamente y abierto en otra pestaña."
                         : "Certificado generado correctamente, pero no se pudo abrir porque no tiene código.",
-            );
+                );
+            }
         } catch (error) {
             const message = getErrorMessage(error);
 
-            setErrorMessage(message);
             setModalError(message);
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            generatingCertificateRef.current = null;
             setGeneratingCertificateUserId(null);
         }
     }
@@ -795,7 +964,6 @@ export function useGrades({ courseId, params }: TeacherQuizGradesViewProps) {
         savingResponseId,
         generatingCertificateUserId,
         errorMessage,
-        notice,
 
         groupModal,
         editScores,

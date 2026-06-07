@@ -25,11 +25,6 @@ export function CatalogHeader({
             </div>
 
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                <span className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs font-black text-slate-950 shadow-sm sm:px-4 sm:text-sm">
-                    <GraduationCap className="h-4 w-4 shrink-0 text-[#00469B]" />
-                    <span className="hidden xs:inline">Rol:</span>
-                    Estudiante
-                </span>
 
                 <StudentNotificationsBell />
 

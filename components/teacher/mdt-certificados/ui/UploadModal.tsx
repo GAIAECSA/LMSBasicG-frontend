@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
     FolderUp,
     Loader2,
@@ -6,7 +7,10 @@ import {
     X,
 } from "lucide-react";
 import type { MdtCertificatesTeacherState } from "../hook";
-import { CERTIFICATE_TYPES } from "../constants";
+import {
+    ACCEPTED_CERTIFICATE_FILES,
+    CERTIFICATE_TYPES,
+} from "../constants";
 import {
     getFileKey,
     getIdNumberFromFileName,
@@ -20,6 +24,20 @@ type UploadModalProps = {
 export function UploadModal({
     certs,
 }: UploadModalProps) {
+    const filesInputRef =
+        useRef<HTMLInputElement | null>(null);
+
+    const multipleFilesInputRef =
+        useRef<HTMLInputElement | null>(null);
+
+    function openSingleFilePicker() {
+        filesInputRef.current?.click();
+    }
+
+    function openMultipleFilesPicker() {
+        multipleFilesInputRef.current?.click();
+    }
+
     if (!certs.uploadModalOpen) return null;
 
     return (
@@ -251,15 +269,13 @@ export function UploadModal({
                         </h3>
 
                         <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
-                            Formatos permitidos: PDF, JPG, PNG y WEBP.
+                            Formato permitido: PDF.
                         </p>
 
                         <div className="mt-3 flex flex-wrap justify-center gap-2">
                             <button
                                 type="button"
-                                onClick={() =>
-                                    certs.filesInputRef.current?.click()
-                                }
+                                onClick={openSingleFilePicker}
                                 disabled={certs.uploading}
                                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#172861] px-3 text-xs font-black text-white transition hover:bg-[#0B163F] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
                             >
@@ -270,9 +286,7 @@ export function UploadModal({
                             {certs.uploadType === "bulk" ? (
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        certs.multipleFilesInputRef.current?.click()
-                                    }
+                                    onClick={openMultipleFilesPicker}
                                     disabled={certs.uploading}
                                     className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
                                 >
@@ -283,18 +297,17 @@ export function UploadModal({
                         </div>
 
                         <input
-                            ref={certs.filesInputRef}
+                            ref={filesInputRef}
                             type="file"
-                            accept={certs.acceptedFiles}
-                            multiple={certs.uploadType === "bulk"}
+                            accept={ACCEPTED_CERTIFICATE_FILES}
                             onChange={certs.selectFiles}
                             className="hidden"
                         />
 
                         <input
-                            ref={certs.multipleFilesInputRef}
+                            ref={multipleFilesInputRef}
                             type="file"
-                            accept={certs.acceptedFiles}
+                            accept={ACCEPTED_CERTIFICATE_FILES}
                             multiple
                             onChange={certs.selectFiles}
                             className="hidden"

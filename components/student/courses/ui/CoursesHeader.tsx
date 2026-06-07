@@ -36,10 +36,6 @@ export function CoursesHeader({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                <span className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 text-xs font-black text-[var(--foreground)] shadow-sm sm:h-10 sm:rounded-2xl">
-                    <GraduationCap className="h-4 w-4 text-[var(--primary)]" />
-                    Rol: {roleLabel}
-                </span>
 
                 <StudentNotificationsBell />
 

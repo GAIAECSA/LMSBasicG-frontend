@@ -4,8 +4,8 @@ import {
     MessageCircle,
     Phone,
 } from "lucide-react";
+
 import {
-    QUICK_QUESTIONS,
     SUPPORT_CHANNELS,
 } from "../constants";
 import type {
@@ -15,15 +15,20 @@ import type {
 function ChannelIcon({
     type,
 }: {
-    type: SupportChannel["key"];
+    type:
+    SupportChannel["key"];
 }) {
-    if (type === "phone") {
+    if (
+        type === "phone"
+    ) {
         return (
             <Phone className="h-4 w-4" />
         );
     }
 
-    if (type === "chat") {
+    if (
+        type === "chat"
+    ) {
         return (
             <MessageCircle className="h-4 w-4" />
         );
@@ -62,7 +67,9 @@ export function SupportSidebar() {
 
                 <div className="mt-3 space-y-2">
                     {SUPPORT_CHANNELS.map(
-                        (channel) => (
+                        (
+                            channel,
+                        ) => (
                             <div
                                 key={
                                     channel.key

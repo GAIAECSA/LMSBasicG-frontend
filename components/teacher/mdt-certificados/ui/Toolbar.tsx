@@ -32,8 +32,8 @@ export function Toolbar({
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                     <button
                         type="button"
-                        onClick={certs.consultAll}
-                        disabled={certs.loading}
+                        onClick={() => void certs.consultAll()}
+                        disabled={certs.isBusy}
                         className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-orange-500 px-3 text-xs font-black text-white shadow-sm transition hover:bg-orange-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         {certs.loading ? (
@@ -49,7 +49,8 @@ export function Toolbar({
                         <button
                             type="button"
                             onClick={certs.changeAdminCourse}
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-black text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
+                            disabled={certs.isMutating}
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-black text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:rounded-2xl sm:px-4 sm:text-sm"
                         >
                             <ArrowLeftRight className="h-4 w-4" />
                             Cambiar curso
@@ -60,7 +61,7 @@ export function Toolbar({
                         type="button"
                         onClick={certs.openUploadModal}
                         disabled={
-                            certs.loading ||
+                            certs.isBusy ||
                             !Number.isFinite(certs.numericCourseId) ||
                             certs.numericCourseId <= 0
                         }
@@ -85,8 +86,9 @@ export function Toolbar({
                                 event.target.value,
                             )
                         }
+                        disabled={certs.isBusy}
                         placeholder="Ejemplo: 1"
-                        className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                        className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     />
                 </label>
             ) : null}

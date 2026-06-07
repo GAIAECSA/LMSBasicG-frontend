@@ -1,12 +1,14 @@
 "use client";
 
 import {
+    useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+import { notify } from "@/lib/notify";
 import {
-    downloadCourseReportPdf,
     getCourseReportOption,
     getCourseReportPdfBlob,
     type CertificateType,
@@ -20,10 +22,28 @@ import { COURSES_PER_PAGE } from "./constants";
 import type { ReportPreview } from "./types";
 import {
     getErrorMessage,
+    getReportPdfFileName,
     isMdtCourse,
 } from "./utils";
 
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
+
 export function useReportsAdminPanel() {
+    const coursesRequestRef = useRef<Promise<Course[]> | null>(null);
+    const refreshMutationRef = useRef(false);
+    const previewMutationRef = useRef<number | null>(null);
+    const downloadMutationRef = useRef(false);
+
     const [courses, setCourses] = useState<Course[]>([]);
 
     const [courseSearchTerm, setCourseSearchTerm] =
@@ -41,8 +61,11 @@ export function useReportsAdminPanel() {
     const [preview, setPreview] =
         useState<ReportPreview>(null);
 
-    const [isLoadingCourses, setIsLoadingCourses] =
+    const [initialLoading, setInitialLoading] =
         useState(true);
+
+    const [isRefreshingCourses, setIsRefreshingCourses] =
+        useState(false);
 
     const [loadingCourseId, setLoadingCourseId] =
         useState<number | null>(null);
@@ -53,20 +76,35 @@ export function useReportsAdminPanel() {
     const [pageErrorMessage, setPageErrorMessage] =
         useState("");
 
-    const [modalErrorMessage, setModalErrorMessage] =
-        useState("");
+    const requestCourses = useCallback(() => {
+        if (coursesRequestRef.current) {
+            return coursesRequestRef.current;
+        }
 
-    const [successMessage, setSuccessMessage] =
-        useState("");
+        const request = getAllCourses();
+
+        coursesRequestRef.current = request;
+
+        const clearRequest = () => {
+            if (coursesRequestRef.current === request) {
+                coursesRequestRef.current = null;
+            }
+        };
+
+        void request.then(clearRequest, clearRequest);
+
+        return request;
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
 
-        getAllCourses()
+        requestCourses()
             .then((response) => {
                 if (!isMounted) return;
 
                 setCourses(response);
+                setPageErrorMessage("");
             })
             .catch((error: unknown) => {
                 if (!isMounted) return;
@@ -81,13 +119,13 @@ export function useReportsAdminPanel() {
             .finally(() => {
                 if (!isMounted) return;
 
-                setIsLoadingCourses(false);
+                setInitialLoading(false);
             });
 
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [requestCourses]);
 
     useEffect(() => {
         return () => {
@@ -155,50 +193,66 @@ export function useReportsAdminPanel() {
     );
 
     async function handleRefreshCourses() {
-        setPageErrorMessage("");
-        setSuccessMessage("");
-        setIsLoadingCourses(true);
+        if (refreshMutationRef.current) {
+            notify.warning("La lista de cursos ya se está actualizando.");
+            return;
+        }
+
+        refreshMutationRef.current = true;
+        setIsRefreshingCourses(true);
+
+        const dismissLoadingToast = createLoadingToast(
+            "Actualizando cursos...",
+        );
 
         try {
-            const response =
-                await getAllCourses();
+            const response = await requestCourses();
 
             setCourses(response);
+            setPageErrorMessage("");
+            notify.success("Lista de cursos actualizada correctamente.");
         } catch (error) {
-            setPageErrorMessage(
+            notify.error(
                 getErrorMessage(
                     error,
                     "No se pudo actualizar la lista de cursos.",
                 ),
             );
         } finally {
-            setIsLoadingCourses(false);
+            dismissLoadingToast();
+            refreshMutationRef.current = false;
+            setIsRefreshingCourses(false);
         }
     }
 
     function openCoursesModal(
         reportType: CourseReportType,
     ) {
+        if (
+            refreshMutationRef.current ||
+            previewMutationRef.current !== null ||
+            downloadMutationRef.current
+        ) {
+            notify.warning("Espera a que finalice el proceso actual.");
+            return;
+        }
+
         setSelectedReportType(reportType);
         setCourseSearchTerm("");
         setCoursePage(1);
         setCertificateType("MDT");
-        setModalErrorMessage("");
-        setPageErrorMessage("");
-        setSuccessMessage("");
     }
 
     function closeCoursesModal() {
-        if (loadingCourseId !== null) return;
+        if (previewMutationRef.current !== null) return;
 
         setSelectedReportType(null);
         setCourseSearchTerm("");
         setCoursePage(1);
-        setModalErrorMessage("");
     }
 
     function closePreview() {
-        if (isDownloading) return;
+        if (downloadMutationRef.current) return;
 
         setPreview(null);
     }
@@ -208,30 +262,41 @@ export function useReportsAdminPanel() {
     ) {
         if (!selectedReportType) return;
 
-        if (!isMdtCourse(course)) {
-            setModalErrorMessage(
-                "Solo se pueden generar reportes para cursos MDT.",
-            );
-
+        if (previewMutationRef.current !== null) {
+            notify.warning("Ya se está generando una vista previa.");
             return;
         }
 
-        const currentReportType =
-            selectedReportType;
+        if (!isMdtCourse(course)) {
+            notify.warning(
+                "Solo se pueden generar reportes para cursos MDT.",
+            );
+            return;
+        }
 
-        setModalErrorMessage("");
+        const currentReportType = selectedReportType;
+
+        previewMutationRef.current = course.id;
         setLoadingCourseId(course.id);
 
-        try {
-            const pdfBlob =
-                await getCourseReportPdfBlob(
-                    currentReportType,
-                    course.id,
-                    certificateType,
-                );
+        const dismissLoadingToast = createLoadingToast(
+            "Generando vista previa del reporte...",
+        );
 
-            const objectUrl =
-                URL.createObjectURL(pdfBlob);
+        try {
+            const pdfBlob = await getCourseReportPdfBlob(
+                currentReportType,
+                course.id,
+                certificateType,
+            );
+
+            if (!(pdfBlob instanceof Blob) || pdfBlob.size === 0) {
+                throw new Error(
+                    "El servidor devolvió un PDF vacío o no válido.",
+                );
+            }
+
+            const objectUrl = URL.createObjectURL(pdfBlob);
 
             setPreview({
                 url: objectUrl,
@@ -242,14 +307,17 @@ export function useReportsAdminPanel() {
 
             setSelectedReportType(null);
             setCourseSearchTerm("");
+            notify.success("Vista previa generada correctamente.");
         } catch (error) {
-            setModalErrorMessage(
+            notify.error(
                 getErrorMessage(
                     error,
                     "No se pudo generar la vista previa del reporte.",
                 ),
             );
         } finally {
+            dismissLoadingToast();
+            previewMutationRef.current = null;
             setLoadingCourseId(null);
         }
     }
@@ -257,34 +325,49 @@ export function useReportsAdminPanel() {
     async function handleDownloadFromPreview() {
         if (!preview) return;
 
-        setPageErrorMessage("");
-        setSuccessMessage("");
+        if (downloadMutationRef.current) {
+            notify.warning("El reporte ya se está descargando.");
+            return;
+        }
+
+        downloadMutationRef.current = true;
         setIsDownloading(true);
 
-        try {
-            const report =
-                getCourseReportOption(
-                    preview.reportType,
-                );
+        const dismissLoadingToast = createLoadingToast(
+            "Preparando descarga...",
+        );
 
-            await downloadCourseReportPdf(
+        try {
+            const report = getCourseReportOption(
                 preview.reportType,
-                preview.course.id,
-                preview.course.name,
-                preview.certificateType,
             );
 
-            setSuccessMessage(
+            const anchor = document.createElement("a");
+
+            anchor.href = preview.url;
+            anchor.download = getReportPdfFileName(
+                report.label,
+                preview.course.name,
+            );
+            anchor.style.display = "none";
+
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+
+            notify.success(
                 `El reporte "${report.label}" se descargó correctamente.`,
             );
         } catch (error) {
-            setPageErrorMessage(
+            notify.error(
                 getErrorMessage(
                     error,
                     "No se pudo descargar el reporte.",
                 ),
             );
         } finally {
+            dismissLoadingToast();
+            downloadMutationRef.current = false;
             setIsDownloading(false);
         }
     }
@@ -299,12 +382,12 @@ export function useReportsAdminPanel() {
         certificateType,
         setCertificateType,
         preview,
-        isLoadingCourses,
+        initialLoading,
+        isLoadingCourses:
+            initialLoading || isRefreshingCourses,
         loadingCourseId,
         isDownloading,
         pageErrorMessage,
-        modalErrorMessage,
-        successMessage,
         selectedReport,
         filteredCourses,
         totalCoursePages,

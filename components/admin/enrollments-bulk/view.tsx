@@ -25,12 +25,20 @@ import {
 } from "./ui/CourseSelectionPanel";
 
 import {
+    Loading,
+} from "./ui/Loading";
+
+import {
     NoticeAlert,
 } from "./ui/NoticeAlert";
 
 export function EnrollmentsAdminBulkPanel() {
     const panel =
         useEnrollmentsAdminBulkPanel();
+
+    if (panel.isLoadingCourses) {
+        return <Loading />;
+    }
 
     return (
         <form
@@ -45,7 +53,6 @@ export function EnrollmentsAdminBulkPanel() {
 
             <NoticeAlert
                 error={panel.error}
-                success={panel.success}
             />
 
             <BulkStudentsPanel

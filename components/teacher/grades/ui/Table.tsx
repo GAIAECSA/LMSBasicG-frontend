@@ -50,7 +50,23 @@ export function Table({
 
     return (
         <div className="min-w-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm sm:rounded-3xl">
-            <div className="w-full overflow-x-auto">
+            <div className="grid gap-3 p-3 md:hidden">
+                {paginatedGroups.map((group) => (
+                    <MobileCard
+                        key={`${group.enrollmentId}-${group.userId}`}
+                        group={group}
+                        generatingCertificateUserId={
+                            generatingCertificateUserId
+                        }
+                        openGroupModal={openGroupModal}
+                        handleGenerateOrReissueCertificate={
+                            handleGenerateOrReissueCertificate
+                        }
+                    />
+                ))}
+            </div>
+
+            <div className="hidden w-full overflow-x-auto md:block">
                 <table className="w-full min-w-[900px] table-fixed divide-y divide-slate-200 text-xs xl:text-sm">
                     <thead className="bg-slate-50">
                         <tr>

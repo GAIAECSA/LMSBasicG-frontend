@@ -74,6 +74,7 @@ export function VerifyModal({
                             onClick={() =>
                                 void files.loadVerificationData(
                                     files.verifyModal!.block,
+                                    true,
                                 )
                             }
                             disabled={

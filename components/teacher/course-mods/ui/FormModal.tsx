@@ -74,15 +74,15 @@ export function FormModal({
                     className="flex min-h-0 flex-1 flex-col"
                 >
                     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-5 sm:p-5 lg:p-6">
-                        {mods.formError ? (
-                            <div className="break-words rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                                {mods.formError}
-                            </div>
-                        ) : null}
-
                         <div>
                             <label className="block text-xs font-bold text-slate-700 sm:text-[13px]">
                                 Nombre
+
+                                {!mods.formTitle.trim() ? (
+                                    <span className="ml-1 text-red-600">
+                                        *
+                                    </span>
+                                ) : null}
                             </label>
 
                             <input
@@ -103,7 +103,22 @@ export function FormModal({
                                 }
                                 className="mt-1.5 h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:mt-2 sm:h-12 sm:rounded-2xl sm:px-4 sm:text-sm"
                                 disabled={mods.isSaving}
+                                aria-invalid={Boolean(mods.formError)}
+                                aria-describedby={
+                                    mods.formError
+                                        ? "course-mod-form-error"
+                                        : undefined
+                                }
                             />
+
+                            {mods.formError ? (
+                                <p
+                                    id="course-mod-form-error"
+                                    className="mt-1.5 break-words text-[11px] font-bold leading-4 text-red-600 sm:text-xs"
+                                >
+                                    {mods.formError}
+                                </p>
+                            ) : null}
                         </div>
 
                         {itemType ? (

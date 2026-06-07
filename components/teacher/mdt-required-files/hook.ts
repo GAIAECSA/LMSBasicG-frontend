@@ -6,9 +6,11 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import { usePathname } from "next/navigation";
+import { notify } from "@/lib/notify";
 import {
     deleteLessonBlock,
     getLessonBlocksByLesson,
@@ -51,7 +53,6 @@ import {
     getEmptyFormState,
     getEmptyUploadForm,
     getEnrollmentId,
-    getEnrollmentStudentId,
     getLessonName,
     getNextOrder,
     getRequiredFileSubmissionsByBlock,
@@ -75,6 +76,24 @@ import {
     updateRequiredFileBlock,
     updateRequiredFileSubmissionReview,
 } from "./utils";
+
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error && error.message.trim()
+        ? error.message
+        : fallback;
+}
 
 export function useMdtRequiredFiles(
     params: MdtRequiredFilesPageProps["params"],
@@ -132,8 +151,21 @@ export function useMdtRequiredFiles(
     const [savingReviewId, setSavingReviewId] = useState(0);
     const [savingUploadKey, setSavingUploadKey] = useState("");
 
-    const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+
+    const hasLoadedOnceRef = useRef(false);
+    const loadRequestRef = useRef<{
+        courseId: number;
+        promise: Promise<void>;
+    } | null>(null);
+    const verificationRequestRef = useRef<{
+        blockId: number;
+        promise: Promise<void>;
+    } | null>(null);
+    const verificationRequestSequenceRef = useRef(0);
+    const requiredFileMutationRef = useRef(false);
+    const reviewMutationRef = useRef<number | null>(null);
+    const uploadMutationRef = useRef<string | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -290,117 +322,156 @@ export function useMdtRequiredFiles(
     }, [formState.lessonId, lessons]);
 
     const loadData = useCallback(
-        async (clearFeedback = true) => {
+        async (clearFeedback = true, showToast = false) => {
             if (!courseId) {
                 setIsLoading(false);
                 return;
             }
 
-            try {
-                setIsLoading(true);
+            const activeRequest = loadRequestRef.current;
 
-                if (clearFeedback) {
-                    setError("");
-                    setMessage("");
+            if (activeRequest?.courseId === courseId) {
+                if (showToast) {
+                    notify.warning(
+                        "La información de archivos MDT ya se está actualizando.",
+                    );
                 }
 
-                const defaultBlocks =
-                    await getDefaultLessonBlocksByCourseAndBlockType(
-                        courseId,
-                        REQUIRED_FILE_BLOCK_TYPE_ID,
-                    );
+                return activeRequest.promise;
+            }
 
-                let moduleItems: CourseModule[] = [];
-                let lessonItems: Lesson[] = [];
-                let lessonBlockItems: LessonBlock[] = [];
+            const requestPromise = (async () => {
+                const dismissLoadingToast = showToast
+                    ? createLoadingToast("Actualizando archivos MDT...")
+                    : () => undefined;
 
                 try {
-                    moduleItems =
-                        await getModulesByCourse(courseId);
+                    setIsLoading(true);
 
-                    const sortedModuleItems =
-                        sortByOrder(moduleItems);
-
-                    lessonItems = (
-                        await Promise.all(
-                            sortedModuleItems.map(
-                                (moduleItem) =>
-                                    getLessonsByModule(
-                                        Number(
-                                            moduleItem.id,
-                                        ),
-                                    ),
-                            ),
-                        )
-                    ).flat();
-
-                    const sortedLessonItems =
-                        sortByOrder(lessonItems);
-
-                    lessonBlockItems = (
-                        await Promise.all(
-                            sortedLessonItems.map(
-                                (lessonItem) =>
-                                    getLessonBlocksByLesson(
-                                        Number(
-                                            lessonItem.id,
-                                        ),
-                                    ),
-                            ),
-                        )
-                    ).flat();
-
-                    moduleItems = sortedModuleItems;
-                    lessonItems = sortedLessonItems;
-                } catch {
-                    moduleItems = [];
-                    lessonItems = [];
-                    lessonBlockItems = [];
-                }
-
-                const mergedBlocks = mergeBlocks([
-                    ...defaultBlocks,
-                    ...lessonBlockItems,
-                ]);
-
-                setModules(sortByOrder(moduleItems));
-                setLessons(sortByOrder(lessonItems));
-                setBlocks(mergedBlocks);
-
-                setFormState((current) => {
-                    if (
-                        current.lessonId &&
-                        lessonItems.some(
-                            (lesson) =>
-                                Number(lesson.id) ===
-                                Number(current.lessonId),
-                        )
-                    ) {
-                        return current;
+                    if (clearFeedback) {
+                        setError("");
                     }
 
-                    const firstLesson =
-                        lessonItems[0];
+                    const defaultBlocks =
+                        await getDefaultLessonBlocksByCourseAndBlockType(
+                            courseId,
+                            REQUIRED_FILE_BLOCK_TYPE_ID,
+                        );
 
-                    return {
-                        ...current,
-                        lessonId: firstLesson
-                            ? String(firstLesson.id)
-                            : "",
-                    };
-                });
-            } catch (currentError) {
-                setError(
-                    currentError instanceof Error
-                        ? currentError.message
-                        : "No se pudo cargar la información de archivos MDT.",
-                );
+                    let moduleItems: CourseModule[] = [];
+                    let lessonItems: Lesson[] = [];
+                    let lessonBlockItems: LessonBlock[] = [];
 
-                setModules([]);
-                setLessons([]);
-                setBlocks([]);
+                    try {
+                        moduleItems =
+                            await getModulesByCourse(courseId);
+
+                        const sortedModuleItems =
+                            sortByOrder(moduleItems);
+
+                        lessonItems = (
+                            await Promise.all(
+                                sortedModuleItems.map(
+                                    (moduleItem) =>
+                                        getLessonsByModule(
+                                            Number(
+                                                moduleItem.id,
+                                            ),
+                                        ),
+                                ),
+                            )
+                        ).flat();
+
+                        const sortedLessonItems =
+                            sortByOrder(lessonItems);
+
+                        lessonBlockItems = (
+                            await Promise.all(
+                                sortedLessonItems.map(
+                                    (lessonItem) =>
+                                        getLessonBlocksByLesson(
+                                            Number(
+                                                lessonItem.id,
+                                            ),
+                                        ),
+                                ),
+                            )
+                        ).flat();
+
+                        moduleItems = sortedModuleItems;
+                        lessonItems = sortedLessonItems;
+                    } catch {
+                        moduleItems = [];
+                        lessonItems = [];
+                        lessonBlockItems = [];
+                    }
+
+                    const mergedBlocks = mergeBlocks([
+                        ...defaultBlocks,
+                        ...lessonBlockItems,
+                    ]);
+
+                    setModules(sortByOrder(moduleItems));
+                    setLessons(sortByOrder(lessonItems));
+                    setBlocks(mergedBlocks);
+
+                    setFormState((current) => {
+                        if (
+                            current.lessonId &&
+                            lessonItems.some(
+                                (lesson) =>
+                                    Number(lesson.id) ===
+                                    Number(current.lessonId),
+                            )
+                        ) {
+                            return current;
+                        }
+
+                        const firstLesson =
+                            lessonItems[0];
+
+                        return {
+                            ...current,
+                            lessonId: firstLesson
+                                ? String(firstLesson.id)
+                                : "",
+                        };
+                    });
+
+                    if (showToast) {
+                        notify.success(
+                            "Archivos MDT actualizados correctamente.",
+                        );
+                    }
+                } catch (currentError) {
+                    const errorMessage = getErrorMessage(
+                        currentError,
+                        "No se pudo cargar la información de archivos MDT.",
+                    );
+
+                    setError(errorMessage);
+                    setModules([]);
+                    setLessons([]);
+                    setBlocks([]);
+                    notify.error(errorMessage);
+                } finally {
+                    hasLoadedOnceRef.current = true;
+                    dismissLoadingToast();
+                    setIsLoading(false);
+                }
+            })();
+
+            loadRequestRef.current = {
+                courseId,
+                promise: requestPromise,
+            };
+
+            try {
+                await requestPromise;
             } finally {
-                setIsLoading(false);
+                if (loadRequestRef.current?.promise === requestPromise) {
+                    loadRequestRef.current = null;
+                }
             }
         },
         [courseId],
@@ -457,8 +528,6 @@ export function useMdtRequiredFiles(
     ]);
 
     function openCreateModal() {
-        setError("");
-        setMessage("");
 
         setFormState(
             getEmptyFormState(
@@ -473,8 +542,6 @@ export function useMdtRequiredFiles(
     }
 
     function openEditModal(block: LessonBlock) {
-        setError("");
-        setMessage("");
 
         setFormState({
             lessonId: String(block.lesson_id || ""),
@@ -505,8 +572,6 @@ export function useMdtRequiredFiles(
     }
 
     function openDeleteModal(block: LessonBlock) {
-        setError("");
-        setMessage("");
 
         setDeleteModal({
             block,
@@ -519,74 +584,139 @@ export function useMdtRequiredFiles(
         setDeleteModal(null);
     }
 
-    async function loadVerificationData(block: LessonBlock) {
+    async function loadVerificationData(
+        block: LessonBlock,
+        showToast = false,
+    ) {
         const blockId = readNumber(block.id, 0);
 
         if (!courseId || !blockId) {
-            setError(
+            notify.error(
                 "No se pudo identificar el curso o el archivo requerido.",
             );
 
             return;
         }
 
-        try {
-            setIsLoadingVerifications(true);
-            setError("");
+        const activeRequest = verificationRequestRef.current;
 
-            const [
-                enrollmentItems,
-                submissionItems,
-            ] = await Promise.all([
-                getCourseEnrollmentsForVerification(
-                    courseId,
-                ),
-                getRequiredFileSubmissionsByBlock(
-                    blockId,
-                ),
-            ]);
-
-            setEnrollments(enrollmentItems);
-            setSubmissions(submissionItems);
-
-            const nextForms: Record<
-                string,
-                ReviewFormState
-            > = {};
-
-            for (const submission of submissionItems) {
-                const submissionId =
-                    getSubmissionId(submission);
-
-                if (!submissionId) continue;
-
-                nextForms[String(submissionId)] =
-                    getReviewInitialForm(
-                        submission,
-                    );
+        if (activeRequest?.blockId === blockId) {
+            if (showToast) {
+                notify.warning(
+                    "Los documentos enviados ya se están actualizando.",
+                );
             }
 
-            setReviewForms(nextForms);
-            setUploadForms({});
-        } catch (currentError) {
-            setEnrollments([]);
-            setSubmissions([]);
-            setReviewForms({});
-            setUploadForms({});
+            return activeRequest.promise;
+        }
 
-            setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudieron cargar los documentos enviados por los estudiantes.",
-            );
+        const requestSequence =
+            verificationRequestSequenceRef.current + 1;
+
+        verificationRequestSequenceRef.current = requestSequence;
+
+        const requestPromise = (async () => {
+            const dismissLoadingToast = showToast
+                ? createLoadingToast(
+                      "Actualizando documentos enviados...",
+                  )
+                : () => undefined;
+
+            try {
+                setIsLoadingVerifications(true);
+
+                const [enrollmentItems, submissionItems] =
+                    await Promise.all([
+                        getCourseEnrollmentsForVerification(
+                            courseId,
+                        ),
+                        getRequiredFileSubmissionsByBlock(
+                            blockId,
+                        ),
+                    ]);
+
+                if (
+                    verificationRequestSequenceRef.current !==
+                    requestSequence
+                ) {
+                    return;
+                }
+
+                setEnrollments(enrollmentItems);
+                setSubmissions(submissionItems);
+
+                const nextForms: Record<
+                    string,
+                    ReviewFormState
+                > = {};
+
+                for (const submission of submissionItems) {
+                    const submissionId =
+                        getSubmissionId(submission);
+
+                    if (!submissionId) continue;
+
+                    nextForms[String(submissionId)] =
+                        getReviewInitialForm(
+                            submission,
+                        );
+                }
+
+                setReviewForms(nextForms);
+                setUploadForms({});
+
+                if (showToast) {
+                    notify.success(
+                        "Documentos enviados actualizados correctamente.",
+                    );
+                }
+            } catch (currentError) {
+                if (
+                    verificationRequestSequenceRef.current ===
+                    requestSequence
+                ) {
+                    setEnrollments([]);
+                    setSubmissions([]);
+                    setReviewForms({});
+                    setUploadForms({});
+                }
+
+                notify.error(
+                    getErrorMessage(
+                        currentError,
+                        "No se pudieron cargar los documentos enviados por los estudiantes.",
+                    ),
+                );
+            } finally {
+                dismissLoadingToast();
+
+                if (
+                    verificationRequestSequenceRef.current ===
+                    requestSequence
+                ) {
+                    setIsLoadingVerifications(false);
+                }
+            }
+        })();
+
+        verificationRequestRef.current = {
+            blockId,
+            promise: requestPromise,
+        };
+
+        try {
+            await requestPromise;
         } finally {
-            setIsLoadingVerifications(false);
+            if (
+                verificationRequestRef.current?.promise ===
+                requestPromise
+            ) {
+                verificationRequestRef.current = null;
+            }
         }
     }
 
     function openVerifyModal(block: LessonBlock) {
-        setError("");
-        setMessage("");
         setVerificationSearch("");
 
         setVerifyModal({
@@ -676,6 +806,20 @@ export function useMdtRequiredFiles(
     ) {
         const rowKey = getUploadRowKey(row);
 
+        if (uploadMutationRef.current) {
+            notify.warning(
+                "Espera a que termine la carga del archivo en proceso.",
+            );
+            return;
+        }
+
+        if (reviewMutationRef.current) {
+            notify.warning(
+                "Espera a que termine la revisión en proceso.",
+            );
+            return;
+        }
+
         const uploadForm =
             uploadForms[rowKey] ??
             getEmptyUploadForm();
@@ -696,7 +840,7 @@ export function useMdtRequiredFiles(
         );
 
         if (!selectedFile) {
-            setError(
+            notify.warning(
                 "Selecciona el archivo que deseas subir o actualizar.",
             );
 
@@ -704,7 +848,7 @@ export function useMdtRequiredFiles(
         }
 
         if (!enrollmentId) {
-            setError(
+            notify.error(
                 "No se encontró la matrícula del estudiante.",
             );
 
@@ -712,18 +856,23 @@ export function useMdtRequiredFiles(
         }
 
         if (!blockId) {
-            setError(
+            notify.error(
                 "No se encontró el archivo obligatorio seleccionado.",
             );
 
             return;
         }
 
-        try {
-            setSavingUploadKey(rowKey);
-            setError("");
-            setMessage("");
+        uploadMutationRef.current = rowKey;
+        setSavingUploadKey(rowKey);
 
+        const dismissLoadingToast = createLoadingToast(
+            submissionId
+                ? "Actualizando archivo del estudiante..."
+                : "Subiendo archivo del estudiante...",
+        );
+
+        try {
             if (
                 submissionId &&
                 row.submission
@@ -766,7 +915,7 @@ export function useMdtRequiredFiles(
                     ),
                 );
 
-                setMessage(
+                notify.success(
                     "Archivo del estudiante actualizado correctamente.",
                 );
             } else {
@@ -833,19 +982,26 @@ export function useMdtRequiredFiles(
                     }));
                 }
 
-                setMessage(
+                notify.success(
                     "Archivo faltante subido correctamente.",
                 );
             }
 
             clearUploadForm(row);
         } catch (currentError) {
-            setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo subir o actualizar el archivo del estudiante.",
+            notify.error(
+                getErrorMessage(
+                    currentError,
+                    "No se pudo subir o actualizar el archivo del estudiante.",
+                ),
             );
         } finally {
+            dismissLoadingToast();
+
+            if (uploadMutationRef.current === rowKey) {
+                uploadMutationRef.current = null;
+            }
+
             setSavingUploadKey("");
         }
     }
@@ -853,8 +1009,22 @@ export function useMdtRequiredFiles(
     async function handleSaveReview(
         submission: RequiredFileSubmission | null,
     ) {
+        if (reviewMutationRef.current) {
+            notify.warning(
+                "Espera a que termine la revisión en proceso.",
+            );
+            return;
+        }
+
+        if (uploadMutationRef.current) {
+            notify.warning(
+                "Espera a que termine la carga del archivo en proceso.",
+            );
+            return;
+        }
+
         if (!submission) {
-            setError(
+            notify.warning(
                 "El estudiante todavía no ha subido este documento.",
             );
 
@@ -865,7 +1035,7 @@ export function useMdtRequiredFiles(
             getSubmissionId(submission);
 
         if (!submissionId) {
-            setError(
+            notify.error(
                 "No se encontró el identificador de la entrega.",
             );
 
@@ -878,24 +1048,33 @@ export function useMdtRequiredFiles(
             ] ??
             getReviewInitialForm(submission);
 
-        if (
-            currentForm.score.trim() &&
-            Number.isNaN(
-                Number(currentForm.score.trim()),
-            )
-        ) {
-            setError(
+        const cleanScore = currentForm.score.trim();
+        const numericScore = Number(cleanScore);
+
+        if (cleanScore && !Number.isFinite(numericScore)) {
+            notify.warning(
                 "La calificación debe ser un número válido.",
             );
 
             return;
         }
 
-        try {
-            setSavingReviewId(submissionId);
-            setError("");
-            setMessage("");
+        if (cleanScore && (numericScore < 0 || numericScore > 10)) {
+            notify.warning(
+                "La calificación debe estar entre 0 y 10.",
+            );
 
+            return;
+        }
+
+        reviewMutationRef.current = submissionId;
+        setSavingReviewId(submissionId);
+
+        const dismissLoadingToast = createLoadingToast(
+            "Guardando revisión del documento...",
+        );
+
+        try {
             const updatedSubmission =
                 await updateRequiredFileSubmissionReview(
                     submission,
@@ -928,16 +1107,23 @@ export function useMdtRequiredFiles(
                 ),
             );
 
-            setMessage(
+            notify.success(
                 "Documento del estudiante actualizado correctamente.",
             );
         } catch (currentError) {
-            setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo actualizar la revisión del documento.",
+            notify.error(
+                getErrorMessage(
+                    currentError,
+                    "No se pudo actualizar la revisión del documento.",
+                ),
             );
         } finally {
+            dismissLoadingToast();
+
+            if (reviewMutationRef.current === submissionId) {
+                reviewMutationRef.current = null;
+            }
+
             setSavingReviewId(0);
         }
     }
@@ -970,6 +1156,13 @@ export function useMdtRequiredFiles(
 
         if (!formModal) return;
 
+        if (requiredFileMutationRef.current) {
+            notify.warning(
+                "Espera a que termine el proceso en curso.",
+            );
+            return;
+        }
+
         const cleanTitle =
             formState.title.trim();
 
@@ -986,8 +1179,10 @@ export function useMdtRequiredFiles(
             formState.lessonId,
         );
 
+        const maxFileSize = Number(cleanMaxFileSize);
+
         if (!lessonId) {
-            setError(
+            notify.warning(
                 "Selecciona una lección para guardar el archivo.",
             );
 
@@ -995,7 +1190,7 @@ export function useMdtRequiredFiles(
         }
 
         if (!cleanTitle) {
-            setError(
+            notify.warning(
                 "Escribe el nombre del archivo obligatorio.",
             );
 
@@ -1003,7 +1198,7 @@ export function useMdtRequiredFiles(
         }
 
         if (!cleanDescription) {
-            setError(
+            notify.warning(
                 "Escribe la descripción o indicación del archivo.",
             );
 
@@ -1011,7 +1206,7 @@ export function useMdtRequiredFiles(
         }
 
         if (!cleanAcceptedTypes) {
-            setError(
+            notify.warning(
                 "Indica los formatos permitidos.",
             );
 
@@ -1020,20 +1215,27 @@ export function useMdtRequiredFiles(
 
         if (
             !cleanMaxFileSize ||
-            Number(cleanMaxFileSize) <= 0
+            !Number.isFinite(maxFileSize) ||
+            maxFileSize <= 0
         ) {
-            setError(
+            notify.warning(
                 "Indica un tamaño máximo válido.",
             );
 
             return;
         }
 
-        try {
-            setIsSaving(true);
-            setError("");
-            setMessage("");
+        requiredFileMutationRef.current = true;
+        setIsSaving(true);
 
+        const isCreating = formModal.mode === "create";
+        const dismissLoadingToast = createLoadingToast(
+            isCreating
+                ? "Creando archivo obligatorio..."
+                : "Actualizando archivo obligatorio...",
+        );
+
+        try {
             if (formModal.mode === "create") {
                 await createRequiredFileBlock({
                     lessonId,
@@ -1051,7 +1253,7 @@ export function useMdtRequiredFiles(
                     file: formState.file,
                 });
 
-                setMessage(
+                notify.success(
                     "Archivo obligatorio creado correctamente.",
                 );
             }
@@ -1090,7 +1292,7 @@ export function useMdtRequiredFiles(
                     file: formState.file,
                 });
 
-                setMessage(
+                notify.success(
                     "Archivo obligatorio actualizado correctamente.",
                 );
             }
@@ -1103,14 +1305,17 @@ export function useMdtRequiredFiles(
                 ),
             );
 
-            await loadData(false);
+            await loadData(false, false);
         } catch (currentError) {
-            setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo guardar el archivo obligatorio.",
+            notify.error(
+                getErrorMessage(
+                    currentError,
+                    "No se pudo guardar el archivo obligatorio.",
+                ),
             );
         } finally {
+            dismissLoadingToast();
+            requiredFileMutationRef.current = false;
             setIsSaving(false);
         }
     }
@@ -1118,32 +1323,55 @@ export function useMdtRequiredFiles(
     async function handleConfirmDelete() {
         if (!deleteModal) return;
 
-        try {
-            setIsSaving(true);
-            setError("");
-            setMessage("");
+        if (requiredFileMutationRef.current) {
+            notify.warning(
+                "Espera a que termine el proceso en curso.",
+            );
+            return;
+        }
 
+        requiredFileMutationRef.current = true;
+        setIsSaving(true);
+
+        const dismissLoadingToast = createLoadingToast(
+            "Eliminando archivo obligatorio...",
+        );
+
+        try {
             await deleteLessonBlock(
                 deleteModal.block.id,
             );
 
             setDeleteModal(null);
 
-            setMessage(
+            notify.success(
                 "Archivo obligatorio eliminado correctamente.",
             );
 
-            await loadData(false);
+            await loadData(false, false);
         } catch (currentError) {
-            setError(
-                currentError instanceof Error
-                    ? currentError.message
-                    : "No se pudo eliminar el archivo obligatorio.",
+            notify.error(
+                getErrorMessage(
+                    currentError,
+                    "No se pudo eliminar el archivo obligatorio.",
+                ),
             );
         } finally {
+            dismissLoadingToast();
+            requiredFileMutationRef.current = false;
             setIsSaving(false);
         }
     }
+
+    const isInitialLoading =
+        isLoading && !hasLoadedOnceRef.current;
+
+    const isBusy =
+        isLoading ||
+        isSaving ||
+        isLoadingVerifications ||
+        Boolean(savingReviewId) ||
+        Boolean(savingUploadKey);
 
     return {
         isAdminRoute,
@@ -1166,9 +1394,10 @@ export function useMdtRequiredFiles(
         reviewForms,
         uploadForms,
         isLoading,
+        isInitialLoading,
+        isBusy,
         isLoadingVerifications,
         isSaving,
-        message,
         error,
         savingReviewId,
         savingUploadKey,

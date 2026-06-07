@@ -1,10 +1,12 @@
 "use client";
 
 import { useEnrollmentsAdminPanel } from "./hook";
+import { DeleteEnrollmentModal } from "./ui/DeleteEnrollmentModal";
 import { EnrollmentFormModal } from "./ui/EnrollmentFormModal";
 import { EnrollmentsHero } from "./ui/EnrollmentsHero";
 import { EnrollmentsList } from "./ui/EnrollmentsList";
 import { EnrollmentsToolbar } from "./ui/EnrollmentsToolbar";
+import { Loading } from "./ui/Loading";
 import { NoticeAlert } from "./ui/NoticeAlert";
 import { RejectModal } from "./ui/RejectModal";
 import { VoucherModal } from "./ui/VoucherModal";
@@ -12,6 +14,10 @@ import { VoucherModal } from "./ui/VoucherModal";
 export function EnrollmentsAdminPanel() {
     const panel =
         useEnrollmentsAdminPanel();
+
+    if (panel.isLoading) {
+        return <Loading />;
+    }
 
     return (
         <>
@@ -23,10 +29,10 @@ export function EnrollmentsAdminPanel() {
 
                 <NoticeAlert
                     error={panel.error}
-                    success={panel.success}
                     hidden={
                         panel.enrollmentModalOpen ||
-                        panel.rejectModalOpen
+                        panel.rejectModalOpen ||
+                        panel.deleteModalOpen
                     }
                 />
 
@@ -99,10 +105,8 @@ export function EnrollmentsAdminPanel() {
                     onReject={
                         panel.openRejectModal
                     }
-                    onDelete={(enrollmentId) =>
-                        void panel.handleDelete(
-                            enrollmentId,
-                        )
+                    onDelete={
+                        panel.openDeleteModal
                     }
                     onOpenVoucher={
                         panel.openVoucherModal
@@ -146,6 +150,10 @@ export function EnrollmentsAdminPanel() {
             />
 
             <RejectModal panel={panel} />
+
+            <DeleteEnrollmentModal
+                panel={panel}
+            />
         </>
     );
 }

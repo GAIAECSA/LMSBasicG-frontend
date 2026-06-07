@@ -1,17 +1,31 @@
 "use client";
 
-import { Loader2, RefreshCw, Search } from "lucide-react";
-import type { CertificateStatusFilter } from "../types";
+import {
+    Loader2,
+    RefreshCw,
+    Search,
+} from "lucide-react";
+
+import type {
+    CertificateStatusFilter,
+} from "../types";
 
 type CertificatesToolbarProps = {
     totalCertificates: number;
     mdtCertificatesCount: number;
-    institutionalCertificatesCount: number;
-    statusFilter: CertificateStatusFilter;
+    institutionalCertificatesCount:
+    number;
+    statusFilter:
+    CertificateStatusFilter;
     searchTerm: string;
     isRefreshing: boolean;
-    onStatusFilterChange: (filter: CertificateStatusFilter) => void;
-    onSearchTermChange: (value: string) => void;
+    onStatusFilterChange:
+    (
+        filter:
+            CertificateStatusFilter,
+    ) => void;
+    onSearchTermChange:
+    (value: string) => void;
     onRefresh: () => void;
 };
 
@@ -29,8 +43,13 @@ function ToolbarFilterButton({
     return (
         <button
             type="button"
-            onClick={onClick}
-            className={`inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-black transition ${isActive
+            aria-pressed={
+                isActive
+            }
+            onClick={
+                onClick
+            }
+            className={`inline-flex h-10 shrink-0 items-center justify-center rounded-xl px-4 text-xs font-black transition active:scale-[0.97] sm:px-5 sm:text-sm ${isActive
                     ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
                     : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--primary)]"
                 }`}
@@ -54,48 +73,97 @@ export function CertificatesToolbar({
     return (
         <div className="mb-5 rounded-[22px] border border-[var(--border)] bg-[var(--card)] p-3 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <ToolbarFilterButton
-                        isActive={statusFilter === "all"}
-                        label={`Todos (${totalCertificates})`}
-                        onClick={() => onStatusFilterChange("all")}
-                    />
-
-                    <ToolbarFilterButton
-                        isActive={statusFilter === "mdt"}
-                        label={`MDT (${mdtCertificatesCount})`}
-                        onClick={() => onStatusFilterChange("mdt")}
-                    />
-
-                    <ToolbarFilterButton
-                        isActive={statusFilter === "institutional"}
-                        label={`Institucionales (${institutionalCertificatesCount})`}
-                        onClick={() =>
-                            onStatusFilterChange("institutional")
+                        isActive={
+                            statusFilter ===
+                            "all"
                         }
+                        label={`Todos (${totalCertificates})`}
+                        onClick={() => {
+                            onStatusFilterChange(
+                                "all",
+                            );
+                        }}
+                    />
+
+                    <ToolbarFilterButton
+                        isActive={
+                            statusFilter ===
+                            "mdt"
+                        }
+                        label={`MDT (${mdtCertificatesCount})`}
+                        onClick={() => {
+                            onStatusFilterChange(
+                                "mdt",
+                            );
+                        }}
+                    />
+
+                    <ToolbarFilterButton
+                        isActive={
+                            statusFilter ===
+                            "institutional"
+                        }
+                        label={`Institucionales (${institutionalCertificatesCount})`}
+                        onClick={() => {
+                            onStatusFilterChange(
+                                "institutional",
+                            );
+                        }}
                     />
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <label className="relative block w-full sm:w-[360px] xl:w-[470px]">
-                        <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted-foreground)]" />
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+                    <label className="relative block min-w-0 flex-1 sm:w-[360px] xl:w-[470px]">
+                        <span className="sr-only">
+                            Buscar certificados
+                        </span>
+
+                        <Search
+                            aria-hidden="true"
+                            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[var(--muted-foreground)]"
+                        />
 
                         <input
                             type="search"
-                            value={searchTerm}
-                            onChange={(event) =>
-                                onSearchTermChange(event.target.value)
+                            value={
+                                searchTerm
                             }
+                            onChange={(
+                                event,
+                            ) => {
+                                onSearchTermChange(
+                                    event
+                                        .target
+                                        .value,
+                                );
+                            }}
                             placeholder="Buscar por curso, código o tipo..."
+                            aria-label="Buscar certificados"
                             className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--card)] pl-12 pr-4 text-sm font-semibold text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-foreground)] focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--ring)]/30"
                         />
                     </label>
 
                     <button
                         type="button"
-                        onClick={onRefresh}
-                        disabled={isRefreshing}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--foreground)] transition hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={
+                            onRefresh
+                        }
+                        disabled={
+                            isRefreshing
+                        }
+                        aria-label={
+                            isRefreshing
+                                ? "Actualizando certificados"
+                                : "Actualizar certificados"
+                        }
+                        title={
+                            isRefreshing
+                                ? "Actualizando certificados"
+                                : "Actualizar certificados"
+                        }
+                        className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-5 text-sm font-black text-[var(--foreground)] transition hover:bg-[var(--muted)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {isRefreshing ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -103,10 +171,14 @@ export function CertificatesToolbar({
                             <RefreshCw className="h-4 w-4" />
                         )}
 
-                        Actualizar
+                        {isRefreshing
+                            ? "Actualizando..."
+                            : "Actualizar"}
                     </button>
                 </div>
             </div>
         </div>
     );
 }
+
+export default CertificatesToolbar;

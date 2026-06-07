@@ -443,6 +443,113 @@ function isTeacherEnrollment(enrollment: Enrollment): boolean {
     );
 }
 
+
+const teacherCourseAccessRequests =
+    new Map<string, Promise<boolean>>();
+
+export async function hasAcceptedTeacherEnrollmentByUserAndCourse(
+    userId: number,
+    courseId: number,
+): Promise<boolean> {
+    if (
+        !Number.isFinite(userId) ||
+        userId <= 0
+    ) {
+        throw new Error(
+            "No se pudo identificar al usuario.",
+        );
+    }
+
+    if (
+        !Number.isFinite(courseId) ||
+        courseId <= 0
+    ) {
+        throw new Error(
+            "No se pudo identificar el curso.",
+        );
+    }
+
+    const requestKey =
+        `${userId}-${courseId}`;
+
+    const activeRequest =
+        teacherCourseAccessRequests.get(
+            requestKey,
+        );
+
+    if (activeRequest) {
+        return activeRequest;
+    }
+
+    const request = (async () => {
+        const enrollments =
+            await getEnrollmentsByUser(
+                userId,
+            );
+
+        return enrollments.some(
+            (enrollment) => {
+                const enrollmentWithCourseId =
+                    enrollment as Enrollment & {
+                        course_id?:
+                            | number
+                            | string
+                            | null;
+                    };
+
+                const enrollmentCourseId =
+                    Number(
+                        enrollment.course?.id ??
+                            enrollmentWithCourseId.course_id,
+                    );
+
+                const enrollmentUserId =
+                    Number(
+                        enrollment.user?.id,
+                    );
+
+                const belongsToUser =
+                    !Number.isFinite(
+                        enrollmentUserId,
+                    ) ||
+                    enrollmentUserId <= 0 ||
+                    enrollmentUserId ===
+                        userId;
+
+                return (
+                    belongsToUser &&
+                    enrollmentCourseId ===
+                        courseId &&
+                    enrollment.accepted ===
+                        true &&
+                    isTeacherEnrollment(
+                        enrollment,
+                    )
+                );
+            },
+        );
+    })();
+
+    teacherCourseAccessRequests.set(
+        requestKey,
+        request,
+    );
+
+    try {
+        return await request;
+    } finally {
+        if (
+            teacherCourseAccessRequests.get(
+                requestKey,
+            ) === request
+        ) {
+            teacherCourseAccessRequests.delete(
+                requestKey,
+            );
+        }
+    }
+}
+
 function uniqueEnrollments(enrollments: Enrollment[]): Enrollment[] {
     const map = new Map<number, Enrollment>();
 

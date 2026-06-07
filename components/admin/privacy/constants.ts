@@ -15,3 +15,10 @@ export const ALLOWED_POLICY_FILE_TYPES = [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "text/plain",
 ];
+
+export const ALLOWED_POLICY_FILE_EXTENSIONS = [
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".txt",
+];

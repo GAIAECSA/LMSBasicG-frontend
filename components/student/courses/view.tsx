@@ -48,9 +48,9 @@ export function StudentCoursesView() {
                     onSearchChange={
                         courses.setSearchTerm
                     }
-                    onRefresh={() =>
-                        void courses.handleRefreshCourses()
-                    }
+                    onRefresh={() => {
+                        void courses.handleRefreshCourses();
+                    }}
                 />
 
                 <CoursesAlert
@@ -60,7 +60,9 @@ export function StudentCoursesView() {
                 />
 
                 <CoursesList
-                    courses={courses}
+                    courses={
+                        courses
+                    }
                 />
             </div>
         </section>

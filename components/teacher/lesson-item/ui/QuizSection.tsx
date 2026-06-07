@@ -6,7 +6,6 @@ import {
     useState,
 } from "react";
 import {
-    AlertTriangle,
     CheckCircle2,
     ChevronLeft,
     ChevronRight,
@@ -176,13 +175,6 @@ export function QuizSection({ item }: QuizSectionProps) {
     if (item.itemType !== "quiz") {
         return null;
     }
-
-    const statusTone =
-        totalPoints > QUIZ_MAX_POINTS
-            ? "danger"
-            : totalPoints === QUIZ_MAX_POINTS
-                ? "success"
-                : "warning";
 
     return (
         <>

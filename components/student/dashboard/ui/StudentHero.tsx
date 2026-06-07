@@ -1,6 +1,6 @@
 "use client";
 
-import { GraduationCap } from "lucide-react";
+
 import { StudentNotificationsBell } from "@/components/student/notifications/StudentNotificationsBell";
 
 type StudentHeroProps = {
@@ -13,12 +13,16 @@ type StudentHeroProps = {
 export function StudentHero({
     studentName,
     initials,
+    refreshing,
+    onRefresh,
 }: StudentHeroProps) {
     const visibleName =
-        studentName.trim() || "Estudiante";
+        studentName.trim() ||
+        "Estudiante";
 
     const visibleInitials =
-        initials.trim() || "ES";
+        initials.trim() ||
+        "ES";
 
     return (
         <section className="flex min-w-0 flex-col gap-4 sm:gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -41,23 +45,14 @@ export function StudentHero({
                 </h1>
 
                 <p className="mt-2 max-w-4xl text-sm font-semibold leading-6 text-slate-500 sm:text-base">
-                    Continúa tus cursos, revisa matrículas pendientes y
-                    encuentra nuevos cursos disponibles.
+                    Continúa tus cursos, revisa
+                    matrículas pendientes y
+                    encuentra nuevos cursos
+                    disponibles.
                 </p>
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3 lg:pt-1">
-                <span className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs font-black text-slate-950 shadow-sm sm:h-11 sm:px-4 sm:text-sm">
-                    <GraduationCap className="h-4 w-4 shrink-0 text-[#00469B]" />
-
-                    <span>
-                        <span className="hidden xs:inline">
-                            Rol:{" "}
-                        </span>
-
-                        Estudiante
-                    </span>
-                </span>
 
                 <StudentNotificationsBell />
 

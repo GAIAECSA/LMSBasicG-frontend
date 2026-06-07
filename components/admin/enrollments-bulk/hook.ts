@@ -10,6 +10,8 @@ import {
     type FormEvent,
 } from "react";
 
+import { notify } from "@/lib/notify";
+
 import {
     getAllCourses,
     type Course,
@@ -41,6 +43,18 @@ import {
     parseBulkText,
 } from "./utils";
 
+function createLoadingToast(message: string) {
+    const toastId = notify.loading(message);
+    let dismissed = false;
+
+    return () => {
+        if (dismissed) return;
+
+        notify.dismiss(toastId);
+        dismissed = true;
+    };
+}
+
 export function useEnrollmentsAdminBulkPanel() {
     const fileInputRef =
         useRef<HTMLInputElement | null>(null);
@@ -66,9 +80,6 @@ export function useEnrollmentsAdminBulkPanel() {
     const [error, setError] =
         useState<string | null>(null);
 
-    const [success, setSuccess] =
-        useState<string | null>(null);
-
     const [
         isLoadingCourses,
         setIsLoadingCourses,
@@ -80,20 +91,72 @@ export function useEnrollmentsAdminBulkPanel() {
     ] = useState(false);
 
     const [
+        isReadingFile,
+        setIsReadingFile,
+    ] = useState(false);
+
+    const [
         isSubmitting,
         setIsSubmitting,
     ] = useState(false);
 
+    const coursesLoadingRef =
+        useRef(false);
+
+    const fileReadingRef =
+        useRef(false);
+
+    const submittingRef =
+        useRef(false);
+
+    const hasLoadedCoursesOnceRef =
+        useRef(false);
+
     const loadCourses = useCallback(
         async (showRefresh = false) => {
-            try {
+            if (coursesLoadingRef.current) {
                 if (showRefresh) {
-                    setIsRefreshingCourses(true);
-                    setError(null);
-                    setSuccess(null);
-                } else {
+                    notify.warning(
+                        "La actualización de cursos ya está en proceso.",
+                    );
+                }
+
+                return;
+            }
+
+            if (
+                submittingRef.current &&
+                showRefresh
+            ) {
+                notify.warning(
+                    "Espera a que termine la matrícula masiva antes de actualizar los cursos.",
+                );
+
+                return;
+            }
+
+            coursesLoadingRef.current = true;
+
+            const isInitialLoad =
+                !hasLoadedCoursesOnceRef.current;
+
+            const dismissLoadingToast =
+                showRefresh
+                    ? createLoadingToast(
+                          "Actualizando cursos...",
+                      )
+                    : null;
+
+            try {
+                if (isInitialLoad) {
                     setIsLoadingCourses(true);
                 }
+
+                if (showRefresh) {
+                    setIsRefreshingCourses(true);
+                }
+
+                setError(null);
 
                 const data =
                     await getAllCourses();
@@ -106,7 +169,8 @@ export function useEnrollmentsAdminBulkPanel() {
                 setCourses(courseList);
 
                 if (showRefresh) {
-                    setSuccess(
+                    dismissLoadingToast?.();
+                    notify.success(
                         "Cursos actualizados correctamente.",
                     );
                 }
@@ -117,7 +181,16 @@ export function useEnrollmentsAdminBulkPanel() {
                         : "No se pudieron cargar los cursos.";
 
                 setError(message);
+                dismissLoadingToast?.();
+
+                if (showRefresh) {
+                    notify.error(message);
+                }
             } finally {
+                dismissLoadingToast?.();
+                hasLoadedCoursesOnceRef.current =
+                    true;
+                coursesLoadingRef.current = false;
                 setIsLoadingCourses(false);
                 setIsRefreshingCourses(false);
             }
@@ -135,20 +208,6 @@ export function useEnrollmentsAdminBulkPanel() {
             window.clearTimeout(timeoutId);
         };
     }, [loadCourses]);
-
-    useEffect(() => {
-        if (!error && !success) return;
-
-        const timeoutId =
-            window.setTimeout(() => {
-                setError(null);
-                setSuccess(null);
-            }, 3500);
-
-        return () => {
-            window.clearTimeout(timeoutId);
-        };
-    }, [error, success]);
 
     const selectedCourseId =
         useMemo(() => {
@@ -375,12 +434,23 @@ export function useEnrollmentsAdminBulkPanel() {
             return true;
         }
 
-        setError(
+        notify.warning(
             "Primero debes seleccionar el curso donde se matricularán los estudiantes.",
         );
 
-        setSuccess(null);
         setResult(null);
+
+        return false;
+    }
+
+    function ensureFormEditable(): boolean {
+        if (!submittingRef.current) {
+            return true;
+        }
+
+        notify.warning(
+            "Espera a que termine la matrícula masiva antes de modificar la lista.",
+        );
 
         return false;
     }
@@ -391,6 +461,8 @@ export function useEnrollmentsAdminBulkPanel() {
             keyof MassiveEnrollmentUserPayload,
         value: string,
     ) {
+        if (!ensureFormEditable()) return;
+
         setRows((currentRows) =>
             currentRows.map((row) =>
                 row.localId === localId
@@ -404,6 +476,7 @@ export function useEnrollmentsAdminBulkPanel() {
     }
 
     function addRow() {
+        if (!ensureFormEditable()) return;
         if (!ensureCourseSelected()) return;
 
         setRows((currentRows) => [
@@ -413,12 +486,23 @@ export function useEnrollmentsAdminBulkPanel() {
     }
 
     function handleImportCsvClick() {
+        if (!ensureFormEditable()) return;
         if (!ensureCourseSelected()) return;
+
+        if (fileReadingRef.current) {
+            notify.warning(
+                "Ya se está leyendo un archivo CSV.",
+            );
+
+            return;
+        }
 
         fileInputRef.current?.click();
     }
 
     function removeRow(localId: string) {
+        if (!ensureFormEditable()) return;
+
         setRows((currentRows) => {
             const nextRows =
                 currentRows.filter(
@@ -433,10 +517,10 @@ export function useEnrollmentsAdminBulkPanel() {
     }
 
     function clearRows() {
+        if (!ensureFormEditable()) return;
+
         setRows([createEmptyRow()]);
         setResult(null);
-        setError(null);
-        setSuccess(null);
     }
 
     function importRowsFromText(
@@ -446,7 +530,7 @@ export function useEnrollmentsAdminBulkPanel() {
             parseBulkText(content);
 
         if (parsedRows.length === 0) {
-            setError(
+            notify.warning(
                 "No se encontraron estudiantes para importar.",
             );
 
@@ -466,9 +550,8 @@ export function useEnrollmentsAdminBulkPanel() {
         });
 
         setResult(null);
-        setError(null);
 
-        setSuccess(
+        notify.success(
             `${parsedRows.length} estudiante(s) agregado(s).`,
         );
     }
@@ -481,21 +564,47 @@ export function useEnrollmentsAdminBulkPanel() {
 
         if (!file) return;
 
+        if (!ensureFormEditable()) {
+            event.target.value = "";
+            return;
+        }
+
         if (!ensureCourseSelected()) {
             event.target.value = "";
             return;
         }
 
+        if (fileReadingRef.current) {
+            notify.warning(
+                "Ya se está leyendo un archivo CSV.",
+            );
+            event.target.value = "";
+            return;
+        }
+
+        fileReadingRef.current = true;
+        setIsReadingFile(true);
+
+        const dismissLoadingToast =
+            createLoadingToast(
+                "Leyendo archivo CSV...",
+            );
+
         try {
             const content =
                 await file.text();
 
+            dismissLoadingToast();
             importRowsFromText(content);
         } catch {
-            setError(
+            dismissLoadingToast();
+            notify.error(
                 "No se pudo leer el archivo seleccionado.",
             );
         } finally {
+            dismissLoadingToast();
+            fileReadingRef.current = false;
+            setIsReadingFile(false);
             event.target.value = "";
         }
     }
@@ -505,14 +614,18 @@ export function useEnrollmentsAdminBulkPanel() {
             "plantilla_matricula_masiva.csv",
             CSV_EXAMPLE,
         );
+
+        notify.success(
+            "Plantilla CSV descargada correctamente.",
+        );
     }
 
     function handleCourseChange(
         value: string,
     ) {
+        if (!ensureFormEditable()) return;
+
         setCourseId(value);
-        setError(null);
-        setSuccess(null);
         setResult(null);
     }
 
@@ -521,8 +634,14 @@ export function useEnrollmentsAdminBulkPanel() {
     ) {
         event.preventDefault();
 
-        setError(null);
-        setSuccess(null);
+        if (submittingRef.current) {
+            notify.warning(
+                "La matrícula masiva ya está en proceso.",
+            );
+
+            return;
+        }
+
         setResult(null);
 
         if (!ensureCourseSelected()) return;
@@ -530,7 +649,7 @@ export function useEnrollmentsAdminBulkPanel() {
         if (
             validation.activeRows.length === 0
         ) {
-            setError(
+            notify.warning(
                 "Agrega o importa al menos un estudiante antes de continuar.",
             );
 
@@ -542,14 +661,20 @@ export function useEnrollmentsAdminBulkPanel() {
                 validation.rowErrors,
             ).length > 0
         ) {
-            setError(
+            notify.warning(
                 "Revisa los datos marcados antes de ejecutar la matrícula masiva.",
             );
 
             return;
         }
 
+        submittingRef.current = true;
         setIsSubmitting(true);
+
+        const dismissLoadingToast =
+            createLoadingToast(
+                "Matriculando estudiantes...",
+            );
 
         try {
             const response =
@@ -566,23 +691,24 @@ export function useEnrollmentsAdminBulkPanel() {
                 getResultCount(response);
 
             setResult(response);
+            dismissLoadingToast();
 
             if (
                 counts.created === 0 &&
                 counts.failed > 0
             ) {
-                setError(
+                notify.error(
                     "No se pudo matricular ningún estudiante. Revisa el detalle de los registros fallidos.",
                 );
             } else if (
                 counts.failed > 0 ||
                 counts.skipped > 0
             ) {
-                setSuccess(
+                notify.warning(
                     `Proceso finalizado: ${counts.created} creado(s), ${counts.skipped} omitido(s) y ${counts.failed} fallido(s).`,
                 );
             } else {
-                setSuccess(
+                notify.success(
                     "Todos los estudiantes fueron matriculados correctamente.",
                 );
             }
@@ -592,8 +718,11 @@ export function useEnrollmentsAdminBulkPanel() {
                     ? requestError.message
                     : "No se pudo completar la matrícula masiva.";
 
-            setError(message);
+            dismissLoadingToast();
+            notify.error(message);
         } finally {
+            dismissLoadingToast();
+            submittingRef.current = false;
             setIsSubmitting(false);
         }
     }
@@ -606,9 +735,9 @@ export function useEnrollmentsAdminBulkPanel() {
         rows,
         result,
         error,
-        success,
         isLoadingCourses,
         isRefreshingCourses,
+        isReadingFile,
         isSubmitting,
         selectedCourseId,
         selectedCourse,

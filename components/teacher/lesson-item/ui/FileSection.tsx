@@ -51,7 +51,6 @@ export function FileSection({ item }: FileSectionProps) {
         if (!item.selectedFile && selectedObjectUrlRef.current) {
             URL.revokeObjectURL(selectedObjectUrlRef.current);
             selectedObjectUrlRef.current = "";
-            setSelectedPreviewUrl("");
         }
     }, [item.selectedFile]);
 
@@ -76,17 +75,16 @@ export function FileSection({ item }: FileSectionProps) {
 
     function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0] ?? null;
+        const accepted = item.handleSelectedFile(event);
 
-        if (file) {
-            releaseSelectedPreview();
+        if (!file || !accepted) return;
 
-            const objectUrl = URL.createObjectURL(file);
+        releaseSelectedPreview();
 
-            selectedObjectUrlRef.current = objectUrl;
-            setSelectedPreviewUrl(objectUrl);
-        }
+        const objectUrl = URL.createObjectURL(file);
 
-        item.handleSelectedFile(event);
+        selectedObjectUrlRef.current = objectUrl;
+        setSelectedPreviewUrl(objectUrl);
     }
 
     function handleRemoveSelectedFile() {

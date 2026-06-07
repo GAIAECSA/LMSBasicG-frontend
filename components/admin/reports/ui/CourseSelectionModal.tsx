@@ -90,7 +90,11 @@ export function CourseSelectionModal({
                                             .value as CertificateType,
                                     )
                                 }
-                                className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:mt-2 sm:h-11 sm:px-4 sm:text-sm"
+                                disabled={
+                                    reports.loadingCourseId !==
+                                    null
+                                }
+                                className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-2 sm:h-11 sm:px-4 sm:text-sm"
                             >
                                 <option value="MDT">
                                     MDT
@@ -119,20 +123,16 @@ export function CourseSelectionModal({
                                 reports.setCoursePage(1);
                             }}
                             placeholder="Buscar curso por nombre"
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:pl-11 sm:pr-4 sm:text-sm"
+                            disabled={
+                                reports.loadingCourseId !==
+                                null
+                            }
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:pl-11 sm:pr-4 sm:text-sm"
                         />
                     </div>
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5 sm:py-4">
-                    {reports.modalErrorMessage ? (
-                        <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
-                            {
-                                reports.modalErrorMessage
-                            }
-                        </div>
-                    ) : null}
-
                     {reports.isLoadingCourses ? (
                         <div className="flex min-h-[190px] items-center justify-center">
                             <div className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 sm:gap-3 sm:text-sm">

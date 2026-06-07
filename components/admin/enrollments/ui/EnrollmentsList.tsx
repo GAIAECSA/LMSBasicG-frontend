@@ -41,7 +41,7 @@ type EnrollmentsListProps = {
         enrollment: Enrollment,
     ) => void;
     onDelete: (
-        enrollmentId: number,
+        enrollment: Enrollment,
     ) => void;
     onOpenVoucher: (
         url: string,
@@ -266,7 +266,7 @@ function EnrollmentTableRow({
         enrollment: Enrollment,
     ) => void;
     onDelete: (
-        enrollmentId: number,
+        enrollment: Enrollment,
     ) => void;
     onOpenVoucher: (
         url: string,
@@ -422,7 +422,7 @@ function EnrollmentTableRow({
                         disabled={disabled}
                         onClick={() =>
                             onDelete(
-                                enrollment.id,
+                                enrollment,
                             )
                         }
                     />
@@ -455,7 +455,7 @@ function EnrollmentMobileCard({
         enrollment: Enrollment,
     ) => void;
     onDelete: (
-        enrollmentId: number,
+        enrollment: Enrollment,
     ) => void;
     onOpenVoucher: (
         url: string,
@@ -598,7 +598,7 @@ function EnrollmentMobileCard({
                     tone="neutral"
                     disabled={disabled}
                     onClick={() =>
-                        onDelete(enrollment.id)
+                        onDelete(enrollment)
                     }
                     className="col-span-2"
                 />

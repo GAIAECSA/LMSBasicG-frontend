@@ -8,6 +8,7 @@ import { GradePanel } from "./ui/GradePanel";
 import { Header } from "./ui/Header";
 import { Loading } from "./ui/Loading";
 import { PreviewPanel } from "./ui/PreviewPanel";
+import { SurveySelector } from "./ui/SurveySelector";
 import { Toolbar } from "./ui/Toolbar";
 
 const PAGE_CLASS =
@@ -23,20 +24,7 @@ export function LessonItemReviewPage({
     const review = useLessonItemReview({ courseId, itemId });
 
     if (review.loading) {
-        return (
-            <section className={PAGE_CLASS}>
-                <div className={CONTAINER_CLASS}>
-                    <Toolbar
-                        backHref={review.backHref}
-                        editorHref={review.editorHref}
-                        refreshing={review.refreshing}
-                        onRefresh={review.loadData}
-                    />
-
-                    <Loading />
-                </div>
-            </section>
-        );
+        return <Loading />;
     }
 
     if (review.error && !review.block) {
@@ -47,7 +35,7 @@ export function LessonItemReviewPage({
                         backHref={review.backHref}
                         editorHref={review.editorHref}
                         refreshing={review.refreshing}
-                        onRefresh={review.loadData}
+                        onRefresh={review.handleRefresh}
                     />
 
                     <ErrorState
@@ -66,20 +54,16 @@ export function LessonItemReviewPage({
                     backHref={review.backHref}
                     editorHref={review.editorHref}
                     refreshing={review.refreshing}
-                    onRefresh={review.loadData}
+                    onRefresh={review.handleRefresh}
                 />
 
                 <Header review={review} />
 
+                <SurveySelector review={review} />
+
                 {review.error ? (
                     <div className="break-words rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                         {review.error}
-                    </div>
-                ) : null}
-
-                {review.notice ? (
-                    <div className="break-words rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold leading-5 text-emerald-700 [overflow-wrap:anywhere] sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-                        {review.notice}
                     </div>
                 ) : null}
 

@@ -46,17 +46,7 @@ export function PreviewModal({ certificate, onClose }: PreviewModalProps) {
                                     href={fileUrl}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-bold text-white transition hover:bg-white/20"
-                                >
-                                    <ExternalLink className="h-4 w-4" />
-                                    Abrir
-                                </a>
-
-                                <a
-                                    href={fileUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-[var(--primary)] transition hover:bg-white/90"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl bg-white/15 px-4 text-sm font-black text-[var(--primary)] transition hover:bg-white/90"
                                 >
                                     <Download className="h-4 w-4" />
                                     Descargar

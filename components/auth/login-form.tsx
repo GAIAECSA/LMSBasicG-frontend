@@ -31,9 +31,13 @@ import {
     AUTH_PASSWORD_INPUT_CLASS,
     AUTH_PASSWORD_TOGGLE_CLASS,
 } from "@/components/auth/auth-ui";
-import { getDashboardRouteByRole } from "@/lib/auth";
-import { loginService } from "@/services/auth.service";
 import { useAuth } from "@/hooks/useAuth";
+import {
+    getDashboardRouteByRole,
+} from "@/lib/auth";
+import { notify } from "@/lib/notify";
+import { loginService } from "@/services/auth.service";
+import { API_URL } from "@/services/api-client.service";
 
 import type {
     LoginResponse,
@@ -44,15 +48,20 @@ type LoginApiResponse = {
     accessToken?: string;
     access_token?: string;
     token?: string;
+    refreshToken?: string | null;
+    refresh_token?: string | null;
+    tokenType?: string | null;
+    token_type?: string | null;
     role_id?: number | string;
     role?: number | string;
     user?: {
         id: string | number;
-        email: string;
+        email?: string;
         username?: string;
         firstname?: string;
         lastname?: string;
         fullName?: string;
+        phone_number?: string;
         role?: number | string;
         role_id?: number | string;
     };
@@ -60,13 +69,13 @@ type LoginApiResponse = {
 
 type PrivacyPolicy = {
     id: number;
-    title: string;
-    version: string;
-    file_url: string;
-    is_active: boolean;
-    mandatory: boolean;
-    effective_date: string;
-    deleted: boolean;
+    title?: string;
+    version?: string;
+    file_url?: string;
+    is_active?: boolean;
+    mandatory?: boolean;
+    effective_date?: string;
+    deleted?: boolean;
     created_at?: string;
     updated_at?: string | null;
     content?: string;
@@ -74,28 +83,109 @@ type PrivacyPolicy = {
     body?: string;
 };
 
-const RAW_API_URL =
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://213.165.74.184:9002";
-
-const API_URL = RAW_API_URL
-    .replace(/\/$/, "")
-    .replace(/\/api\/v1$/, "");
-
 const PRIVACY_POLICY_ENDPOINT =
     `${API_URL}/api/v1/privacy-policy`;
 
 const USER_PRIVACY_POLICY_ENDPOINT =
     `${API_URL}/api/v1/user-privacy-policy`;
 
-function getAuthHeaders(accessToken?: string) {
+function isRecord(
+    value: unknown,
+): value is Record<string, unknown> {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+    );
+}
+
+function getErrorMessageFromData(
+    data: unknown,
+): string | null {
+    if (
+        typeof data === "string" &&
+        data.trim()
+    ) {
+        return data.trim();
+    }
+
+    if (Array.isArray(data)) {
+        for (const item of data) {
+            const message =
+                getErrorMessageFromData(item);
+
+            if (message) {
+                return message;
+            }
+        }
+
+        return null;
+    }
+
+    if (!isRecord(data)) {
+        return null;
+    }
+
+    const possibleMessages = [
+        data.detail,
+        data.message,
+        data.error,
+        data.msg,
+    ];
+
+    for (const value of possibleMessages) {
+        const message =
+            getErrorMessageFromData(value);
+
+        if (message) {
+            return message;
+        }
+    }
+
+    return null;
+}
+
+function getErrorMessage(
+    error: unknown,
+    fallback: string,
+) {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message.trim();
+    }
+
+    if (
+        typeof error === "string" &&
+        error.trim()
+    ) {
+        return error.trim();
+    }
+
+    return fallback;
+}
+
+function getAuthHeaders(
+    accessToken?: string,
+) {
     const headers = new Headers();
 
-    headers.set("Accept", "application/json");
-    headers.set("Content-Type", "application/json");
+    headers.set(
+        "Accept",
+        "application/json",
+    );
+
+    headers.set(
+        "Content-Type",
+        "application/json",
+    );
 
     if (accessToken) {
-        headers.set("Authorization", `Bearer ${accessToken}`);
+        headers.set(
+            "Authorization",
+            `Bearer ${accessToken}`,
+        );
     }
 
     return headers;
@@ -104,7 +194,8 @@ function getAuthHeaders(accessToken?: string) {
 async function readApiResponse<T>(
     response: Response,
 ): Promise<T> {
-    const text = await response.text();
+    const text =
+        await response.text();
 
     let data: unknown = null;
 
@@ -117,33 +208,9 @@ async function readApiResponse<T>(
     }
 
     if (!response.ok) {
-        let message = "No se pudo completar la solicitud.";
-
-        if (
-            data &&
-            typeof data === "object" &&
-            "detail" in data
-        ) {
-            const detail =
-                (data as { detail?: unknown }).detail;
-
-            if (typeof detail === "string") {
-                message = detail;
-            }
-        } else if (
-            data &&
-            typeof data === "object" &&
-            "message" in data
-        ) {
-            const apiMessage =
-                (data as { message?: unknown }).message;
-
-            if (typeof apiMessage === "string") {
-                message = apiMessage;
-            }
-        } else if (typeof data === "string") {
-            message = data;
-        }
+        const message =
+            getErrorMessageFromData(data) ||
+            "No se pudo completar la solicitud.";
 
         throw new Error(message);
     }
@@ -151,17 +218,9 @@ async function readApiResponse<T>(
     return data as T;
 }
 
-function isRecord(
-    value: unknown,
-): value is Record<string, unknown> {
-    return (
-        typeof value === "object" &&
-        value !== null &&
-        !Array.isArray(value)
-    );
-}
-
-function normalizeResourceUrl(url?: string | null) {
+function normalizeResourceUrl(
+    url?: string | null,
+) {
     if (!url) return "";
 
     if (
@@ -179,10 +238,13 @@ function normalizeResourceUrl(url?: string | null) {
     return `${API_URL}/${url}`;
 }
 
-function resolveRole(rawRole: unknown): UserRole {
-    const value = String(rawRole ?? "")
-        .trim()
-        .toLowerCase();
+function resolveRole(
+    rawRole: unknown,
+): UserRole {
+    const value =
+        String(rawRole ?? "")
+            .trim()
+            .toLowerCase();
 
     if (
         value === "1" ||
@@ -204,14 +266,31 @@ function resolveRole(rawRole: unknown): UserRole {
     return "student";
 }
 
+function resolveRoleId(
+    value: unknown,
+): number | null {
+    const parsed =
+        Number(value ?? 0);
+
+    if (
+        !Number.isFinite(parsed) ||
+        parsed <= 0
+    ) {
+        return null;
+    }
+
+    return parsed;
+}
+
 function buildSession(
     response: LoginApiResponse,
 ): LoginResponse {
-    const apiUser = response.user;
+    const apiUser =
+        response.user;
 
     if (!apiUser) {
         throw new Error(
-            "La respuesta del login no contiene usuario.",
+            "La respuesta del login no contiene los datos del usuario.",
         );
     }
 
@@ -223,48 +302,64 @@ function buildSession(
 
     if (!accessToken) {
         throw new Error(
-            "La respuesta del login no contiene token.",
+            "La respuesta del login no contiene el token de acceso.",
         );
     }
 
     const firstname =
-        apiUser.firstname?.trim() ?? "";
+        apiUser.firstname?.trim() ??
+        "";
 
     const lastname =
-        apiUser.lastname?.trim() ?? "";
+        apiUser.lastname?.trim() ??
+        "";
+
+    const email =
+        apiUser.email?.trim() ??
+        "";
+
+    const username =
+        apiUser.username?.trim() ||
+        email ||
+        "";
 
     const fullName =
         apiUser.fullName?.trim() ||
         `${firstname} ${lastname}`.trim() ||
-        apiUser.username?.trim() ||
-        apiUser.email?.trim() ||
+        username ||
         "Usuario";
 
     return {
         accessToken,
-        refreshToken: null,
-        tokenType: "Bearer",
+        refreshToken:
+            response.refreshToken ??
+            response.refresh_token ??
+            null,
+        tokenType:
+            response.tokenType ??
+            response.token_type ??
+            "Bearer",
         user: {
-            id: String(apiUser.id ?? ""),
-            username:
-                apiUser.username?.trim() ||
-                apiUser.email?.trim() ||
-                "",
+            id: String(
+                apiUser.id ?? "",
+            ),
+            username,
             firstname,
             lastname,
             fullName,
-            email: apiUser.email || "",
-            phone_number: "",
+            email,
+            phone_number:
+                apiUser.phone_number ??
+                "",
             role: resolveRole(
                 apiUser.role ??
                 apiUser.role_id ??
                 response.role ??
                 response.role_id,
             ),
-            role_id: Number(
+            role_id: resolveRoleId(
                 apiUser.role_id ??
-                response.role_id ??
-                0,
+                response.role_id,
             ),
         },
     };
@@ -273,29 +368,37 @@ function buildSession(
 function getActivePolicyFromList(
     policies: PrivacyPolicy[],
 ): PrivacyPolicy | null {
-    const activePolicies = policies
-        .filter(
-            (policy) =>
-                policy.is_active === true &&
-                policy.deleted !== true,
-        )
-        .sort((a, b) => {
-            const dateA = new Date(
-                a.effective_date ??
-                a.created_at ??
-                "",
-            ).getTime();
+    const activePolicies =
+        policies
+            .filter(
+                (policy) =>
+                    policy.is_active !==
+                    false &&
+                    policy.deleted !==
+                    true,
+            )
+            .sort((a, b) => {
+                const dateA =
+                    new Date(
+                        a.effective_date ??
+                        a.created_at ??
+                        "",
+                    ).getTime();
 
-            const dateB = new Date(
-                b.effective_date ??
-                b.created_at ??
-                "",
-            ).getTime();
+                const dateB =
+                    new Date(
+                        b.effective_date ??
+                        b.created_at ??
+                        "",
+                    ).getTime();
 
-            return dateB - dateA;
-        });
+                return dateB - dateA;
+            });
 
-    return activePolicies[0] ?? null;
+    return (
+        activePolicies[0] ??
+        null
+    );
 }
 
 function normalizePolicyResponse(
@@ -312,12 +415,22 @@ function normalizePolicyResponse(
             data.privacyPolicy ??
             data.privacy_policy ??
             data.result ??
+            data.results ??
+            data.items ??
             data;
     }
 
     if (Array.isArray(data)) {
+        const policies =
+            data
+                .filter(isRecord)
+                .map(
+                    (item) =>
+                        item as PrivacyPolicy,
+                );
+
         return getActivePolicyFromList(
-            data.filter(isRecord) as PrivacyPolicy[],
+            policies,
         );
     }
 
@@ -331,22 +444,32 @@ function normalizePolicyResponse(
 async function getActivePrivacyPolicyDirect(
     accessToken: string,
 ): Promise<PrivacyPolicy | null> {
+    let activeEndpointError: unknown = null;
+
     try {
-        const response = await fetch(
-            `${PRIVACY_POLICY_ENDPOINT}/active/current`,
-            {
-                method: "GET",
-                headers: getAuthHeaders(accessToken),
-                cache: "no-store",
-            },
-        );
+        const response =
+            await fetch(
+                `${PRIVACY_POLICY_ENDPOINT}/active/current`,
+                {
+                    method: "GET",
+                    headers:
+                        getAuthHeaders(
+                            accessToken,
+                        ),
+                    cache: "no-store",
+                },
+            );
 
         if (response.ok) {
             const data =
-                await readApiResponse<unknown>(response);
+                await readApiResponse<unknown>(
+                    response,
+                );
 
             const policy =
-                normalizePolicyResponse(data);
+                normalizePolicyResponse(
+                    data,
+                );
 
             if (
                 policy &&
@@ -355,27 +478,50 @@ async function getActivePrivacyPolicyDirect(
             ) {
                 return policy;
             }
+        } else if (
+            response.status !== 404
+        ) {
+            await readApiResponse<unknown>(
+                response,
+            );
         }
-    } catch {
-        // Si falla active/current, se intenta consultar el listado.
+    } catch (error) {
+        activeEndpointError = error;
     }
 
     try {
-        const response = await fetch(
-            `${PRIVACY_POLICY_ENDPOINT}/`,
-            {
-                method: "GET",
-                headers: getAuthHeaders(accessToken),
-                cache: "no-store",
-            },
-        );
+        const response =
+            await fetch(
+                `${PRIVACY_POLICY_ENDPOINT}/`,
+                {
+                    method: "GET",
+                    headers:
+                        getAuthHeaders(
+                            accessToken,
+                        ),
+                    cache: "no-store",
+                },
+            );
 
         const data =
-            await readApiResponse<unknown>(response);
+            await readApiResponse<unknown>(
+                response,
+            );
 
-        return normalizePolicyResponse(data);
-    } catch {
-        return null;
+        return normalizePolicyResponse(
+            data,
+        );
+    } catch (error) {
+        const message =
+            getErrorMessage(
+                error,
+                getErrorMessage(
+                    activeEndpointError,
+                    "No se pudo verificar la política de privacidad activa.",
+                ),
+            );
+
+        throw new Error(message);
     }
 }
 
@@ -383,46 +529,72 @@ async function acceptPrivacyPolicyDirect(
     privacyPolicyId: number,
     accessToken: string,
 ) {
-    const response = await fetch(
-        `${USER_PRIVACY_POLICY_ENDPOINT}/accept/${privacyPolicyId}`,
-        {
-            method: "POST",
-            headers: getAuthHeaders(accessToken),
-            body: JSON.stringify({
-                privacy_policy_id: privacyPolicyId,
-                accepted: true,
-            }),
-            cache: "no-store",
-        },
-    );
+    const response =
+        await fetch(
+            `${USER_PRIVACY_POLICY_ENDPOINT}/accept/${privacyPolicyId}`,
+            {
+                method: "POST",
+                headers:
+                    getAuthHeaders(
+                        accessToken,
+                    ),
+                body: JSON.stringify({
+                    privacy_policy_id:
+                        privacyPolicyId,
+                    accepted: true,
+                }),
+                cache: "no-store",
+            },
+        );
 
-    return readApiResponse<unknown>(response);
+    return readApiResponse<unknown>(
+        response,
+    );
 }
 
 async function checkActivePrivacyPolicyAcceptanceDirect(
     accessToken: string,
 ) {
-    const response = await fetch(
-        `${USER_PRIVACY_POLICY_ENDPOINT}/check-active`,
-        {
-            method: "GET",
-            headers: getAuthHeaders(accessToken),
-            cache: "no-store",
-        },
-    );
+    const response =
+        await fetch(
+            `${USER_PRIVACY_POLICY_ENDPOINT}/check-active`,
+            {
+                method: "GET",
+                headers:
+                    getAuthHeaders(
+                        accessToken,
+                    ),
+                cache: "no-store",
+            },
+        );
 
-    return readApiResponse<unknown>(response);
+    return readApiResponse<unknown>(
+        response,
+    );
 }
 
-function isAcceptanceValid(value: unknown) {
-    if (typeof value === "boolean") {
+function isAcceptanceValid(
+    value: unknown,
+): boolean {
+    if (
+        typeof value === "boolean"
+    ) {
         return value;
     }
 
-    if (typeof value === "string") {
-        const normalized = value
-            .trim()
-            .toLowerCase();
+    if (
+        typeof value === "number"
+    ) {
+        return value === 1;
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+        const normalized =
+            value
+                .trim()
+                .toLowerCase();
 
         return (
             normalized === "accepted" ||
@@ -434,17 +606,24 @@ function isAcceptanceValid(value: unknown) {
         );
     }
 
-    if (isRecord(value)) {
-        return (
-            value.accepted === true ||
-            value.is_accepted === true ||
-            value.has_accepted === true ||
-            value.accepted_privacy_policy === true ||
-            value.privacy_policy_accepted === true
-        );
+    if (!isRecord(value)) {
+        return false;
     }
 
-    return false;
+    const possibleValues = [
+        value.accepted,
+        value.is_accepted,
+        value.has_accepted,
+        value.accepted_privacy_policy,
+        value.privacy_policy_accepted,
+        value.data,
+        value.result,
+    ];
+
+    return possibleValues.some(
+        (item) =>
+            isAcceptanceValid(item),
+    );
 }
 
 function isPolicyRequired(
@@ -452,7 +631,10 @@ function isPolicyRequired(
 ) {
     if (!policy) return false;
 
-    if (typeof policy.mandatory === "boolean") {
+    if (
+        typeof policy.mandatory ===
+        "boolean"
+    ) {
         return policy.mandatory;
     }
 
@@ -472,14 +654,22 @@ function getPolicyContent(
     );
 }
 
-function wait(milliseconds: number) {
-    return new Promise<void>((resolve) => {
-        window.setTimeout(resolve, milliseconds);
-    });
+function wait(
+    milliseconds: number,
+) {
+    return new Promise<void>(
+        (resolve) => {
+            window.setTimeout(
+                resolve,
+                milliseconds,
+            );
+        },
+    );
 }
 
 export function LoginForm() {
-    const router = useRouter();
+    const router =
+        useRouter();
 
     const {
         user,
@@ -487,41 +677,66 @@ export function LoginForm() {
         signIn,
     } = useAuth();
 
-    const [username, setUsername] =
-        useState("");
+    const [
+        username,
+        setUsername,
+    ] = useState("");
 
-    const [password, setPassword] =
-        useState("");
+    const [
+        password,
+        setPassword,
+    ] = useState("");
 
-    const [showPassword, setShowPassword] =
-        useState(false);
+    const [
+        showPassword,
+        setShowPassword,
+    ] = useState(false);
 
-    const [submitting, setSubmitting] =
-        useState(false);
+    const [
+        submitting,
+        setSubmitting,
+    ] = useState(false);
 
-    const [error, setError] =
-        useState("");
+    const [
+        loadingPolicy,
+        setLoadingPolicy,
+    ] = useState(false);
 
-    const [modalError, setModalError] =
-        useState("");
+    const [
+        modalError,
+        setModalError,
+    ] = useState("");
 
-    const [privacyPolicy, setPrivacyPolicy] =
-        useState<PrivacyPolicy | null>(null);
+    const [
+        privacyPolicy,
+        setPrivacyPolicy,
+    ] =
+        useState<PrivacyPolicy | null>(
+            null,
+        );
 
-    const [loadingPolicy, setLoadingPolicy] =
-        useState(false);
+    const [
+        showPrivacyModal,
+        setShowPrivacyModal,
+    ] = useState(false);
 
-    const [showPrivacyModal, setShowPrivacyModal] =
-        useState(false);
+    const [
+        acceptingPolicy,
+        setAcceptingPolicy,
+    ] = useState(false);
 
-    const [acceptingPolicy, setAcceptingPolicy] =
-        useState(false);
+    const [
+        pendingSession,
+        setPendingSession,
+    ] =
+        useState<LoginResponse | null>(
+            null,
+        );
 
-    const [pendingSession, setPendingSession] =
-        useState<LoginResponse | null>(null);
-
-    const [policyChecked, setPolicyChecked] =
-        useState(false);
+    const [
+        policyChecked,
+        setPolicyChecked,
+    ] = useState(false);
 
     useEffect(() => {
         if (
@@ -531,7 +746,9 @@ export function LoginForm() {
             !pendingSession
         ) {
             router.replace(
-                getDashboardRouteByRole(user.role),
+                getDashboardRouteByRole(
+                    user.role,
+                ),
             );
         }
     }, [
@@ -551,7 +768,9 @@ export function LoginForm() {
                     accessToken,
                 );
 
-            return isAcceptanceValid(response);
+            return isAcceptanceValid(
+                response,
+            );
         } catch {
             return false;
         }
@@ -580,8 +799,26 @@ export function LoginForm() {
         return false;
     }
 
-    function finishLogin(session: LoginResponse) {
+    function finishLogin(
+        session: LoginResponse,
+    ) {
+        setShowPrivacyModal(false);
+        setPendingSession(null);
+        setPrivacyPolicy(null);
+        setPolicyChecked(false);
+        setModalError("");
+
         signIn(session);
+
+        const displayName =
+            session.user.fullName ||
+            session.user.username ||
+            "Usuario";
+
+        notify.success(
+            "Inicio de sesión exitoso.",
+            `Bienvenido, ${displayName}.`,
+        );
 
         router.replace(
             getDashboardRouteByRole(
@@ -595,7 +832,13 @@ export function LoginForm() {
     ) {
         event.preventDefault();
 
-        setError("");
+        if (
+            submitting ||
+            loadingPolicy
+        ) {
+            return;
+        }
+
         setModalError("");
         setPolicyChecked(false);
 
@@ -603,8 +846,9 @@ export function LoginForm() {
             !username.trim() ||
             !password.trim()
         ) {
-            setError(
-                "Primero ingresa tu usuario y contraseña.",
+            notify.warning(
+                "Completa tus credenciales.",
+                "Ingresa tu usuario y contraseña para continuar.",
             );
 
             return;
@@ -612,16 +856,18 @@ export function LoginForm() {
 
         try {
             setSubmitting(true);
-            setLoadingPolicy(true);
 
             const response =
                 (await loginService({
-                    username: username.trim(),
+                    username:
+                        username.trim(),
                     password,
                 })) as LoginApiResponse;
 
             const session =
                 buildSession(response);
+
+            setLoadingPolicy(true);
 
             const activePolicy =
                 await getActivePrivacyPolicyDirect(
@@ -630,7 +876,9 @@ export function LoginForm() {
 
             if (
                 !activePolicy ||
-                !isPolicyRequired(activePolicy)
+                !isPolicyRequired(
+                    activePolicy,
+                )
             ) {
                 finishLogin(session);
                 return;
@@ -646,17 +894,33 @@ export function LoginForm() {
                 return;
             }
 
-            setPrivacyPolicy(activePolicy);
-            setPendingSession(session);
-            setShowPrivacyModal(true);
-            setModalError(
-                "Debes aceptar la política para ingresar.",
+            setPrivacyPolicy(
+                activePolicy,
             );
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "No se pudo iniciar sesión.",
+
+            setPendingSession(
+                session,
+            );
+
+            setShowPrivacyModal(
+                true,
+            );
+
+            setModalError(
+                "Debes aceptar la política de privacidad para ingresar.",
+            );
+
+            notify.info(
+                "Política de privacidad pendiente.",
+                "Revisa el documento y acepta la política para continuar.",
+            );
+        } catch (error) {
+            notify.error(
+                "No se pudo iniciar sesión.",
+                getErrorMessage(
+                    error,
+                    "Verifica tus credenciales e intenta nuevamente.",
+                ),
             );
         } finally {
             setSubmitting(false);
@@ -665,20 +929,31 @@ export function LoginForm() {
     }
 
     async function handleAcceptPolicy() {
-        setError("");
         setModalError("");
 
         if (!privacyPolicy) {
-            setModalError(
-                "No se encontró la política de privacidad.",
+            const message =
+                "No se encontró la política de privacidad.";
+
+            setModalError(message);
+
+            notify.error(
+                "No se pudo continuar.",
+                message,
             );
 
             return;
         }
 
         if (!policyChecked) {
-            setModalError(
-                "Marca la casilla para aceptar la política.",
+            const message =
+                "Marca la casilla para aceptar la política.";
+
+            setModalError(message);
+
+            notify.warning(
+                "Aceptación pendiente.",
+                message,
             );
 
             return;
@@ -687,15 +962,24 @@ export function LoginForm() {
         try {
             setAcceptingPolicy(true);
 
-            let session = pendingSession;
+            let session =
+                pendingSession;
 
             if (!session) {
                 if (
                     !username.trim() ||
                     !password.trim()
                 ) {
+                    const message =
+                        "Primero ingresa tu usuario y contraseña.";
+
                     setModalError(
-                        "Primero ingresa tu usuario y contraseña.",
+                        message,
+                    );
+
+                    notify.warning(
+                        "Credenciales requeridas.",
+                        message,
                     );
 
                     return;
@@ -703,12 +987,15 @@ export function LoginForm() {
 
                 const response =
                     (await loginService({
-                        username: username.trim(),
+                        username:
+                            username.trim(),
                         password,
                     })) as LoginApiResponse;
 
                 session =
-                    buildSession(response);
+                    buildSession(
+                        response,
+                    );
             }
 
             await acceptPrivacyPolicyDirect(
@@ -722,23 +1009,34 @@ export function LoginForm() {
                 );
 
             if (!confirmed) {
+                const message =
+                    "La aceptación fue enviada, pero todavía no pudo confirmarse. Intenta nuevamente.";
+
                 setModalError(
-                    "La aceptación fue enviada, pero el servidor todavía responde en false.",
+                    message,
+                );
+
+                notify.warning(
+                    "No se confirmó la aceptación.",
+                    message,
                 );
 
                 return;
             }
 
-            setShowPrivacyModal(false);
-            setPendingSession(null);
-            setPolicyChecked(false);
-
             finishLogin(session);
-        } catch (err) {
-            setModalError(
-                err instanceof Error
-                    ? err.message
-                    : "No se pudo aceptar la política.",
+        } catch (error) {
+            const message =
+                getErrorMessage(
+                    error,
+                    "No se pudo aceptar la política de privacidad.",
+                );
+
+            setModalError(message);
+
+            notify.error(
+                "No se pudo guardar la aceptación.",
+                message,
             );
         } finally {
             setAcceptingPolicy(false);
@@ -746,11 +1044,20 @@ export function LoginForm() {
     }
 
     function closePrivacyModal() {
-        if (acceptingPolicy) return;
+        if (acceptingPolicy) {
+            return;
+        }
 
         setShowPrivacyModal(false);
+        setPendingSession(null);
+        setPrivacyPolicy(null);
         setModalError("");
         setPolicyChecked(false);
+
+        notify.info(
+            "Ingreso cancelado.",
+            "Debes aceptar la política de privacidad para acceder a la plataforma.",
+        );
     }
 
     const privacyPolicyUrl =
@@ -759,26 +1066,30 @@ export function LoginForm() {
         );
 
     const privacyPolicyContent =
-        getPolicyContent(privacyPolicy);
+        getPolicyContent(
+            privacyPolicy,
+        );
+
+    const isSubmitting =
+        submitting ||
+        loadingPolicy;
 
     return (
         <>
             <AuthCard>
                 <AuthFormHeader
                     title="Iniciar sesión"
-                    description="Accede con tu usuario y contraseña."
+                    description="Accede con tu usuario y contraseña para continuar."
                 />
 
                 <form
-                    className={AUTH_FORM_STACK_CLASS}
-                    onSubmit={handleSubmit}
+                    className={
+                        AUTH_FORM_STACK_CLASS
+                    }
+                    onSubmit={
+                        handleSubmit
+                    }
                 >
-                    {error ? (
-                        <AuthAlert>
-                            {error}
-                        </AuthAlert>
-                    ) : null}
-
                     <AuthField
                         label="Usuario"
                         htmlFor="login-username"
@@ -786,19 +1097,38 @@ export function LoginForm() {
                         <input
                             id="login-username"
                             type="text"
-                            value={username}
-                            onChange={(event) => {
+                            value={
+                                username
+                            }
+                            onChange={(
+                                event,
+                            ) => {
                                 setUsername(
-                                    event.target.value,
+                                    event
+                                        .target
+                                        .value,
                                 );
-                                setPendingSession(null);
-                                setPolicyChecked(false);
-                                setError("");
-                                setModalError("");
+
+                                setPendingSession(
+                                    null,
+                                );
+
+                                setPolicyChecked(
+                                    false,
+                                );
+
+                                setModalError(
+                                    "",
+                                );
                             }}
                             placeholder="Ingresa tu usuario"
                             autoComplete="username"
-                            className={AUTH_INPUT_CLASS}
+                            disabled={
+                                isSubmitting
+                            }
+                            className={
+                                AUTH_INPUT_CLASS
+                            }
                         />
                     </AuthField>
 
@@ -808,9 +1138,12 @@ export function LoginForm() {
                         action={
                             <Link
                                 href="/forgot-password"
-                                className={AUTH_ACTION_CLASS}
+                                className={
+                                    AUTH_ACTION_CLASS
+                                }
                             >
-                                ¿Olvidaste tu contraseña?
+                                ¿Olvidaste tu
+                                contraseña?
                             </Link>
                         }
                     >
@@ -822,18 +1155,35 @@ export function LoginForm() {
                                         ? "text"
                                         : "password"
                                 }
-                                value={password}
-                                onChange={(event) => {
+                                value={
+                                    password
+                                }
+                                onChange={(
+                                    event,
+                                ) => {
                                     setPassword(
-                                        event.target.value,
+                                        event
+                                            .target
+                                            .value,
                                     );
-                                    setPendingSession(null);
-                                    setPolicyChecked(false);
-                                    setError("");
-                                    setModalError("");
+
+                                    setPendingSession(
+                                        null,
+                                    );
+
+                                    setPolicyChecked(
+                                        false,
+                                    );
+
+                                    setModalError(
+                                        "",
+                                    );
                                 }}
                                 placeholder="Ingresa tu contraseña"
                                 autoComplete="current-password"
+                                disabled={
+                                    isSubmitting
+                                }
                                 className={
                                     AUTH_PASSWORD_INPUT_CLASS
                                 }
@@ -843,10 +1193,15 @@ export function LoginForm() {
                                 type="button"
                                 onClick={() => {
                                     setShowPassword(
-                                        (previous) =>
+                                        (
+                                            previous,
+                                        ) =>
                                             !previous,
                                     );
                                 }}
+                                disabled={
+                                    isSubmitting
+                                }
                                 className={
                                     AUTH_PASSWORD_TOGGLE_CLASS
                                 }
@@ -857,9 +1212,17 @@ export function LoginForm() {
                                 }
                             >
                                 {showPassword ? (
-                                    <EyeOff size={18} />
+                                    <EyeOff
+                                        size={
+                                            18
+                                        }
+                                    />
                                 ) : (
-                                    <Eye size={18} />
+                                    <Eye
+                                        size={
+                                            18
+                                        }
+                                    />
                                 )}
                             </button>
                         </div>
@@ -871,21 +1234,24 @@ export function LoginForm() {
                         }
                         title="Política de privacidad"
                     >
-                        Si tienes una política pendiente,
-                        se mostrará después de validar tus
-                        datos.
+                        Si tienes una política
+                        pendiente, se mostrará
+                        después de validar tus
+                        credenciales.
                     </AuthInfoPanel>
 
                     <AuthPrimaryButton
                         disabled={
-                            submitting ||
-                            loadingPolicy
+                            isSubmitting
                         }
                     >
-                        {submitting ? (
+                        {isSubmitting ? (
                             <span className="flex items-center gap-2">
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Validando...
+
+                                {loadingPolicy
+                                    ? "Verificando política..."
+                                    : "Validando acceso..."}
                             </span>
                         ) : (
                             "Entrar al sistema"
@@ -893,11 +1259,18 @@ export function LoginForm() {
                     </AuthPrimaryButton>
                 </form>
 
-                <div className={AUTH_FOOTER_CLASS}>
+                <div
+                    className={
+                        AUTH_FOOTER_CLASS
+                    }
+                >
                     ¿No tienes cuenta?{" "}
+
                     <Link
                         href="/register"
-                        className={AUTH_FOOTER_LINK_CLASS}
+                        className={
+                            AUTH_FOOTER_LINK_CLASS
+                        }
                     >
                         Regístrate
                     </Link>
@@ -907,24 +1280,34 @@ export function LoginForm() {
             {showPrivacyModal &&
                 privacyPolicy ? (
                 <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/75 p-3 sm:p-5">
-                    <section className="flex h-[92dvh] max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[20px] bg-white shadow-2xl sm:rounded-[26px]">
+                    <section
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="privacy-policy-title"
+                        className="flex h-[92dvh] max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[20px] bg-white shadow-2xl sm:rounded-[26px]"
+                    >
                         <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6">
                             <div className="min-w-0">
                                 <p className="text-xs font-black uppercase tracking-[0.22em] text-[#003d8f]">
-                                    Política pendiente
+                                    Política
+                                    pendiente
                                 </p>
 
-                                <h2 className="mt-1 text-lg font-black text-slate-900 sm:text-xl">
-                                    {privacyPolicy.title ||
+                                <h2
+                                    id="privacy-policy-title"
+                                    className="mt-1 text-lg font-black text-slate-900 sm:text-xl"
+                                >
+                                    {privacyPolicy
+                                        .title ||
                                         "Política de privacidad"}
                                 </h2>
 
                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                                     <span>
                                         Versión{" "}
-                                        {
-                                            privacyPolicy.version
-                                        }
+                                        {privacyPolicy
+                                            .version ||
+                                            "actual"}
                                     </span>
 
                                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
@@ -969,9 +1352,10 @@ export function LoginForm() {
                                         <FileText className="mx-auto h-10 w-10 text-slate-300" />
 
                                         <p className="mt-3 text-sm font-semibold text-slate-600">
-                                            No existe
+                                            No existe un
                                             documento o
-                                            contenido para
+                                            contenido
+                                            disponible para
                                             esta política.
                                         </p>
                                     </div>
@@ -982,8 +1366,12 @@ export function LoginForm() {
                         <footer className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
                             {modalError ? (
                                 <div className="mb-3">
-                                    <AuthAlert>
-                                        {modalError}
+                                    <AuthAlert
+                                        variant="warning"
+                                    >
+                                        {
+                                            modalError
+                                        }
                                     </AuthAlert>
                                 </div>
                             ) : null}
@@ -1015,23 +1403,22 @@ export function LoginForm() {
                                                 setModalError(
                                                     "",
                                                 );
-                                                setError(
-                                                    "",
-                                                );
                                             }
                                         }}
                                         className="mt-1 h-4 w-4 rounded border-slate-300 text-[#003d8f] focus:ring-[#003d8f]"
                                     />
 
                                     <span className="text-sm font-semibold leading-6 text-slate-700">
-                                        Acepto la política
-                                        de privacidad.
+                                        He leído y acepto
+                                        la política de
+                                        privacidad.
                                     </span>
                                 </label>
 
                                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <p className="text-xs leading-5 text-slate-500">
-                                        Debes aceptar para
+                                        Debes aceptar la
+                                        política para
                                         continuar.
                                     </p>
 
@@ -1063,11 +1450,13 @@ export function LoginForm() {
                                             {acceptingPolicy ? (
                                                 <>
                                                     <Loader2 className="h-4 w-4 animate-spin" />
+
                                                     Guardando...
                                                 </>
                                             ) : (
                                                 <>
                                                     <CheckCircle2 className="h-4 w-4" />
+
                                                     Aceptar y
                                                     continuar
                                                 </>

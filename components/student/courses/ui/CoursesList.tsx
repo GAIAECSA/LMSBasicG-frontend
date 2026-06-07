@@ -34,7 +34,20 @@ export function CoursesList({
         courses.filteredEnrollments
             .length === 0
     ) {
-        return <EmptyState />;
+        return (
+            <EmptyState
+                totalActiveCourses={
+                    courses.enrollments
+                        .length
+                }
+                activeFilter={
+                    courses.activeFilter
+                }
+                searchTerm={
+                    courses.searchTerm
+                }
+            />
+        );
     }
 
     return (
@@ -48,7 +61,7 @@ export function CoursesList({
 
                     const course =
                         courses.coursesById[
-                            courseId
+                        courseId
                         ] ??
                         (
                             enrollment as EnrollmentWithExtraFields
@@ -75,7 +88,9 @@ export function CoursesList({
                             enrollment={
                                 enrollment
                             }
-                            course={course}
+                            course={
+                                course
+                            }
                             accessRole={
                                 accessRole
                             }
