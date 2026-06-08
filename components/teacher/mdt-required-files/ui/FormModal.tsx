@@ -21,8 +21,8 @@ export function FormModal({
     const currentTemplateUrl =
         files.formModal.mode === "edit"
             ? getBlockTemplateUrl(
-                  files.formModal.block,
-              )
+                files.formModal.block,
+            )
             : "";
 
     return (
@@ -39,7 +39,7 @@ export function FormModal({
 
                         <h2 className="mt-1 break-words text-lg font-black sm:text-xl">
                             {files.formModal.mode ===
-                            "create"
+                                "create"
                                 ? "Agregar archivo obligatorio"
                                 : "Editar archivo obligatorio"}
                         </h2>
@@ -110,7 +110,7 @@ export function FormModal({
                                 )}
 
                                 {!files.hasCurrentLessonInOptions &&
-                                files.formState.lessonId ? (
+                                    files.formState.lessonId ? (
                                     <option
                                         value={
                                             files
@@ -303,7 +303,7 @@ export function FormModal({
                                         {Math.max(
                                             files.formState
                                                 .file.size /
-                                                1024,
+                                            1024,
                                             1,
                                         ).toFixed(0)}{" "}
                                         KB
@@ -363,14 +363,14 @@ export function FormModal({
                         {files.isSaving ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                         ) : files.formModal.mode ===
-                          "create" ? (
+                            "create" ? (
                             <Plus className="h-4 w-4" />
                         ) : (
                             <Edit3 className="h-4 w-4" />
                         )}
 
                         {files.formModal.mode ===
-                        "create"
+                            "create"
                             ? "Crear archivo"
                             : "Guardar cambios"}
                     </button>

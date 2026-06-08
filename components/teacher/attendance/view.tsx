@@ -210,7 +210,7 @@ function getAttendanceRoleId(
 
     const enrollmentUser =
         enrollment?.user &&
-        typeof enrollment.user === "object"
+            typeof enrollment.user === "object"
             ? (enrollment.user as AnyRecord)
             : null;
 
@@ -571,7 +571,7 @@ function AttendanceCourseWorkspace({
                                         onClick={() =>
                                             void attendance.refreshAll(
                                                 attendance.selectedSessionId ||
-                                                    undefined,
+                                                undefined,
                                                 true,
                                             )
                                         }
@@ -653,7 +653,7 @@ function AttendanceCourseWorkspace({
                         </div>
 
                         <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:mt-4 sm:rounded-[2rem] [@media(max-height:760px)]:mt-3">
-                            <div className="grid gap-0 2xl:grid-cols-[280px_minmax(0,1fr)]">
+                            <div className="flex min-w-0 flex-col">
                                 <SessionsSidebar
                                     sessions={
                                         attendance.sessions

@@ -11,6 +11,13 @@ import type {
     BulkEnrollmentRow,
 } from "./types";
 
+import * as XLSX from "xlsx";
+
+import {
+    EXCEL_EXAMPLE_ROWS,
+    EXCEL_HEADERS,
+} from "./constants";
+
 export function createLocalId(): string {
     if (
         typeof crypto !== "undefined" &&
@@ -101,80 +108,6 @@ export function normalizeRow(
     };
 }
 
-function detectDelimiter(
-    line: string,
-): "," | ";" | "\t" {
-    const commaCount =
-        (line.match(/,/g) ?? []).length;
-
-    const semicolonCount =
-        (line.match(/;/g) ?? []).length;
-
-    const tabCount =
-        (line.match(/\t/g) ?? []).length;
-
-    if (
-        tabCount >= commaCount &&
-        tabCount >= semicolonCount &&
-        tabCount > 0
-    ) {
-        return "\t";
-    }
-
-    if (semicolonCount > commaCount) {
-        return ";";
-    }
-
-    return ",";
-}
-
-function parseDelimitedLine(
-    line: string,
-    delimiter: "," | ";" | "\t",
-): string[] {
-    const values: string[] = [];
-    let current = "";
-    let insideQuotes = false;
-
-    for (
-        let index = 0;
-        index < line.length;
-        index += 1
-    ) {
-        const char = line[index];
-        const nextChar = line[index + 1];
-
-        if (
-            char === '"' &&
-            nextChar === '"'
-        ) {
-            current += '"';
-            index += 1;
-            continue;
-        }
-
-        if (char === '"') {
-            insideQuotes = !insideQuotes;
-            continue;
-        }
-
-        if (
-            char === delimiter &&
-            !insideQuotes
-        ) {
-            values.push(current.trim());
-            current = "";
-            continue;
-        }
-
-        current += char;
-    }
-
-    values.push(current.trim());
-
-    return values;
-}
-
 function isHeaderRow(
     values: string[],
 ): boolean {
@@ -191,57 +124,6 @@ function isHeaderRow(
     );
 }
 
-export function parseBulkText(
-    text: string,
-): BulkEnrollmentRow[] {
-    const cleanText = text
-        .replace(/^\uFEFF/, "")
-        .trim();
-
-    if (!cleanText) return [];
-
-    const lines = cleanText
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-
-    if (lines.length === 0) return [];
-
-    const delimiter =
-        detectDelimiter(lines[0]);
-
-    const firstValues =
-        parseDelimitedLine(
-            lines[0],
-            delimiter,
-        );
-
-    const startIndex =
-        isHeaderRow(firstValues) ? 1 : 0;
-
-    return lines
-        .slice(startIndex)
-        .map((line) => {
-            const values =
-                parseDelimitedLine(
-                    line,
-                    delimiter,
-                );
-
-            return {
-                localId: createLocalId(),
-                username: values[0] ?? "",
-                password: values[1] ?? "",
-                firstname: values[2] ?? "",
-                lastname: values[3] ?? "",
-                idnumber: values[4] ?? "",
-                email: values[5] ?? "",
-                phone_number: values[6] ?? "",
-                departament: values[7] ?? "",
-            };
-        });
-}
-
 export function getRepeatedValues(
     rows: MassiveEnrollmentUserPayload[],
     key: keyof MassiveEnrollmentUserPayload,
@@ -254,8 +136,8 @@ export function getRepeatedValues(
             key === "email"
                 ? normalizeEmail(row[key])
                 : normalizeText(
-                      row[key],
-                  ).toUpperCase();
+                    row[key],
+                ).toUpperCase();
 
         if (!value) return;
 
@@ -272,25 +154,149 @@ export function getRepeatedValues(
     );
 }
 
-export function downloadTextFile(
-    filename: string,
-    content: string,
-): void {
-    const blob = new Blob([content], {
-        type: "text/csv;charset=utf-8;",
+function normalizeExcelCell(
+    value: unknown,
+): string {
+    if (
+        value === null ||
+        value === undefined
+    ) {
+        return "";
+    }
+
+    return String(value).trim();
+}
+
+function isExcelHeaderRow(
+    values: string[],
+): boolean {
+    const normalized = values.map(
+        (value) =>
+            value.trim().toLowerCase(),
+    );
+
+    return (
+        normalized.includes("username") ||
+        normalized.includes("firstname") ||
+        normalized.includes("lastname") ||
+        normalized.includes("idnumber") ||
+        normalized.includes("email")
+    );
+}
+
+function hasExcelRowData(
+    values: string[],
+): boolean {
+    return values.some(
+        (value) =>
+            normalizeExcelCell(value).length >
+            0,
+    );
+}
+
+export async function parseBulkExcelFile(
+    file: File,
+): Promise<BulkEnrollmentRow[]> {
+    const buffer =
+        await file.arrayBuffer();
+
+    const workbook = XLSX.read(buffer, {
+        type: "array",
     });
 
-    const url =
-        URL.createObjectURL(blob);
+    const firstSheetName =
+        workbook.SheetNames[0];
 
-    const link =
-        document.createElement("a");
+    if (!firstSheetName) {
+        return [];
+    }
 
-    link.href = url;
-    link.download = filename;
-    link.click();
+    const worksheet =
+        workbook.Sheets[firstSheetName];
 
-    URL.revokeObjectURL(url);
+    if (!worksheet) {
+        return [];
+    }
+
+    const excelRows =
+        XLSX.utils.sheet_to_json(
+            worksheet,
+            {
+                header: 1,
+                defval: "",
+                raw: false,
+            },
+        ) as unknown[][];
+
+    if (excelRows.length === 0) {
+        return [];
+    }
+
+    const normalizedRows =
+        excelRows.map((row) =>
+            row.map(normalizeExcelCell),
+        );
+
+    const firstRow =
+        normalizedRows[0] ?? [];
+
+    const startIndex =
+        isExcelHeaderRow(firstRow)
+            ? 1
+            : 0;
+
+    return normalizedRows
+        .slice(startIndex)
+        .filter(hasExcelRowData)
+        .map((values) => ({
+            localId: createLocalId(),
+            username: values[0] ?? "",
+            password: values[1] ?? "",
+            firstname: values[2] ?? "",
+            lastname: values[3] ?? "",
+            idnumber: values[4] ?? "",
+            email: values[5] ?? "",
+            phone_number:
+                values[6] ?? "",
+            departament:
+                values[7] ?? "",
+        }));
+}
+
+export function downloadExcelTemplate(): void {
+    const worksheet =
+        XLSX.utils.aoa_to_sheet([
+            [...EXCEL_HEADERS],
+            ...EXCEL_EXAMPLE_ROWS,
+        ]);
+
+    worksheet["!cols"] = [
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 22 },
+        { wch: 16 },
+        { wch: 30 },
+        { wch: 16 },
+        { wch: 22 },
+    ];
+
+    const workbook =
+        XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Estudiantes",
+    );
+
+    XLSX.writeFile(
+        workbook,
+        "plantilla_matricula_masiva.xlsx",
+        {
+            compression: true,
+        },
+    );
 }
 
 export function renderUnknownValue(

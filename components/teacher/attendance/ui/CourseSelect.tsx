@@ -14,6 +14,10 @@ export function CourseSelect({
     error,
     onSelectCourse,
 }: CourseSelectProps) {
+    const mdtCourseOptions = courseOptions.filter(
+        (courseItem) => courseItem.is_mdt === true,
+    );
+
     return (
         <section className="min-w-0 space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
@@ -24,11 +28,11 @@ export function CourseSelect({
                 </p>
 
                 <h2 className="mt-2 text-xl font-bold sm:text-2xl lg:text-3xl [@media(max-height:760px)]:text-xl">
-                    Gestión de asistencia
+                    Gestión de asistencia MDT
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-xs leading-5 text-blue-50 sm:text-sm sm:leading-6">
-                    Selecciona primero un curso para cargar y administrar las
+                    Selecciona un curso MDT para cargar y administrar sus
                     sesiones de asistencia.
                 </p>
             </div>
@@ -37,12 +41,13 @@ export function CourseSelect({
 
             <div className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
                 <h3 className="text-base font-bold text-slate-950 sm:text-lg">
-                    Seleccionar curso
+                    Seleccionar curso MDT
                 </h3>
 
                 <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)] sm:text-sm">
-                    Al seleccionar un curso se cargarán sus sesiones y
-                    registros de asistencia.
+                    Únicamente se muestran los cursos pertenecientes al MDT.
+                    Al seleccionar uno, se cargarán sus sesiones y registros de
+                    asistencia.
                 </p>
 
                 <select
@@ -52,21 +57,23 @@ export function CourseSelect({
                     }
                     className="mt-4 h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:mt-5 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:mt-3"
                 >
-                    <option value="">Selecciona un curso</option>
+                    <option value="">Selecciona un curso MDT</option>
 
-                    {courseOptions.map((courseItem) => (
+                    {mdtCourseOptions.map((courseItem) => (
                         <option key={courseItem.id} value={courseItem.id}>
                             {courseItem.name}
                         </option>
                     ))}
                 </select>
 
-                {courseOptions.length === 0 ? (
+                {mdtCourseOptions.length === 0 ? (
                     <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
-                        No hay cursos registrados para mostrar.
+                        No hay cursos MDT registrados para mostrar.
                     </p>
                 ) : null}
             </div>
         </section>
     );
 }
+
+export default CourseSelect;

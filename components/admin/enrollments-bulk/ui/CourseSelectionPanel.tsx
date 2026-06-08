@@ -29,8 +29,7 @@ export function CourseSelectionPanel({
                 </h2>
 
                 <p className="text-xs font-medium leading-5 text-slate-500 sm:text-sm">
-                    Elige el curso donde se
-                    matricularán los estudiantes de la
+                    Elige el curso donde se matricularán los estudiantes de la
                     carga masiva.
                 </p>
             </div>
@@ -47,13 +46,10 @@ export function CourseSelectionPanel({
 
                             <input
                                 type="text"
-                                value={
-                                    panel.courseSearch
-                                }
+                                value={panel.courseSearch}
                                 onChange={(event) =>
                                     panel.setCourseSearch(
-                                        event.target
-                                            .value,
+                                        event.target.value,
                                     )
                                 }
                                 placeholder="Buscar por nombre del curso"
@@ -93,12 +89,8 @@ export function CourseSelectionPanel({
                             {panel.filteredCourses.map(
                                 (course) => (
                                     <option
-                                        key={
-                                            course.id
-                                        }
-                                        value={
-                                            course.id
-                                        }
+                                        key={course.id}
+                                        value={course.id}
                                     >
                                         {getCourseName(
                                             course,
@@ -119,13 +111,14 @@ export function CourseSelectionPanel({
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#172861]/15 bg-white px-3 text-xs font-black text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <Download className="h-4 w-4 shrink-0" />
-                        Plantilla CSV
+
+                        Plantilla Excel
                     </button>
 
                     <button
                         type="button"
                         onClick={
-                            panel.handleImportCsvClick
+                            panel.handleImportExcelClick
                         }
                         disabled={
                             !panel.hasSelectedCourse ||
@@ -135,9 +128,10 @@ export function CourseSelectionPanel({
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#e9702c] px-3 text-xs font-black text-white shadow-sm transition hover:bg-[#d9601f] active:scale-[0.97] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <Upload className="h-4 w-4 shrink-0" />
+
                         {panel.isReadingFile
-                            ? "Leyendo CSV..."
-                            : "Importar CSV"}
+                            ? "Leyendo Excel..."
+                            : "Importar Excel"}
                     </button>
 
                     <button
@@ -156,11 +150,10 @@ export function CourseSelectionPanel({
                         aria-label="Actualizar cursos"
                     >
                         <RefreshCw
-                            className={`h-4 w-4 ${
-                                panel.isRefreshingCourses
-                                    ? "animate-spin"
-                                    : ""
-                            }`}
+                            className={`h-4 w-4 ${panel.isRefreshingCourses
+                                ? "animate-spin"
+                                : ""
+                                }`}
                         />
 
                         <span className="sm:hidden">
@@ -169,9 +162,9 @@ export function CourseSelectionPanel({
                     </button>
 
                     <input
-                        ref={panel.fileInputRef}
+                        id="bulk-enrollment-excel-file"
                         type="file"
-                        accept=".csv,.txt"
+                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                         onChange={
                             panel.handleFileChange
                         }
@@ -181,18 +174,20 @@ export function CourseSelectionPanel({
             </div>
 
             {!panel.hasSelectedCourse &&
-            !panel.isLoadingCourses ? (
+                !panel.isLoadingCourses ? (
                 <div className="mt-3 flex gap-2.5 rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs font-bold leading-5 text-orange-800 sm:mt-4 sm:gap-3 sm:rounded-2xl sm:p-4 sm:text-sm">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 sm:h-5 sm:w-5" />
 
                     <span className="break-words [overflow-wrap:anywhere]">
                         Primero selecciona un curso.
-                        Después podrás importar el CSV,
-                        agregar filas y ejecutar la
-                        matrícula masiva.
+                        Después podrás importar el
+                        archivo Excel, agregar filas y
+                        ejecutar la matrícula masiva.
                     </span>
                 </div>
             ) : null}
         </section>
     );
 }
+
+export default CourseSelectionPanel;

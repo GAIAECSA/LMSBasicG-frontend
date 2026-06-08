@@ -85,17 +85,18 @@ export function ForumSection({ item }: ForumSectionProps) {
                 </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3">
-                <div className="flex items-start gap-2">
-                    <Save className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                <div className="mt-4 flex justify-end sm:mt-5">
+                    <button
+                        type="submit"
+                        disabled={item.saving}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#172861] px-4 text-xs font-black text-white shadow-sm transition hover:bg-[#0f1d48] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none sm:h-12 sm:w-auto sm:min-w-[190px] sm:rounded-2xl sm:px-5 sm:text-sm [@media(max-height:760px)]:h-10"
+                    >
+                        <Save className="h-4 w-4" />
 
-                    <p className="text-xs font-semibold leading-5 text-slate-500">
-                        Al guardar, el bloque se mantendrá como foro y los
-                        estudiantes podrán participar desde la pestaña Foro.
-                    </p>
+                        {item.saving ? "Guardando..." : "Guardar cambios"}
+                    </button>
                 </div>
             </div>
-        </div>
     );
 }
 

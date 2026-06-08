@@ -486,9 +486,7 @@ export function buildBlockFormState(params: {
             counts_toward_grade = true
             is_active = true
         */
-        default: params.block
-            ? readBoolean(params.block.default, false)
-            : true,
+        default: false,
         counts_toward_grade: params.block
             ? readBoolean(params.block.counts_toward_grade, false)
             : false,
@@ -516,7 +514,7 @@ export function ensureBlockContentProperties(params: {
         block_type_id: DEFAULT_LESSON_BLOCK_TYPE_IDS[params.type],
         ...(params.form
             ? {
-                default: params.form.default,
+                default: false,
                 counts_toward_grade: params.form.counts_toward_grade,
                 is_active: params.form.is_active,
             }
@@ -543,7 +541,7 @@ export function buildLessonBlockPayload(params: {
         completion_type: params.form.completion_type,
         completion_value: toSafeNumber(params.form.completion_value, 0),
         order: toSafeNumber(params.form.order, 0),
-        default: params.form.default,
+        default: false,
         counts_toward_grade: params.form.counts_toward_grade,
         date_available: fromDateTimeLocal(params.form.date_available),
         is_active: params.form.is_active,
@@ -570,7 +568,7 @@ export function toLessonBlockPayload(
             block.completion_value ??
             DEFAULT_LESSON_COMPLETION_VALUE[fallbackType],
         order,
-        default: readBoolean(block.default, false),
+        default: false,
         counts_toward_grade: readBoolean(block.counts_toward_grade, false),
         date_available: block.date_available ?? null,
         is_active: readBoolean(block.is_active, true),
@@ -579,7 +577,7 @@ export function toLessonBlockPayload(
             block_type_id: blockTypeId,
             type: fallbackType,
             itemType: fallbackType,
-            default: readBoolean(block.default, false),
+            default: false,
             counts_toward_grade: readBoolean(block.counts_toward_grade, false),
             is_active: readBoolean(block.is_active, true),
         },
@@ -598,7 +596,7 @@ export function mapLessonBlockToView(block: LessonBlock): LessonItemView {
         lessonId: String(block.lesson_id),
         raw: block,
 
-        default: block.default,
+        default: false,
         counts_toward_grade: block.counts_toward_grade,
         is_active: block.is_active,
         content: block.content,

@@ -366,11 +366,11 @@ export function getFirstUrlFromArray(value: unknown) {
 
         const url = buildFileUrl(
             cleanText(record.file_url) ||
-                cleanText(record.fileUrl) ||
-                cleanText(record.url) ||
-                cleanText(record.path) ||
-                cleanText(record.attachment_url) ||
-                cleanText(record.attachmentUrl),
+            cleanText(record.fileUrl) ||
+            cleanText(record.url) ||
+            cleanText(record.path) ||
+            cleanText(record.attachment_url) ||
+            cleanText(record.attachmentUrl),
         );
 
         if (url) return url;
@@ -389,25 +389,25 @@ export function getSubmissionFileUrl(
     return (
         buildFileUrl(
             cleanText(submission.submitted_file_url) ||
-                cleanText(submission.submittedFileUrl) ||
-                cleanText(submission.file_url) ||
-                cleanText(submission.fileUrl) ||
-                cleanText(submission.document_url) ||
-                cleanText(submission.documentUrl) ||
-                cleanText(submission.submission_file_url) ||
-                cleanText(submission.submissionFileUrl) ||
-                cleanText(submission.url) ||
-                cleanText(submission.attachment_url) ||
-                cleanText(submission.attachmentUrl) ||
-                cleanText(content.file_url) ||
-                cleanText(content.fileUrl) ||
-                cleanText(content.document_url) ||
-                cleanText(content.documentUrl) ||
-                cleanText(content.submission_file_url) ||
-                cleanText(content.submissionFileUrl) ||
-                cleanText(content.url) ||
-                cleanText(content.attachment_url) ||
-                cleanText(content.attachmentUrl),
+            cleanText(submission.submittedFileUrl) ||
+            cleanText(submission.file_url) ||
+            cleanText(submission.fileUrl) ||
+            cleanText(submission.document_url) ||
+            cleanText(submission.documentUrl) ||
+            cleanText(submission.submission_file_url) ||
+            cleanText(submission.submissionFileUrl) ||
+            cleanText(submission.url) ||
+            cleanText(submission.attachment_url) ||
+            cleanText(submission.attachmentUrl) ||
+            cleanText(content.file_url) ||
+            cleanText(content.fileUrl) ||
+            cleanText(content.document_url) ||
+            cleanText(content.documentUrl) ||
+            cleanText(content.submission_file_url) ||
+            cleanText(content.submissionFileUrl) ||
+            cleanText(content.url) ||
+            cleanText(content.attachment_url) ||
+            cleanText(content.attachmentUrl),
         ) ||
         getFirstUrlFromArray(submission.attachments) ||
         getFirstUrlFromArray(submission.files) ||
@@ -448,11 +448,11 @@ export function getSubmissionStatus(
 
     const rawStatus = normalizeSearch(
         cleanText(submission.review_status) ||
-            cleanText(submission.teacher_status) ||
-            cleanText(submission.status) ||
-            cleanText(content.review_status) ||
-            cleanText(content.teacher_status) ||
-            cleanText(content.status),
+        cleanText(submission.teacher_status) ||
+        cleanText(submission.status) ||
+        cleanText(content.review_status) ||
+        cleanText(content.teacher_status) ||
+        cleanText(content.status),
     );
 
     if (
@@ -671,11 +671,11 @@ export function getBlockTemplateUrl(block: LessonBlock) {
 
     return buildFileUrl(
         cleanText(content.template_url) ||
-            cleanText(content.templateUrl) ||
-            cleanText(content.file_url) ||
-            cleanText(content.fileUrl) ||
-            cleanText(content.url) ||
-            cleanText(content.attachment_url),
+        cleanText(content.templateUrl) ||
+        cleanText(content.file_url) ||
+        cleanText(content.fileUrl) ||
+        cleanText(content.url) ||
+        cleanText(content.attachment_url),
     );
 }
 
@@ -947,20 +947,20 @@ export async function getCourseEnrollmentsForVerification(
 
     return Array.isArray(data)
         ? data
-              .filter((item) => {
-                  const courseRecord = toRecord(item.course);
-                  const roleRecord = toRecord(item.role);
+            .filter((item) => {
+                const courseRecord = toRecord(item.course);
+                const roleRecord = toRecord(item.role);
 
-                  const courseMatches =
-                      readNumber(courseRecord?.id, validCourseId) ===
-                      validCourseId;
+                const courseMatches =
+                    readNumber(courseRecord?.id, validCourseId) ===
+                    validCourseId;
 
-                  const isStudent = readNumber(roleRecord?.id, 4) === 4;
-                  const isAccepted = item.accepted === true;
+                const isStudent = readNumber(roleRecord?.id, 4) === 4;
+                const isAccepted = item.accepted === true;
 
-                  return courseMatches && isStudent && isAccepted;
-              })
-              .map((item) => item as unknown as EnrollmentRecord)
+                return courseMatches && isStudent && isAccepted;
+            })
+            .map((item) => item as unknown as EnrollmentRecord)
         : [];
 }
 
@@ -976,9 +976,9 @@ export async function getRequiredFileSubmissionsByBlock(
 
     return Array.isArray(data)
         ? data.map(
-              (item) =>
-                  item as unknown as RequiredFileSubmission,
-          )
+            (item) =>
+                item as unknown as RequiredFileSubmission,
+        )
         : [];
 }
 

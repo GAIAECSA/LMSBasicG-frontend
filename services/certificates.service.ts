@@ -1110,14 +1110,20 @@ export async function getCertificatesByUser(
         );
 }
 
-export async function getCertificatesByCourse(courseId: number) {
+export async function getCertificatesByCourse(
+    courseId: number,
+    options?: {
+        onlyValid?: boolean;
+    },
+) {
     const certificates = await getAllCertificates();
+    const onlyValid = options?.onlyValid ?? true;
 
     return certificates
         .filter(
             (certificate) =>
                 Number(certificate.course_id) === Number(courseId) &&
-                certificate.is_valid,
+                (onlyValid ? certificate.is_valid : true),
         )
         .sort(
             (a, b) =>
@@ -1206,16 +1212,11 @@ export async function createCertificate(params: {
 
 export async function updateCertificate(params: {
     certificateId: number;
-    templateId?: number | null;
     isValid?: boolean;
     file?: File | Blob | null;
     filename?: string;
 }) {
     const formData = new FormData();
-
-    if (params.templateId !== undefined && params.templateId !== null) {
-        formData.append("template_id", String(params.templateId));
-    }
 
     if (typeof params.isValid === "boolean") {
         formData.append("is_valid", String(params.isValid));
@@ -1813,7 +1814,6 @@ export async function createCertificateFromTemplate(params: {
 
     const updatedCertificate = await updateCertificate({
         certificateId: createdCertificate.id,
-        templateId,
         isValid: true,
         file: finalPdf,
         filename: `certificado-${createdCertificate.certificate_code}.pdf`,
@@ -1854,7 +1854,6 @@ export async function reissueCertificateFromTemplate(params: {
 
     const updatedCertificate = await updateCertificate({
         certificateId: params.certificateId,
-        templateId: params.template.id ?? null,
         isValid: true,
         file: finalPdf,
         filename: `certificado-reemitido-${params.courseId}-${params.userId}.pdf`,

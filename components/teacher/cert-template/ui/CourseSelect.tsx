@@ -14,6 +14,10 @@ export function CourseSelect({
     error,
     onSelectCourse,
 }: CourseSelectProps) {
+    const normalCourseOptions = courseOptions.filter(
+        (courseItem) => courseItem.is_mdt !== true,
+    );
+
     return (
         <section className="min-w-0 space-y-3 sm:space-y-4 lg:space-y-5 [@media(max-height:760px)]:space-y-3">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
@@ -28,7 +32,7 @@ export function CourseSelect({
                 </h2>
 
                 <p className="mt-2 max-w-3xl text-xs leading-5 text-blue-50 sm:text-sm sm:leading-6">
-                    Selecciona primero un curso para cargar o crear la
+                    Selecciona primero un curso normal para cargar o crear la
                     plantilla del certificado.
                 </p>
             </div>
@@ -41,8 +45,8 @@ export function CourseSelect({
                 </h3>
 
                 <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)] sm:text-sm">
-                    Al seleccionar un curso se cargará su plantilla de
-                    certificado.
+                    Únicamente se muestran los cursos normales. Al seleccionar
+                    uno se cargará su plantilla de certificado.
                 </p>
 
                 <select
@@ -56,7 +60,7 @@ export function CourseSelect({
                         Selecciona un curso
                     </option>
 
-                    {courseOptions.map((courseItem) => (
+                    {normalCourseOptions.map((courseItem) => (
                         <option
                             key={courseItem.id}
                             value={courseItem.id}
@@ -66,12 +70,14 @@ export function CourseSelect({
                     ))}
                 </select>
 
-                {courseOptions.length === 0 ? (
+                {normalCourseOptions.length === 0 ? (
                     <p className="mt-3 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
-                        No hay cursos registrados para mostrar.
+                        No hay cursos normales registrados para mostrar.
                     </p>
                 ) : null}
             </div>
         </section>
     );
 }
+
+export default CourseSelect;

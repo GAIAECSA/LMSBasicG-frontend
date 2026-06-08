@@ -2,24 +2,24 @@ import type { LessonBlock } from "@/services/lessons.service";
 
 export type MdtRequiredFilesPageProps = {
     params:
-        | {
-              courseId: string;
-          }
-        | Promise<{
-              courseId: string;
-          }>;
+    | {
+        courseId: string;
+    }
+    | Promise<{
+        courseId: string;
+    }>;
 };
 
 export type AnyRecord = Record<string, unknown>;
 
 export type FormModalState =
     | {
-          mode: "create";
-      }
+        mode: "create";
+    }
     | {
-          mode: "edit";
-          block: LessonBlock;
-      };
+        mode: "edit";
+        block: LessonBlock;
+    };
 
 export type DeleteModalState = {
     block: LessonBlock;

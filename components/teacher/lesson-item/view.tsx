@@ -37,6 +37,8 @@ export function LessonItemEditorPage({
         "image",
         "pdf",
         "video",
+        "forum",
+        "homework",
     ].includes(item.itemType);
 
     const isInformativeContent = [

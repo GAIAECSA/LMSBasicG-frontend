@@ -88,8 +88,10 @@ function getContentRecord(value: unknown): AnyRecord {
 }
 
 /*
- * Permite mostrar bloques activos e inactivos.
- * Únicamente mantiene ocultos los bloques especiales MDT.
+ * Permite mostrar bloques normales activos e inactivos.
+ * El valor default no debe controlar la visualización.
+ *
+ * Únicamente mantiene ocultos los archivos obligatorios MDT.
  */
 function shouldShowItemInModules(item: LessonItemView) {
     const record = toRecord(item);
@@ -99,16 +101,6 @@ function shouldShowItemInModules(item: LessonItemView) {
 
     const content = getContentRecord(
         rawRecord?.content ?? record?.content,
-    );
-
-    const isDefault = readBoolean(
-        rawRecord?.default ??
-        rawRecord?.is_default ??
-        record?.default ??
-        record?.is_default ??
-        content.default ??
-        content.is_default,
-        true,
     );
 
     const isRequired = readBoolean(
@@ -124,7 +116,7 @@ function shouldShowItemInModules(item: LessonItemView) {
         false,
     );
 
-    return isDefault && !isRequired;
+    return !isRequired;
 }
 
 function getItemIsActive(item: LessonItemView) {
@@ -223,8 +215,8 @@ export function ItemRow({
         <div
             draggable
             className={`group min-w-0 cursor-grab rounded-xl border px-3 py-2.5 shadow-sm transition active:cursor-grabbing sm:rounded-2xl sm:px-4 sm:py-3 ${itemIsActive
-                    ? "bg-white"
-                    : "bg-amber-50/70"
+                ? "bg-white"
+                : "bg-amber-50/70"
                 } ${itemIsDragging
                     ? "opacity-50"
                     : ""
@@ -258,8 +250,8 @@ export function ItemRow({
                 <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                     <span
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm sm:h-10 sm:w-10 sm:rounded-2xl ${reviewable
-                                ? "bg-blue-50 text-[#172861] ring-1 ring-blue-100"
-                                : "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
+                            ? "bg-blue-50 text-[#172861] ring-1 ring-blue-100"
+                            : "bg-slate-50 text-slate-700 ring-1 ring-slate-200"
                             }`}
                     >
                         <ItemIcon
@@ -283,8 +275,8 @@ export function ItemRow({
 
                             <span
                                 className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] sm:px-2.5 sm:py-1 sm:text-[10px] ${reviewable
-                                        ? "bg-blue-50 text-blue-700"
-                                        : "bg-slate-100 text-slate-600"
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "bg-slate-100 text-slate-600"
                                     }`}
                             >
                                 {getItemLabel(item.type)}
@@ -292,8 +284,8 @@ export function ItemRow({
 
                             <span
                                 className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.1em] ring-1 sm:px-2.5 sm:py-1 sm:text-[10px] ${itemIsActive
-                                        ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                                        : "bg-amber-100 text-amber-800 ring-amber-200"
+                                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                                    : "bg-amber-100 text-amber-800 ring-amber-200"
                                     }`}
                             >
                                 {itemIsActive

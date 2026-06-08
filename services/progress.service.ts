@@ -6,14 +6,6 @@ const BLOCKS_PROGRESS_ENDPOINT = `${API_URL}/api/v1/blocks-progress/progress`;
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
 
-export type CreateBlockProgressPayload = {
-    enrollment_id: number;
-    lesson_block_id: number;
-    is_completed?: boolean;
-    started_at?: string | Date | null;
-    completed_at?: string | Date | null;
-};
-
 export type UpdateBlockProgressPayload = {
     is_completed?: boolean;
     attempts?: number;
@@ -232,16 +224,6 @@ function formatDateValue(value: string | Date | null | undefined) {
     return value;
 }
 
-function buildCreateProgressPayload(payload: CreateBlockProgressPayload) {
-    return {
-        enrollment_id: payload.enrollment_id,
-        lesson_block_id: payload.lesson_block_id,
-        is_completed: payload.is_completed ?? false,
-        started_at: formatDateValue(payload.started_at),
-        completed_at: formatDateValue(payload.completed_at),
-    };
-}
-
 function buildUpdateProgressPayload(payload: UpdateBlockProgressPayload) {
     return {
         is_completed: payload.is_completed,
@@ -249,21 +231,6 @@ function buildUpdateProgressPayload(payload: UpdateBlockProgressPayload) {
         started_at: formatDateValue(payload.started_at),
         completed_at: formatDateValue(payload.completed_at),
     };
-}
-
-export async function createBlockProgress(
-    payload: CreateBlockProgressPayload,
-): Promise<BlockProgress> {
-    validateId(payload.enrollment_id, "ID de matrícula");
-    validateId(payload.lesson_block_id, "ID del bloque");
-
-    const response = await fetch(BLOCKS_PROGRESS_ENDPOINT, {
-        method: "POST",
-        headers: getJsonHeaders(),
-        body: JSON.stringify(buildCreateProgressPayload(payload)),
-    });
-
-    return handleResponse<BlockProgress>(response);
 }
 
 export async function updateBlockProgress(
@@ -328,53 +295,108 @@ export async function getProgressByEnrollment(
 export async function completeBlockProgress(
     enrollmentId: number,
     lessonBlockId: number,
-): Promise<string> {
-    const validEnrollmentId = validateId(enrollmentId, "ID de matrícula");
-    const validLessonBlockId = validateId(lessonBlockId, "ID del bloque");
-
-    const query = new URLSearchParams({
-        enrollment_id: String(validEnrollmentId),
-        lesson_block_id: String(validLessonBlockId),
-    });
-
-    const response = await fetch(
-        `${BLOCKS_PROGRESS_ENDPOINT}/complete?${query.toString()}`,
-        {
-            method: "POST",
-            headers: getJsonHeaders(),
-        },
+): Promise<BlockProgress> {
+    const validEnrollmentId = validateId(
+        enrollmentId,
+        "ID de matrícula",
     );
 
-    return handleResponse<string>(response);
-}
-
-export async function markBlockAsStarted(params: {
-    enrollment_id: number;
-    lesson_block_id: number;
-}): Promise<BlockProgress> {
-    return createBlockProgress({
-        enrollment_id: params.enrollment_id,
-        lesson_block_id: params.lesson_block_id,
-        is_completed: false,
-        started_at: new Date(),
-        completed_at: null,
-    });
-}
-
-export async function markBlockAsCompleted(params: {
-    enrollment_id: number;
-    lesson_block_id: number;
-}): Promise<string> {
-    return completeBlockProgress(params.enrollment_id, params.lesson_block_id);
-}
-
-export function findProgressByBlock(
-    progresses: BlockProgress[],
-    lessonBlockId: number,
-): BlockProgress | null {
-    return (
-        progresses.find(
-            (progress) => Number(progress.lesson_block_id) === Number(lessonBlockId),
-        ) ?? null
+    const validLessonBlockId = validateId(
+        lessonBlockId,
+        "ID del contenido",
     );
+
+    const completedAt =
+        new Date().toISOString();
+
+    const progressRecords =
+        await getProgressByEnrollment(
+            validEnrollmentId,
+        );
+
+    const existingProgress =
+        progressRecords.find(
+            (item) =>
+                Number(
+                    item.lesson_block_id,
+                ) === validLessonBlockId,
+        ) ?? null;
+
+    /*
+     * Si el registro ya existe, se actualiza mediante PUT.
+     * Debe utilizarse progress.id y no lesson_block_id.
+     */
+    if (existingProgress) {
+        return updateBlockProgress(
+            existingProgress.id,
+            {
+                is_completed: true,
+                attempts:
+                    existingProgress.attempts ??
+                    0,
+                started_at:
+                    existingProgress.started_at ??
+                    completedAt,
+                completed_at:
+                    completedAt,
+            },
+        );
+    }
+
+    /*
+     * Si todavía no existe el registro, se completa
+     * mediante el endpoint disponible en el backend.
+     */
+    const query =
+        new URLSearchParams({
+            enrollment_id: String(
+                validEnrollmentId,
+            ),
+            lesson_block_id: String(
+                validLessonBlockId,
+            ),
+        });
+
+    const response =
+        await fetch(
+            `${BLOCKS_PROGRESS_ENDPOINT}/complete?${query.toString()}`,
+            {
+                method: "POST",
+                headers:
+                    getJsonHeaders(),
+            },
+        );
+
+    /*
+     * El backend puede responder únicamente con un texto.
+     * No intentamos convertirlo directamente en BlockProgress.
+     */
+    await handleResponse<unknown>(
+        response,
+    );
+
+    /*
+     * Se consulta nuevamente la lista para obtener
+     * el registro real creado por el backend.
+     */
+    const refreshedRecords =
+        await getProgressByEnrollment(
+            validEnrollmentId,
+        );
+
+    const createdProgress =
+        refreshedRecords.find(
+            (item) =>
+                Number(
+                    item.lesson_block_id,
+                ) === validLessonBlockId,
+        ) ?? null;
+
+    if (!createdProgress) {
+        throw new Error(
+            "El backend confirmó la finalización, pero el progreso no aparece al volver a consultarlo.",
+        );
+    }
+
+    return createdProgress;
 }

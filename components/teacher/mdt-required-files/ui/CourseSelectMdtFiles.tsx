@@ -3,7 +3,10 @@ import {
     FileCheck2,
     Layers3,
 } from "lucide-react";
-import type { Course } from "@/services/courses.service";
+
+import type {
+    Course,
+} from "@/services/courses.service";
 
 type CourseSelectMdtFilesProps = {
     isAdminRoute: boolean;
@@ -18,6 +21,10 @@ export function CourseSelectMdtFiles({
     error,
     onSelectCourse,
 }: CourseSelectMdtFilesProps) {
+    const mdtCourseOptions = courseOptions.filter(
+        (course) => course.is_mdt === true,
+    );
+
     return (
         <section className="space-y-3 sm:space-y-4">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
@@ -27,19 +34,20 @@ export function CourseSelectMdtFiles({
                 </div>
 
                 <h1 className="mt-3 text-xl font-black tracking-tight sm:text-2xl lg:text-3xl">
-                    Selecciona un curso
+                    Selecciona un curso MDT
                 </h1>
 
                 <p className="mt-2 max-w-3xl text-xs font-semibold leading-5 text-blue-50 sm:text-sm sm:leading-6">
                     {isAdminRoute
-                        ? "Selecciona el curso para administrar sus archivos MDT obligatorios."
-                        : "Selecciona el curso para cargar sus archivos MDT obligatorios."}
+                        ? "Selecciona un curso MDT para administrar sus archivos obligatorios."
+                        : "Selecciona un curso MDT para cargar sus archivos obligatorios."}
                 </p>
             </div>
 
             {error ? (
                 <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-bold leading-5 text-red-700 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+
                     {error}
                 </div>
             ) : null}
@@ -56,7 +64,8 @@ export function CourseSelectMdtFiles({
                         </h2>
 
                         <p className="mt-1 text-xs font-semibold leading-5 text-slate-500 sm:text-sm">
-                            Al seleccionar un curso se abrirá su espacio de archivos obligatorios.
+                            Únicamente se muestran cursos MDT. Al seleccionar
+                            uno se abrirá su espacio de archivos obligatorios.
                         </p>
                     </div>
                 </div>
@@ -69,10 +78,10 @@ export function CourseSelectMdtFiles({
                     className="mt-4 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                 >
                     <option value="">
-                        Selecciona un curso
+                        Selecciona un curso MDT
                     </option>
 
-                    {courseOptions.map((course) => (
+                    {mdtCourseOptions.map((course) => (
                         <option
                             key={course.id}
                             value={course.id}
@@ -82,12 +91,14 @@ export function CourseSelectMdtFiles({
                     ))}
                 </select>
 
-                {courseOptions.length === 0 ? (
+                {mdtCourseOptions.length === 0 ? (
                     <p className="mt-3 text-xs font-semibold text-slate-500 sm:text-sm">
-                        No hay cursos disponibles para mostrar.
+                        No hay cursos MDT disponibles para mostrar.
                     </p>
                 ) : null}
             </div>
         </section>
     );
 }
+
+export default CourseSelectMdtFiles;

@@ -101,22 +101,21 @@ function getContentRecord(value: unknown): AnyRecord {
     return {};
 }
 
+/*
+ * En la pantalla de módulos se muestran todos los bloques normales,
+ * tanto activos como inactivos.
+ *
+ * El campo default no controla la visualización porque los bloques
+ * normales también se guardan con default = false.
+ *
+ * Únicamente se ocultan los archivos obligatorios MDT.
+ */
 function shouldShowInCourseModules(block: unknown) {
     const record = toRecord(block);
 
     if (!record) return true;
 
     const content = getContentRecord(record.content);
-
-    const isDefault = readBoolean(
-        record.default ??
-        record.is_default ??
-        record.isDefault ??
-        content.default ??
-        content.is_default ??
-        content.isDefault,
-        false,
-    );
 
     const isRequired = readBoolean(
         record.is_required ??
@@ -128,21 +127,7 @@ function shouldShowInCourseModules(block: unknown) {
         false,
     );
 
-    /*
-        Esta vista debe mostrar los bloques normales activos e inactivos.
-
-        Se muestran:
-        default = true
-        is_required = false
-
-        Se mantienen ocultos únicamente los bloques especiales MDT:
-        default = false
-        o is_required = true
-
-        is_active solo se usa para mostrar la etiqueta:
-        ACTIVO o INACTIVO.
-    */
-    return isDefault && !isRequired;
+    return !isRequired;
 }
 
 function getResourceLabel(
@@ -602,9 +587,9 @@ export function useCourseMods({
 
         if (
             dragging.id ===
-                targetState.id ||
+            targetState.id ||
             dragging.type !==
-                targetState.type
+            targetState.type
         ) {
             resetDragState();
             return;
@@ -612,12 +597,12 @@ export function useCourseMods({
 
         const resourceLabel =
             dragging.type ===
-            "module"
+                "module"
                 ? "módulos"
                 : dragging.type ===
                     "lesson"
-                  ? "lecciones"
-                  : "actividades";
+                    ? "lecciones"
+                    : "actividades";
 
         const toastId =
             notify.loading(
@@ -638,9 +623,9 @@ export function useCourseMods({
 
             if (
                 dragging.type ===
-                    "module" &&
+                "module" &&
                 targetState.type ===
-                    "module"
+                "module"
             ) {
                 const reorderedModules =
                     moveItem(
@@ -691,9 +676,9 @@ export function useCourseMods({
 
             if (
                 dragging.type ===
-                    "lesson" &&
+                "lesson" &&
                 targetState.type ===
-                    "lesson"
+                "lesson"
             ) {
                 if (
                     dragging.moduleId !==
@@ -748,12 +733,12 @@ export function useCourseMods({
                                     CourseModuleView,
                             ) =>
                                 courseModule.id ===
-                                targetModule.id
+                                    targetModule.id
                                     ? {
-                                          ...courseModule,
-                                          lessons:
-                                              reorderedLessons,
-                                      }
+                                        ...courseModule,
+                                        lessons:
+                                            reorderedLessons,
+                                    }
                                     : courseModule,
                         ),
                 );
@@ -788,9 +773,9 @@ export function useCourseMods({
 
             if (
                 dragging.type ===
-                    "item" &&
+                "item" &&
                 targetState.type ===
-                    "item"
+                "item"
             ) {
                 if (
                     dragging.lessonId !==
@@ -848,12 +833,12 @@ export function useCourseMods({
                                                 LessonView,
                                         ) =>
                                             lesson.id ===
-                                            targetLesson.id
+                                                targetLesson.id
                                                 ? {
-                                                      ...lesson,
-                                                      items:
-                                                          reorderedItems,
-                                                  }
+                                                    ...lesson,
+                                                    items:
+                                                        reorderedItems,
+                                                }
                                                 : lesson,
                                     ),
                             })),
@@ -1135,7 +1120,7 @@ export function useCourseMods({
                             toSafeNumber(
                                 formOrder,
                                 modules.length +
-                                    1,
+                                1,
                             ),
                         course_id:
                             numericCourseId,
@@ -1253,8 +1238,8 @@ export function useCourseMods({
                         0,
                     )
                     .toUpperCase()}${resourceLabel.slice(
-                    1,
-                )} creado correctamente.`,
+                        1,
+                    )} creado correctamente.`,
                 "La estructura del curso fue actualizada.",
             );
         } catch (error) {
@@ -1434,8 +1419,8 @@ export function useCourseMods({
                         0,
                     )
                     .toUpperCase()}${resourceLabel.slice(
-                    1,
-                )} actualizado correctamente.`,
+                        1,
+                    )} actualizado correctamente.`,
                 "Los cambios fueron guardados.",
             );
         } catch (error) {
@@ -1564,8 +1549,8 @@ export function useCourseMods({
                         0,
                     )
                     .toUpperCase()}${resourceLabel.slice(
-                    1,
-                )} eliminado correctamente.`,
+                        1,
+                    )} eliminado correctamente.`,
                 "La estructura del curso fue actualizada.",
             );
         } catch (error) {

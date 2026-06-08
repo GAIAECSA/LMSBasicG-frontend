@@ -24,7 +24,6 @@ import {
 } from "@/services/enrollments.service";
 
 import {
-    CSV_EXAMPLE,
     EMAIL_REGEX,
 } from "./constants";
 
@@ -34,13 +33,13 @@ import type {
 
 import {
     createEmptyRow,
-    downloadTextFile,
+    downloadExcelTemplate,
     getCourseName,
     getRepeatedValues,
     getResultCount,
     hasRowData,
     normalizeRow,
-    parseBulkText,
+    parseBulkExcelFile,
 } from "./utils";
 
 function createLoadingToast(message: string) {
@@ -58,6 +57,24 @@ function createLoadingToast(message: string) {
 export function useEnrollmentsAdminBulkPanel() {
     const fileInputRef =
         useRef<HTMLInputElement | null>(null);
+
+    /*
+     * Se entrega al componente una función callback en lugar
+     * de exponer directamente el ref. Esto evita el error:
+     * "Cannot access refs during render".
+     */
+    const setFileInputElement =
+        useCallback(
+            (
+                element:
+                    | HTMLInputElement
+                    | null,
+            ) => {
+                fileInputRef.current =
+                    element;
+            },
+            [],
+        );
 
     const [courses, setCourses] =
         useState<Course[]>([]);
@@ -143,8 +160,8 @@ export function useEnrollmentsAdminBulkPanel() {
             const dismissLoadingToast =
                 showRefresh
                     ? createLoadingToast(
-                          "Actualizando cursos...",
-                      )
+                        "Actualizando cursos...",
+                    )
                     : null;
 
             try {
@@ -170,6 +187,7 @@ export function useEnrollmentsAdminBulkPanel() {
 
                 if (showRefresh) {
                     dismissLoadingToast?.();
+
                     notify.success(
                         "Cursos actualizados correctamente.",
                     );
@@ -188,9 +206,13 @@ export function useEnrollmentsAdminBulkPanel() {
                 }
             } finally {
                 dismissLoadingToast?.();
+
                 hasLoadedCoursesOnceRef.current =
                     true;
-                coursesLoadingRef.current = false;
+
+                coursesLoadingRef.current =
+                    false;
+
                 setIsLoadingCourses(false);
                 setIsRefreshingCourses(false);
             }
@@ -239,16 +261,18 @@ export function useEnrollmentsAdminBulkPanel() {
 
     const filteredCourses =
         useMemo(() => {
-            const query = courseSearch
-                .trim()
-                .toLowerCase();
+            const query =
+                courseSearch
+                    .trim()
+                    .toLowerCase();
 
             if (!query) return courses;
 
-            return courses.filter((course) =>
-                getCourseName(course)
-                    .toLowerCase()
-                    .includes(query),
+            return courses.filter(
+                (course) =>
+                    getCourseName(course)
+                        .toLowerCase()
+                        .includes(query),
             );
         }, [courses, courseSearch]);
 
@@ -467,9 +491,9 @@ export function useEnrollmentsAdminBulkPanel() {
             currentRows.map((row) =>
                 row.localId === localId
                     ? {
-                          ...row,
-                          [field]: value,
-                      }
+                        ...row,
+                        [field]: value,
+                    }
                     : row,
             ),
         );
@@ -485,13 +509,13 @@ export function useEnrollmentsAdminBulkPanel() {
         ]);
     }
 
-    function handleImportCsvClick() {
+    function handleImportExcelClick() {
         if (!ensureFormEditable()) return;
         if (!ensureCourseSelected()) return;
 
         if (fileReadingRef.current) {
             notify.warning(
-                "Ya se está leyendo un archivo CSV.",
+                "Ya se está leyendo un archivo Excel.",
             );
 
             return;
@@ -523,12 +547,9 @@ export function useEnrollmentsAdminBulkPanel() {
         setResult(null);
     }
 
-    function importRowsFromText(
-        content: string,
+    function importRows(
+        parsedRows: BulkEnrollmentRow[],
     ) {
-        const parsedRows =
-            parseBulkText(content);
-
         if (parsedRows.length === 0) {
             notify.warning(
                 "No se encontraron estudiantes para importar.",
@@ -543,16 +564,16 @@ export function useEnrollmentsAdminBulkPanel() {
 
             return currentHasData
                 ? [
-                      ...currentRows,
-                      ...parsedRows,
-                  ]
+                    ...currentRows,
+                    ...parsedRows,
+                ]
                 : parsedRows;
         });
 
         setResult(null);
 
         notify.success(
-            `${parsedRows.length} estudiante(s) agregado(s).`,
+            `${parsedRows.length} estudiante(s) agregado(s) desde Excel.`,
         );
     }
 
@@ -574,11 +595,32 @@ export function useEnrollmentsAdminBulkPanel() {
             return;
         }
 
+        const extension =
+            file.name
+                .split(".")
+                .pop()
+                ?.toLowerCase();
+
+        if (
+            extension !== "xlsx" &&
+            extension !== "xls"
+        ) {
+            notify.warning(
+                "Selecciona un archivo Excel válido con extensión .xlsx o .xls.",
+            );
+
+            event.target.value = "";
+
+            return;
+        }
+
         if (fileReadingRef.current) {
             notify.warning(
-                "Ya se está leyendo un archivo CSV.",
+                "Ya se está leyendo un archivo Excel.",
             );
+
             event.target.value = "";
+
             return;
         }
 
@@ -587,36 +629,39 @@ export function useEnrollmentsAdminBulkPanel() {
 
         const dismissLoadingToast =
             createLoadingToast(
-                "Leyendo archivo CSV...",
+                "Leyendo archivo Excel...",
             );
 
         try {
-            const content =
-                await file.text();
+            const parsedRows =
+                await parseBulkExcelFile(file);
 
             dismissLoadingToast();
-            importRowsFromText(content);
+
+            importRows(parsedRows);
         } catch {
             dismissLoadingToast();
+
             notify.error(
-                "No se pudo leer el archivo seleccionado.",
+                "No se pudo leer el archivo Excel seleccionado.",
             );
         } finally {
             dismissLoadingToast();
-            fileReadingRef.current = false;
+
+            fileReadingRef.current =
+                false;
+
             setIsReadingFile(false);
+
             event.target.value = "";
         }
     }
 
     function handleDownloadTemplate() {
-        downloadTextFile(
-            "plantilla_matricula_masiva.csv",
-            CSV_EXAMPLE,
-        );
+        downloadExcelTemplate();
 
         notify.success(
-            "Plantilla CSV descargada correctamente.",
+            "Plantilla Excel descargada correctamente.",
         );
     }
 
@@ -722,13 +767,16 @@ export function useEnrollmentsAdminBulkPanel() {
             notify.error(message);
         } finally {
             dismissLoadingToast();
-            submittingRef.current = false;
+
+            submittingRef.current =
+                false;
+
             setIsSubmitting(false);
         }
     }
 
     return {
-        fileInputRef,
+        setFileInputElement,
         courses,
         courseId,
         courseSearch,
@@ -749,7 +797,7 @@ export function useEnrollmentsAdminBulkPanel() {
         loadCourses,
         updateRow,
         addRow,
-        handleImportCsvClick,
+        handleImportExcelClick,
         removeRow,
         clearRows,
         handleFileChange,

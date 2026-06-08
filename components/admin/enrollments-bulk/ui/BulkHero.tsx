@@ -43,7 +43,7 @@ export function BulkHero({
         valid:
             panel.validation.canSubmit
                 ? panel.validation.activeRows
-                      .length
+                    .length
                 : 0,
         alerts:
             Object.keys(
@@ -69,7 +69,7 @@ export function BulkHero({
                     <p className="mt-2 max-w-3xl text-xs font-medium leading-5 text-blue-50 sm:text-sm sm:leading-6">
                         Selecciona un curso,
                         importa estudiantes mediante
-                        archivo CSV y ejecuta la
+                        archivo Excel y ejecuta la
                         matrícula automática desde un
                         solo módulo.
                     </p>

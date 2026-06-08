@@ -54,12 +54,39 @@ export const BULK_FIELDS: BulkFieldConfig[] = [
     },
 ];
 
-export const CSV_HEADER =
-    "username,password,firstname,lastname,idnumber,email,phone_number,departament";
+export const EXCEL_HEADERS = [
+    "username",
+    "password",
+    "firstname",
+    "lastname",
+    "idnumber",
+    "email",
+    "phone_number",
+    "departament",
+];
 
-export const CSV_EXAMPLE = `${CSV_HEADER}
-jperez,123456,Juan,Pérez,0102030405,juan@correo.com,0999999999,General
-mlopez,123456,María,López,1102030405,maria@correo.com,0988888888,General`;
+export const EXCEL_EXAMPLE_ROWS = [
+    [
+        "jperez",
+        "123456",
+        "Juan",
+        "Pérez",
+        "0102030405",
+        "juan@correo.com",
+        "0999999999",
+        "General",
+    ],
+    [
+        "mlopez",
+        "123456",
+        "María",
+        "López",
+        "1102030405",
+        "maria@correo.com",
+        "0988888888",
+        "General",
+    ],
+];  
 
 export const EMAIL_REGEX =
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

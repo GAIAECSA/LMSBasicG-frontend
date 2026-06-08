@@ -108,7 +108,7 @@ export function RequiredFileCard({
                     ) : null}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 min-[1180px]:w-[430px]">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 min-[1180px]:w-[430px]">
                     {templateUrl ? (
                         <a
                             href={templateUrl}
@@ -137,7 +137,7 @@ export function RequiredFileCard({
                         Verificar
                     </button>
 
-                    <button
+{/*                     <button
                         type="button"
                         title="Editar archivo obligatorio"
                         onClick={() => onEdit(block)}
@@ -157,7 +157,7 @@ export function RequiredFileCard({
                     >
                         <Trash2 className="h-3.5 w-3.5 shrink-0" />
                         Eliminar
-                    </button>
+                    </button> */}
                 </div>
             </div>
         </article>

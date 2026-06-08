@@ -153,7 +153,8 @@ export function useMdtRequiredFiles(
 
     const [error, setError] = useState("");
 
-    const hasLoadedOnceRef = useRef(false);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
     const loadRequestRef = useRef<{
         courseId: number;
         promise: Promise<void>;
@@ -182,7 +183,12 @@ export function useMdtRequiredFiles(
     }, [params]);
 
     const requiredBlocks = useMemo(
-        () => blocks.filter(isRequiredFileBlock),
+        () =>
+            blocks.filter(
+                (block) =>
+                    isRequiredFileBlock(block) &&
+                    isRequiredFileWithoutLesson(block),
+            ),
         [blocks],
     );
 
@@ -455,7 +461,7 @@ export function useMdtRequiredFiles(
                     setBlocks([]);
                     notify.error(errorMessage);
                 } finally {
-                    hasLoadedOnceRef.current = true;
+                    setHasLoadedOnce(true);
                     dismissLoadingToast();
                     setIsLoading(false);
                 }
@@ -532,7 +538,7 @@ export function useMdtRequiredFiles(
         setFormState(
             getEmptyFormState(
                 formState.lessonId ||
-                    firstLessonId,
+                firstLessonId,
             ),
         );
 
@@ -618,8 +624,8 @@ export function useMdtRequiredFiles(
         const requestPromise = (async () => {
             const dismissLoadingToast = showToast
                 ? createLoadingToast(
-                      "Actualizando documentos enviados...",
-                  )
+                    "Actualizando documentos enviados...",
+                )
                 : () => undefined;
 
             try {
@@ -879,7 +885,7 @@ export function useMdtRequiredFiles(
             ) {
                 const currentForm =
                     reviewForms[
-                        String(submissionId)
+                    String(submissionId)
                     ] ??
                     getReviewInitialForm(
                         row.submission,
@@ -906,11 +912,11 @@ export function useMdtRequiredFiles(
                 setSubmissions((current) =>
                     current.map((item) =>
                         getSubmissionId(item) ===
-                        submissionId
+                            submissionId
                             ? {
-                                  ...item,
-                                  ...updatedSubmission,
-                              }
+                                ...item,
+                                ...updatedSubmission,
+                            }
                             : item,
                     ),
                 );
@@ -951,12 +957,12 @@ export function useMdtRequiredFiles(
                                     item.lesson_block_id,
                                     0,
                                 ) ===
-                                    blockId ||
+                                blockId ||
                                 readNumber(
                                     item.lessonBlockId,
                                     0,
                                 ) ===
-                                    blockId;
+                                blockId;
 
                             return !(
                                 sameEnrollment &&
@@ -1044,7 +1050,7 @@ export function useMdtRequiredFiles(
 
         const currentForm =
             reviewForms[
-                String(submissionId)
+            String(submissionId)
             ] ??
             getReviewInitialForm(submission);
 
@@ -1084,25 +1090,25 @@ export function useMdtRequiredFiles(
             setSubmissions((current) =>
                 current.map((item) =>
                     getSubmissionId(item) ===
-                    submissionId
+                        submissionId
                         ? {
-                              ...item,
-                              ...updatedSubmission,
-                              status:
-                                  currentForm.status,
-                              review_status:
-                                  currentForm.status,
-                              teacher_status:
-                                  currentForm.status,
-                              feedback:
-                                  currentForm.feedback,
-                              teacher_feedback:
-                                  currentForm.feedback,
-                              observations:
-                                  currentForm.feedback,
-                              score:
-                                  currentForm.score,
-                          }
+                            ...item,
+                            ...updatedSubmission,
+                            status:
+                                currentForm.status,
+                            review_status:
+                                currentForm.status,
+                            teacher_status:
+                                currentForm.status,
+                            feedback:
+                                currentForm.feedback,
+                            teacher_feedback:
+                                currentForm.feedback,
+                            observations:
+                                currentForm.feedback,
+                            score:
+                                currentForm.score,
+                        }
                         : item,
                 ),
             );
@@ -1281,14 +1287,14 @@ export function useMdtRequiredFiles(
                         cleanMaxFileSize,
                     order: movedToAnotherLesson
                         ? getNextOrder(
-                              blocks,
-                              lessonId,
-                          )
+                            blocks,
+                            lessonId,
+                        )
                         : readNumber(
-                              formModal.block
-                                  .order,
-                              1,
-                          ),
+                            formModal.block
+                                .order,
+                            1,
+                        ),
                     file: formState.file,
                 });
 
@@ -1364,7 +1370,7 @@ export function useMdtRequiredFiles(
     }
 
     const isInitialLoading =
-        isLoading && !hasLoadedOnceRef.current;
+        isLoading && !hasLoadedOnce;
 
     const isBusy =
         isLoading ||
@@ -1423,6 +1429,35 @@ export function useMdtRequiredFiles(
         handleSubmit,
         handleConfirmDelete,
     };
+}
+
+function isRequiredFileWithoutLesson(
+    block: LessonBlock,
+): boolean {
+    const lessonId = (
+        block as LessonBlock & {
+            lesson_id?:
+            | number
+            | string
+            | null;
+        }
+    ).lesson_id;
+
+    if (
+        lessonId === null ||
+        lessonId === undefined ||
+        String(lessonId).trim() === ""
+    ) {
+        return true;
+    }
+
+    const numericLessonId =
+        Number(lessonId);
+
+    return (
+        Number.isFinite(numericLessonId) &&
+        numericLessonId <= 0
+    );
 }
 
 

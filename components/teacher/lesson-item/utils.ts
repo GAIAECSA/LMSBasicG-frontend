@@ -698,11 +698,14 @@ function buildContentByType(
     }
 
     if (itemType === "forum") {
+        const forumPrompt = getSafeText(formRecord.forum_prompt);
+
         return {
             ...baseContent,
-            prompt: getSafeText(formRecord.forum_prompt),
-            forum_prompt: getSafeText(formRecord.forum_prompt),
-            instructions: getSafeText(formRecord.forum_prompt),
+            description: getSafeText(formRecord.description),
+            prompt: forumPrompt,
+            forum_prompt: forumPrompt,
+            instructions: forumPrompt,
         };
     }
 
@@ -711,6 +714,13 @@ function buildContentByType(
             ...baseContent,
             url: getSafeText(formRecord.video_url),
             video_url: getSafeText(formRecord.video_url),
+        };
+    }
+
+    if (itemType === "homework") {
+        return {
+            ...baseContent,
+            description: getSafeText(formRecord.description),
         };
     }
 

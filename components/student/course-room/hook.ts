@@ -11,7 +11,6 @@ import {
 } from "@/services/lessons.service";
 import {
     completeBlockProgress,
-    createBlockProgress,
     getProgressByEnrollment,
     type BlockProgress,
 } from "@/services/progress.service";
@@ -28,7 +27,6 @@ import {
     getForumResponsesByLessonBlock,
 } from "@/services/forum-response.service";
 import {
-    createCertificateFromTemplate,
     getCertificatesByCourse,
     getCertificateTemplate,
     reissueCertificateFromTemplate,
@@ -56,7 +54,7 @@ import {
     updateSurveyResponseFlexible,
 } from "./api";
 import { buildCertificateValues, canGenerateCertificate } from "./certificate";
-import { getCompletedBlockIds, hasProgressRecord } from "./progress";
+import { getCompletedBlockIds } from "./progress";
 import {
     getQuizAttemptsCount,
     getQuizLimitMessage,
@@ -101,6 +99,16 @@ import {
 } from "./utils";
 
 type HookRecord = Record<string, unknown>;
+
+function hasCompletedBlock(
+    completedBlockIds: number[],
+    blockId: number,
+): boolean {
+    return completedBlockIds.some(
+        (currentBlockId) =>
+            Number(currentBlockId) === Number(blockId),
+    );
+}
 
 function toHookRecord(value: unknown): HookRecord | null {
     if (!value || typeof value !== "object") return null;
@@ -310,7 +318,7 @@ export function useCourseRoom(courseId: string) {
     const totalBlocks = allBlocks.length;
 
     const completedCount = allBlocks.filter((block) =>
-        completedBlocks.includes(block.id),
+        hasCompletedBlock(completedBlocks, block.id),
     ).length;
 
     const progress =
@@ -350,7 +358,10 @@ export function useCourseRoom(courseId: string) {
     const upcomingBlocks = useMemo(
         () =>
             allBlocks
-                .filter((block) => !completedBlocks.includes(block.id))
+                .filter(
+                    (block) =>
+                        !hasCompletedBlock(completedBlocks, block.id),
+                )
                 .slice(0, 3),
         [allBlocks, completedBlocks],
     );
@@ -407,13 +418,21 @@ export function useCourseRoom(courseId: string) {
         }
     }
 
-    async function refreshProgress(currentEnrollmentId: number) {
+    async function refreshProgress(
+        currentEnrollmentId: number,
+        completedFallbackIds: number[] = [],
+    ) {
         const response = await getProgressByEnrollment(currentEnrollmentId);
 
-        setProgressRecords(response);
-        setCompletedBlocks(getCompletedBlockIds(response));
+        const nextCompletedBlocks = getUniqueNumbers([
+            ...getCompletedBlockIds(response),
+            ...completedFallbackIds,
+        ]);
 
-        return response;
+        setProgressRecords(response);
+        setCompletedBlocks(nextCompletedBlocks);
+
+        return nextCompletedBlocks;
     }
 
     async function refreshQuizResponseForBlock(
@@ -508,8 +527,12 @@ export function useCourseRoom(courseId: string) {
             }
 
             try {
-                courseCertificates =
-                    await getCertificatesByCourse(numericCourseId);
+                courseCertificates = await getCertificatesByCourse(
+                    numericCourseId,
+                    {
+                        onlyValid: false,
+                    },
+                );
             } catch {
                 courseCertificates = [];
             }
@@ -544,8 +567,7 @@ export function useCourseRoom(courseId: string) {
                 courseCertificates.find(
                     (item) =>
                         Number(item.user_id) === userId &&
-                        Number(item.course_id) === numericCourseId &&
-                        item.is_valid !== false,
+                        Number(item.course_id) === numericCourseId,
                 ) ?? null;
 
             const flatBlocks = modulesWithLessons.flatMap((moduleItem) =>
@@ -601,7 +623,10 @@ export function useCourseRoom(courseId: string) {
 
             setCertificate(existingCertificate);
             setCertificateMessage(
-                existingCertificate ? "Tu certificado ya está disponible." : "",
+                existingCertificate &&
+                    getCertificateTargetUrl(existingCertificate)
+                    ? "Tu certificado ya está disponible."
+                    : "",
             );
 
             setProgressRecords(progressResponse);
@@ -787,6 +812,7 @@ export function useCourseRoom(courseId: string) {
             setCertificateMessage(
                 "Tu certificado ya fue generado. Puedes visualizarlo.",
             );
+
             return certificate;
         }
 
@@ -795,7 +821,10 @@ export function useCourseRoom(courseId: string) {
                 "No se pudo identificar al estudiante o la matrícula.";
 
             setCertificateMessage(message);
-            notify.error("No se pudo generar el certificado.", message);
+            notify.error(
+                "No se pudo generar el certificado.",
+                message,
+            );
 
             return null;
         }
@@ -811,29 +840,63 @@ export function useCourseRoom(courseId: string) {
                 "Primero debes completar el 100% del curso y aprobar las evaluaciones.";
 
             setCertificateMessage(message);
-            notify.info("Certificado todavía bloqueado.", message);
+            notify.info(
+                "Certificado todavía bloqueado.",
+                message,
+            );
 
             return null;
         }
 
-        const toastId = notify.loading(
-            "Generando certificado...",
-            "Estamos preparando tu certificado institucional.",
-        );
+        const certificateId = certificate?.id;
+
+        if (!certificateId) {
+            const message =
+                "No existe un registro de certificado asignado al estudiante. El backend debe crear primero el certificado para poder actualizarlo mediante PUT.";
+
+            setCertificateMessage(message);
+            notify.warning(
+                "Certificado no asignado.",
+                message,
+            );
+
+            return null;
+        }
+
+        let toastId: string | number | undefined;
+
+        const dismissGenerationToast = () => {
+            if (toastId === undefined) return;
+
+            notify.dismiss(toastId);
+            toastId = undefined;
+        };
 
         try {
             setCertificateGenerating(true);
             setCertificateMessage("");
 
-            const template = await getCertificateTemplate(numericCourseId);
+            toastId = notify.loading(
+                "Generando certificado...",
+                "Estamos preparando tu certificado institucional.",
+            );
+
+            const template = await getCertificateTemplate(
+                numericCourseId,
+            );
 
             if (!template.id) {
                 const message =
                     "Curso terminado, pero aún no existe una plantilla de certificado para este curso.";
 
                 setCertificateMessage(message);
-                notify.dismiss(toastId);
-                notify.warning("Plantilla no disponible.", message);
+
+                dismissGenerationToast();
+
+                notify.warning(
+                    "Plantilla no disponible.",
+                    message,
+                );
 
                 return null;
             }
@@ -847,15 +910,9 @@ export function useCourseRoom(courseId: string) {
                 allBlocks,
             });
 
-            const generated = certificate
-                ? await reissueCertificateFromTemplate({
-                    certificateId: certificate.id,
-                    userId: studentUserId,
-                    courseId: numericCourseId,
-                    template,
-                    values,
-                })
-                : await createCertificateFromTemplate({
+            const generated =
+                await reissueCertificateFromTemplate({
+                    certificateId,
                     userId: studentUserId,
                     courseId: numericCourseId,
                     template,
@@ -863,11 +920,13 @@ export function useCourseRoom(courseId: string) {
                 });
 
             setCertificate(generated);
+
             setCertificateMessage(
                 "Tu certificado se generó correctamente. Ahora puedes visualizarlo.",
             );
 
-            notify.dismiss(toastId);
+            dismissGenerationToast();
+
             notify.success(
                 "Certificado generado correctamente.",
                 "El archivo ya se encuentra disponible para visualizar o descargar.",
@@ -879,17 +938,27 @@ export function useCourseRoom(courseId: string) {
 
             const message =
                 rawMessage.includes("403") ||
-                rawMessage.toLowerCase().includes("forbidden") ||
-                rawMessage.toLowerCase().includes("permisos")
+                    rawMessage
+                        .toLowerCase()
+                        .includes("forbidden") ||
+                    rawMessage
+                        .toLowerCase()
+                        .includes("permisos")
                     ? "No se pudo generar el certificado porque el backend no permite que el estudiante cree o actualice certificados."
                     : rawMessage;
 
             setCertificateMessage(message);
-            notify.dismiss(toastId);
-            notify.error("No se pudo generar el certificado.", message);
+
+            dismissGenerationToast();
+
+            notify.error(
+                "No se pudo generar el certificado.",
+                message,
+            );
 
             return null;
         } finally {
+            dismissGenerationToast();
             setCertificateGenerating(false);
         }
     }
@@ -938,24 +1007,6 @@ export function useCourseRoom(courseId: string) {
         window.open(generatedUrl, "_blank", "noopener,noreferrer");
     }
 
-    async function registerBlockStarted(blockId: number) {
-        if (!enrollmentId || hasProgressRecord(progressRecords, blockId)) return;
-
-        try {
-            const created = await createBlockProgress({
-                enrollment_id: enrollmentId,
-                lesson_block_id: blockId,
-                is_completed: false,
-                started_at: new Date().toISOString(),
-                completed_at: null,
-            });
-
-            setProgressRecords((current) => [...current, created]);
-        } catch {
-            // No se bloquea la navegación si el backend ya creó este registro.
-        }
-    }
-
     async function markBlockAsCompleted(
         blockId: number,
         options?: {
@@ -964,7 +1015,9 @@ export function useCourseRoom(courseId: string) {
     ) {
         const showToast = options?.showToast ?? true;
 
-        if (completedBlocks.includes(blockId)) return completedBlocks;
+        if (hasCompletedBlock(completedBlocks, blockId)) {
+            return completedBlocks;
+        }
 
         if (!enrollmentId) {
             const message =
@@ -983,17 +1036,24 @@ export function useCourseRoom(courseId: string) {
             setProgressSavingBlockId(blockId);
             setErrorMessage("");
 
-            const nextCompleted = getUniqueNumbers([
-                ...completedBlocks,
-                blockId,
-            ]);
-
-            setCompletedBlocks(nextCompleted);
+            /*
+             * Se actualiza inmediatamente la interfaz.
+             * Después se conserva el bloque recién completado aunque
+             * la consulta de progreso tarde en reflejar el cambio.
+             */
+            setCompletedBlocks((current) =>
+                getUniqueNumbers([
+                    ...current,
+                    blockId,
+                ]),
+            );
 
             await completeBlockProgress(enrollmentId, blockId);
 
-            const progressResponse = await refreshProgress(enrollmentId);
-            const completedBlockIds = getCompletedBlockIds(progressResponse);
+            const completedBlockIds = await refreshProgress(
+                enrollmentId,
+                [blockId],
+            );
 
             if (showToast) {
                 notify.success(
@@ -1007,7 +1067,10 @@ export function useCourseRoom(courseId: string) {
             const message = getErrorMessage(error);
 
             setCompletedBlocks((current) =>
-                current.filter((currentBlockId) => currentBlockId !== blockId),
+                current.filter(
+                    (currentBlockId) =>
+                        Number(currentBlockId) !== Number(blockId),
+                ),
             );
 
             setErrorMessage(message);
@@ -1027,8 +1090,6 @@ export function useCourseRoom(courseId: string) {
         setQuizAnswers({});
         setQuizResult(getQuizLimitMessage(quizResponses, block));
         setStudentResponseMessage("");
-
-        void registerBlockStarted(block.id);
 
         if (getLessonItemType(block) === "quiz" && enrollmentId) {
             void refreshQuizResponseForBlock(block.id, enrollmentId)
