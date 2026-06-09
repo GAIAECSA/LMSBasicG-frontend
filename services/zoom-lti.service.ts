@@ -1,22 +1,18 @@
 import {
     API_URL,
     getJsonHeaders,
+    handleApiResponse,
 } from "@/services/api-client.service";
 
-const ZOOM_LTI_LAUNCH_PATH = (
-    process.env.NEXT_PUBLIC_ZOOM_LTI_LAUNCH_PATH ??
-    "/api/v1/zoom/api/v1/lti/zoom/launch"
+const ZOOM_LTI_TICKET_PATH = (
+    process.env.NEXT_PUBLIC_ZOOM_LTI_TICKET_PATH ??
+    "/api/v1/zoom/api/v1/lti/zoom/launch-ticket"
 ).replace(/\/+$/, "");
 
-type ZoomLtiLaunchObjectResponse = {
-    launch_url?: string;
-    redirect_url?: string;
-    url?: string;
+type ZoomLtiLaunchTicketResponse = {
+    launch_url: string;
+    expires_in: number;
 };
-
-type ZoomLtiLaunchResponse =
-    | string
-    | ZoomLtiLaunchObjectResponse;
 
 function normalizeCourseId(
     courseId: number,
@@ -25,7 +21,9 @@ function normalizeCourseId(
         Number(courseId);
 
     if (
-        !Number.isInteger(numericCourseId) ||
+        !Number.isInteger(
+            numericCourseId,
+        ) ||
         numericCourseId <= 0
     ) {
         throw new Error(
@@ -36,35 +34,15 @@ function normalizeCourseId(
     return numericCourseId;
 }
 
-function normalizeLaunchUrl(
-    value: unknown,
+function validateLaunchUrl(
+    launchUrl: string,
 ): string {
-    let launchUrl: string | undefined;
-
-    if (
-        typeof value === "string"
-    ) {
-        launchUrl =
-            value;
-    } else if (
-        value &&
-        typeof value === "object"
-    ) {
-        const response =
-            value as ZoomLtiLaunchObjectResponse;
-
-        launchUrl =
-            response.launch_url ??
-            response.redirect_url ??
-            response.url;
-    }
-
     const normalizedUrl =
-        launchUrl?.trim();
+        launchUrl.trim();
 
     if (!normalizedUrl) {
         throw new Error(
-            "El backend no devolvió una URL válida para abrir Zoom.",
+            "El backend no devolvió una URL válida.",
         );
     }
 
@@ -72,10 +50,12 @@ function normalizeLaunchUrl(
 
     try {
         parsedUrl =
-            new URL(normalizedUrl);
+            new URL(
+                normalizedUrl,
+            );
     } catch {
         throw new Error(
-            "El backend devolvió una URL de lanzamiento inválida.",
+            "La URL temporal para abrir Zoom no es válida.",
         );
     }
 
@@ -84,104 +64,14 @@ function normalizeLaunchUrl(
         parsedUrl.protocol !== "https:"
     ) {
         throw new Error(
-            "La URL para abrir Zoom utiliza un protocolo no permitido.",
+            "La URL temporal utiliza un protocolo no permitido.",
         );
     }
 
     return parsedUrl.toString();
 }
 
-async function readLaunchResponse(
-    response: Response,
-): Promise<string> {
-    const contentType =
-        response.headers.get(
-            "content-type",
-        ) ?? "";
-
-    /*
-     * Algunos backends devuelven una redirección HTTP.
-     * En ese caso intentamos recuperar la cabecera Location.
-     */
-    if (
-        response.status >= 300 &&
-        response.status < 400
-    ) {
-        const location =
-            response.headers.get(
-                "location",
-            );
-
-        if (!location) {
-            throw new Error(
-                "El backend redirigió hacia Zoom, pero no expuso la cabecera Location. Configure Access-Control-Expose-Headers: Location o devuelva la URL como JSON.",
-            );
-        }
-
-        return normalizeLaunchUrl(
-            location,
-        );
-    }
-
-    const rawText =
-        await response.text();
-
-    if (!response.ok) {
-        let errorMessage =
-            `Error ${response.status}: ${response.statusText}`;
-
-        if (rawText) {
-            try {
-                const parsedError =
-                    JSON.parse(
-                        rawText,
-                    ) as {
-                        detail?: string;
-                        message?: string;
-                    };
-
-                errorMessage =
-                    parsedError.detail ??
-                    parsedError.message ??
-                    rawText;
-            } catch {
-                errorMessage =
-                    rawText;
-            }
-        }
-
-        throw new Error(
-            errorMessage,
-        );
-    }
-
-    if (!rawText.trim()) {
-        throw new Error(
-            "El backend respondió correctamente, pero no devolvió la URL para abrir Zoom.",
-        );
-    }
-
-    if (
-        contentType.includes(
-            "application/json",
-        )
-    ) {
-        const parsedResponse =
-            JSON.parse(
-                rawText,
-            ) as ZoomLtiLaunchResponse;
-
-        return normalizeLaunchUrl(
-            parsedResponse,
-        );
-    }
-
-    return normalizeLaunchUrl(
-        rawText,
-    );
-}
-
-export async function getZoomLtiLaunchUrl(
+export async function createZoomLtiLaunchTicket(
     courseId: number,
 ): Promise<string> {
     const validCourseId =
@@ -191,16 +81,20 @@ export async function getZoomLtiLaunchUrl(
 
     const response =
         await fetch(
-            `${API_URL}${ZOOM_LTI_LAUNCH_PATH}/${validCourseId}`,
+            `${API_URL}${ZOOM_LTI_TICKET_PATH}/${validCourseId}`,
             {
-                method: "GET",
+                method: "POST",
                 headers: getJsonHeaders(),
-                redirect: "manual",
             },
         );
 
-    return readLaunchResponse(
-        response,
+    const data =
+        await handleApiResponse<ZoomLtiLaunchTicketResponse>(
+            response,
+        );
+
+    return validateLaunchUrl(
+        data.launch_url,
     );
 }
 
@@ -213,11 +107,6 @@ export async function openZoomLtiCourse(
         return false;
     }
 
-    /*
-     * Abrimos primero una pestaña vacía.
-     * Esto evita que el navegador bloquee la ventana
-     * después de esperar la respuesta del backend.
-     */
     const zoomWindow =
         window.open(
             "about:blank",
@@ -251,14 +140,14 @@ export async function openZoomLtiCourse(
                 font-size: 15px;
                 font-weight: 700;
             ">
-                Preparando el acceso a Zoom...
+                Preparando la clase en vivo...
             </p>
         </main>
     `;
 
     try {
         const launchUrl =
-            await getZoomLtiLaunchUrl(
+            await createZoomLtiLaunchTicket(
                 courseId,
             );
 
