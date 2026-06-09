@@ -93,6 +93,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             ],
         },
         {
+            label: "Clases en vivo",
+            href: "/admin/live-classes",
+        },
+        {
             label: "Administración",
             children: [
                 {
@@ -115,6 +119,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
         {
             label: "Mis cursos",
             href: "/student/courses",
+        },
+        {
+            label: "Clases en vivo",
+            href: "/teacher/live-classes",
         },
         {
             label: "Evaluación",
@@ -147,6 +155,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
         {
             label: "Calendario",
             href: "/student/calendar",
+        },
+        {
+            label: "Clases en vivo",
+            href: "/student/live-classes",
         },
         {
             label: "Certificados",
@@ -192,23 +204,41 @@ export function getEffectiveRoleByPathname(
 export function getTeacherCourseIdFromPathname(
     pathname: string,
 ): string | null {
-    const match =
+    const courseMatch =
         pathname.match(
             /^\/teacher\/courses\/(\d+)(?:\/.*)?$/,
         );
 
-    return match?.[1] ?? null;
+    const liveClassesMatch =
+        pathname.match(
+            /^\/teacher\/live-classes\/(\d+)(?:\/.*)?$/,
+        );
+
+    return (
+        courseMatch?.[1] ??
+        liveClassesMatch?.[1] ??
+        null
+    );
 }
 
 export function getStudentCourseIdFromPathname(
     pathname: string,
 ): string | null {
-    const match =
+    const courseMatch =
         pathname.match(
             /^\/student\/courses\/(\d+)(?:\/.*)?$/,
         );
 
-    return match?.[1] ?? null;
+    const liveClassesMatch =
+        pathname.match(
+            /^\/student\/live-classes\/(\d+)(?:\/.*)?$/,
+        );
+
+    return (
+        courseMatch?.[1] ??
+        liveClassesMatch?.[1] ??
+        null
+    );
 }
 
 export function getAdminCourseIdFromPathname(
@@ -273,6 +303,10 @@ export function getSidebarItemsByRoute(
                     href: `/teacher/courses/${courseId}/modules`,
                 },
                 {
+                    label: "Clases en vivo",
+                    href: `/teacher/live-classes/${courseId}`,
+                },
+                {
                     label: "Calificaciones",
                     href: `/teacher/courses/${courseId}/grades`,
                 },
@@ -284,10 +318,6 @@ export function getSidebarItemsByRoute(
                     label: "Mi Asistencia",
                     href: `/teacher/courses/${courseId}/my-attendance`,
                 },
-                /* {
-                    label: "Zoom Meetings",
-                    href: `/teacher/courses/${courseId}/teacher-attendance`,
-                }, */
                 {
                     label: "Asistencia Estudiante",
                     href: `/teacher/courses/${courseId}/attendance`,

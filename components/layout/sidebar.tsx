@@ -321,17 +321,36 @@ function SidebarNavigation({
      * Al hacer clic manualmente se usa el grupo elegido por el usuario.
      * No se necesita ningún useEffect ni una carga adicional.
      */
+    const manuallyOpenLabel =
+        menuState.pathname === pathname
+            ? menuState.openLabel
+            : null;
+
+    /*
+     * Si la ruta actual pertenece a un grupo, ese grupo permanece abierto.
+     * El estado manual solamente se utiliza cuando el usuario abre otro grupo.
+     */
     const openLabel =
-        menuState.pathname === pathname ? menuState.openLabel : activeGroupLabel;
+        manuallyOpenLabel ??
+        activeGroupLabel;
 
     function toggleGroup(label: string) {
         setMenuState((current) => {
-            const currentOpenLabel =
-                current.pathname === pathname ? current.openLabel : activeGroupLabel;
+            const currentManualLabel =
+                current.pathname === pathname
+                    ? current.openLabel
+                    : null;
+
+            const currentVisibleLabel =
+                currentManualLabel ??
+                activeGroupLabel;
 
             return {
                 pathname,
-                openLabel: currentOpenLabel === label ? null : label,
+                openLabel:
+                    currentVisibleLabel === label
+                        ? null
+                        : label,
             };
         });
     }

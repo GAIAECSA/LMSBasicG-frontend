@@ -118,17 +118,26 @@ function getRouteRole(
 function getTeacherCourseIdFromPathname(
     pathname: string,
 ): number | null {
-    const match =
+    const courseMatch =
         pathname.match(
             /^\/teacher\/courses\/([^/]+)(?:\/|$)/,
         );
 
-    if (!match?.[1]) {
+    const liveClassesMatch =
+        pathname.match(
+            /^\/teacher\/live-classes\/([^/]+)(?:\/|$)/,
+        );
+
+    const rawCourseId =
+        courseMatch?.[1] ??
+        liveClassesMatch?.[1];
+
+    if (!rawCourseId) {
         return null;
     }
 
     const courseId =
-        Number(match[1]);
+        Number(rawCourseId);
 
     if (
         !Number.isInteger(courseId) ||
