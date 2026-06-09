@@ -1,17 +1,15 @@
 import {
-    API_URL,
     getJsonHeaders,
     handleApiResponse,
 } from "@/services/api-client.service";
 
-const ZOOM_LTI_TICKET_PATH = (
-    process.env.NEXT_PUBLIC_ZOOM_LTI_TICKET_PATH ??
-    "/api/v1/zoom/api/v1/lti/zoom/launch-ticket"
+const ZOOM_LTI_PROXY_PATH = (
+    process.env.NEXT_PUBLIC_ZOOM_LTI_PROXY_PATH ??
+    "/api/zoom/lti/launch-url"
 ).replace(/\/+$/, "");
 
-type ZoomLtiLaunchTicketResponse = {
+type ZoomLtiLaunchResponse = {
     launch_url: string;
-    expires_in: number;
 };
 
 function normalizeCourseId(
@@ -35,43 +33,44 @@ function normalizeCourseId(
 }
 
 function validateLaunchUrl(
-    launchUrl: string,
+    value: string,
 ): string {
-    const normalizedUrl =
-        launchUrl.trim();
+    const normalizedValue =
+        value.trim();
 
-    if (!normalizedUrl) {
+    if (!normalizedValue) {
         throw new Error(
-            "El backend no devolvió una URL válida.",
+            "No se recibió una URL válida para abrir Zoom.",
         );
     }
 
-    let parsedUrl: URL;
+    let launchUrl: URL;
 
     try {
-        parsedUrl =
+        launchUrl =
             new URL(
-                normalizedUrl,
+                normalizedValue,
             );
     } catch {
         throw new Error(
-            "La URL temporal para abrir Zoom no es válida.",
+            "La URL recibida para abrir Zoom no es válida.",
         );
     }
 
     if (
-        parsedUrl.protocol !== "http:" &&
-        parsedUrl.protocol !== "https:"
+        launchUrl.protocol !== "https:" ||
+        launchUrl.hostname !==
+        "applications.zoom.us"
     ) {
         throw new Error(
-            "La URL temporal utiliza un protocolo no permitido.",
+            "La URL recibida no pertenece a Zoom.",
         );
     }
 
-    return parsedUrl.toString();
+    return launchUrl.toString();
 }
 
-export async function createZoomLtiLaunchTicket(
+export async function getZoomLtiLaunchUrl(
     courseId: number,
 ): Promise<string> {
     const validCourseId =
@@ -81,15 +80,16 @@ export async function createZoomLtiLaunchTicket(
 
     const response =
         await fetch(
-            `${API_URL}${ZOOM_LTI_TICKET_PATH}/${validCourseId}`,
+            `${ZOOM_LTI_PROXY_PATH}/${validCourseId}`,
             {
                 method: "POST",
-                headers: getJsonHeaders(),
+                headers:
+                    getJsonHeaders(),
             },
         );
 
     const data =
-        await handleApiResponse<ZoomLtiLaunchTicketResponse>(
+        await handleApiResponse<ZoomLtiLaunchResponse>(
             response,
         );
 
@@ -107,6 +107,10 @@ export async function openZoomLtiCourse(
         return false;
     }
 
+    /*
+     * La pestaña se abre inmediatamente para que
+     * el navegador no la bloquee después del await.
+     */
     const zoomWindow =
         window.open(
             "about:blank",
@@ -140,14 +144,14 @@ export async function openZoomLtiCourse(
                 font-size: 15px;
                 font-weight: 700;
             ">
-                Preparando la clase en vivo...
+                Preparando el acceso a Zoom...
             </p>
         </main>
     `;
 
     try {
         const launchUrl =
-            await createZoomLtiLaunchTicket(
+            await getZoomLtiLaunchUrl(
                 courseId,
             );
 
