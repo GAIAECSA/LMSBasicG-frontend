@@ -39,7 +39,12 @@ export function ZoomLtiLauncher({
 
     const handleOpenZoom =
         async () => {
+            if (opening) {
+                return;
+            }
+
             setError(null);
+            setOpening(true);
 
             try {
                 const opened =
@@ -58,6 +63,8 @@ export function ZoomLtiLauncher({
                         ? openError.message
                         : "No fue posible abrir Zoom.",
                 );
+            } finally {
+                setOpening(false);
             }
         };
 

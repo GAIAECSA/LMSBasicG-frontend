@@ -92,10 +92,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 },
             ],
         },
-        {
+/*         {
             label: "Clases en vivo",
             href: "/admin/live-classes",
-        },
+        }, */
         {
             label: "Administración",
             children: [
@@ -120,10 +120,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             label: "Mis cursos",
             href: "/student/courses",
         },
-        {
+        /* {
             label: "Clases en vivo",
             href: "/teacher/live-classes",
-        },
+        }, */
         {
             label: "Evaluación",
             children: [
@@ -156,10 +156,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             label: "Calendario",
             href: "/student/calendar",
         },
-        {
+        /* {
             label: "Clases en vivo",
             href: "/student/live-classes",
-        },
+        }, */
         {
             label: "Certificados",
             href: "/student/certificates",
@@ -302,10 +302,10 @@ export function getSidebarItemsByRoute(
                     label: "Módulos",
                     href: `/teacher/courses/${courseId}/modules`,
                 },
-                {
+                /* {
                     label: "Clases en vivo",
                     href: `/teacher/live-classes/${courseId}`,
-                },
+                }, */
                 {
                     label: "Calificaciones",
                     href: `/teacher/courses/${courseId}/grades`,

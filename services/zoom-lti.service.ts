@@ -1,15 +1,36 @@
 import {
+    API_URL,
     getJsonHeaders,
     handleApiResponse,
 } from "@/services/api-client.service";
 
-const ZOOM_LTI_PROXY_PATH = (
-    process.env.NEXT_PUBLIC_ZOOM_LTI_PROXY_PATH ??
-    "/api/zoom/lti/launch-url"
+const ZOOM_API_URL = (
+    process.env.NEXT_PUBLIC_ZOOM_API_URL ??
+    API_URL
 ).replace(/\/+$/, "");
+
+const ZOOM_LTI_TICKET_PATH = (
+    process.env.NEXT_PUBLIC_ZOOM_LTI_TICKET_PATH ??
+    "/api/v1/zoom/zoom/launch-ticket"
+).replace(/\/+$/, "");
+
+const ALLOWED_LAUNCH_HOSTS =
+    new Set(
+        (
+            process.env
+                .NEXT_PUBLIC_ZOOM_LTI_ALLOWED_LAUNCH_HOSTS ??
+            "demo-sva.gaiaecsa.com"
+        )
+            .split(",")
+            .map((host) =>
+                host.trim().toLowerCase(),
+            )
+            .filter(Boolean),
+    );
 
 type ZoomLtiLaunchResponse = {
     launch_url: string;
+    expires_in?: number;
 };
 
 function normalizeCourseId(
@@ -40,7 +61,7 @@ function validateLaunchUrl(
 
     if (!normalizedValue) {
         throw new Error(
-            "No se recibió una URL válida para abrir Zoom.",
+            "El backend no devolvió una URL válida para abrir Zoom.",
         );
     }
 
@@ -53,24 +74,33 @@ function validateLaunchUrl(
             );
     } catch {
         throw new Error(
-            "La URL recibida para abrir Zoom no es válida.",
+            "La URL temporal recibida no es válida.",
         );
     }
 
     if (
-        launchUrl.protocol !== "https:" ||
-        launchUrl.hostname !==
-        "applications.zoom.us"
+        launchUrl.protocol !== "https:"
     ) {
         throw new Error(
-            "La URL recibida no pertenece a Zoom.",
+            "La URL temporal debe utilizar HTTPS.",
+        );
+    }
+
+    if (
+        ALLOWED_LAUNCH_HOSTS.size > 0 &&
+        !ALLOWED_LAUNCH_HOSTS.has(
+            launchUrl.hostname.toLowerCase(),
+        )
+    ) {
+        throw new Error(
+            "La URL temporal pertenece a un dominio no autorizado.",
         );
     }
 
     return launchUrl.toString();
 }
 
-export async function getZoomLtiLaunchUrl(
+export async function createZoomLtiLaunchUrl(
     courseId: number,
 ): Promise<string> {
     const validCourseId =
@@ -80,11 +110,12 @@ export async function getZoomLtiLaunchUrl(
 
     const response =
         await fetch(
-            `${ZOOM_LTI_PROXY_PATH}/${validCourseId}`,
+            `${ZOOM_API_URL}${ZOOM_LTI_TICKET_PATH}/${validCourseId}`,
             {
                 method: "POST",
                 headers:
                     getJsonHeaders(),
+                cache: "no-store",
             },
         );
 
@@ -108,8 +139,8 @@ export async function openZoomLtiCourse(
     }
 
     /*
-     * La pestaña se abre inmediatamente para que
-     * el navegador no la bloquee después del await.
+     * Se abre la pestaña antes del await para evitar
+     * que el navegador la bloquee como popup.
      */
     const zoomWindow =
         window.open(
@@ -144,14 +175,14 @@ export async function openZoomLtiCourse(
                 font-size: 15px;
                 font-weight: 700;
             ">
-                Preparando el acceso a Zoom...
+                Preparando la clase en vivo...
             </p>
         </main>
     `;
 
     try {
         const launchUrl =
-            await getZoomLtiLaunchUrl(
+            await createZoomLtiLaunchUrl(
                 courseId,
             );
 
