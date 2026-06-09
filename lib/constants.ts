@@ -284,6 +284,10 @@ export function getSidebarItemsByRoute(
                     label: "Mi Asistencia",
                     href: `/teacher/courses/${courseId}/my-attendance`,
                 },
+                /* {
+                    label: "Zoom Meetings",
+                    href: `/teacher/courses/${courseId}/teacher-attendance`,
+                }, */
                 {
                     label: "Asistencia Estudiante",
                     href: `/teacher/courses/${courseId}/attendance`,

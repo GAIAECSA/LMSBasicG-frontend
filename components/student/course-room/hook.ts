@@ -328,7 +328,13 @@ export function useCourseRoom(courseId: string) {
 
     const certificateFileUrl = getCertificateFileUrl(certificate);
     const certificateTargetUrl = getCertificateTargetUrl(certificate);
-    const certificateReady = Boolean(certificate && certificateTargetUrl);
+
+    /*
+     * El certificado solamente se considera generado cuando ya existe
+     * el archivo PDF definitivo. Tener un registro o una URL auxiliar
+     * no significa que el estudiante ya lo haya generado.
+     */
+    const certificateReady = Boolean(certificate && certificateFileUrl);
 
     const studentInitials = useMemo(() => {
         const words = (studentName || "Estudiante")
@@ -624,7 +630,7 @@ export function useCourseRoom(courseId: string) {
             setCertificate(existingCertificate);
             setCertificateMessage(
                 existingCertificate &&
-                    getCertificateTargetUrl(existingCertificate)
+                    getCertificateFileUrl(existingCertificate)
                     ? "Tu certificado ya está disponible."
                     : "",
             );
@@ -808,7 +814,7 @@ export function useCourseRoom(courseId: string) {
     ) {
         if (certificateGenerating) return null;
 
-        if (certificate && getCertificateTargetUrl(certificate)) {
+        if (certificate && getCertificateFileUrl(certificate)) {
             setCertificateMessage(
                 "Tu certificado ya fue generado. Puedes visualizarlo.",
             );
@@ -922,14 +928,14 @@ export function useCourseRoom(courseId: string) {
             setCertificate(generated);
 
             setCertificateMessage(
-                "Tu certificado se generó correctamente. Ahora puedes visualizarlo.",
+                "Tu certificado se generó correctamente. Ahora presiona Visualizar certificado para abrirlo.",
             );
 
             dismissGenerationToast();
 
             notify.success(
                 "Certificado generado correctamente.",
-                "El archivo ya se encuentra disponible para visualizar o descargar.",
+                "El archivo ya se encuentra disponible. Presiona Visualizar certificado para abrirlo o utiliza Descargar PDF.",
             );
 
             return generated;
@@ -978,13 +984,27 @@ export function useCourseRoom(courseId: string) {
 
         if (certificateGenerating) return;
 
-        const currentUrl = getCertificateTargetUrl(certificate);
+        const currentFileUrl = getCertificateFileUrl(certificate);
+        const currentTargetUrl = getCertificateTargetUrl(certificate);
 
-        if (certificate && currentUrl) {
-            window.open(currentUrl, "_blank", "noopener,noreferrer");
+        /*
+         * Si el PDF ya existe, el botón funciona como visualización.
+         */
+        if (certificate && currentFileUrl && currentTargetUrl) {
+            window.open(
+                currentTargetUrl,
+                "_blank",
+                "noopener,noreferrer",
+            );
+
             return;
         }
 
+        /*
+         * Si todavía no existe el PDF, el primer clic solamente lo genera.
+         * Después de actualizarse el estado, el botón cambiará automáticamente
+         * a "Visualizar certificado".
+         */
         const generated = await generateCertificateIfCourseFinished(
             completedBlocks,
             quizResponses,
@@ -992,11 +1012,11 @@ export function useCourseRoom(courseId: string) {
 
         if (!generated) return;
 
-        const generatedUrl = getCertificateTargetUrl(generated);
+        const generatedFileUrl = getCertificateFileUrl(generated);
 
-        if (!generatedUrl) {
+        if (!generatedFileUrl) {
             const message =
-                "El certificado fue generado, pero todavía no tiene un archivo disponible.";
+                "El certificado fue procesado, pero todavía no tiene un archivo PDF disponible.";
 
             setCertificateMessage(message);
             notify.warning("Archivo no disponible.", message);
@@ -1004,7 +1024,9 @@ export function useCourseRoom(courseId: string) {
             return;
         }
 
-        window.open(generatedUrl, "_blank", "noopener,noreferrer");
+        setCertificateMessage(
+            "Tu certificado se generó correctamente. Ahora presiona Visualizar certificado para abrirlo.",
+        );
     }
 
     async function markBlockAsCompleted(
