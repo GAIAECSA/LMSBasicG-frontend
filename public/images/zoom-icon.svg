@@ -1,0 +1,23 @@
+<svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 64 64"
+    role="img"
+    aria-label="Zoom"
+>
+    <rect
+        width="64"
+        height="64"
+        rx="16"
+        fill="#2D8CFF"
+    />
+
+    <path
+        fill="#FFFFFF"
+        d="M14 21.5C14 18.46 16.46 16 19.5 16h20c3.04 0 5.5 2.46 5.5 5.5v21c0 3.04-2.46 5.5-5.5 5.5h-20c-3.04 0-5.5-2.46-5.5-5.5v-21Z"
+    />
+
+    <path
+        fill="#FFFFFF"
+        d="M47 25.5 57 20v24l-10-5.5v-13Z"
+    />
+</svg>

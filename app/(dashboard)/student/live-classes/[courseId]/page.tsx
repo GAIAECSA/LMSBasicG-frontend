@@ -1,6 +1,6 @@
 import {
-    ZoomLtiCoursePanel,
-} from "@/components/live-classes/ZoomLtiCoursePanel";
+    ZoomCoursePanel,
+} from "@/components/live-classes/ZoomCoursePanel";
 
 type StudentLiveClassesCoursePageProps = {
     params: Promise<{
@@ -16,10 +16,14 @@ export default async function StudentLiveClassesCoursePage({
     } = await params;
 
     const numericCourseId =
-        Number(courseId);
+        Number(
+            courseId,
+        );
 
     if (
-        !Number.isInteger(numericCourseId) ||
+        !Number.isInteger(
+            numericCourseId,
+        ) ||
         numericCourseId <= 0
     ) {
         return (
@@ -32,8 +36,10 @@ export default async function StudentLiveClassesCoursePage({
     }
 
     return (
-        <ZoomLtiCoursePanel
-            courseId={numericCourseId}
+        <ZoomCoursePanel
+            courseId={
+                numericCourseId
+            }
             audience="student"
         />
     );

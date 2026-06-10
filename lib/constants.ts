@@ -92,7 +92,7 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 },
             ],
         },
-/*         {
+        /* {
             label: "Clases en vivo",
             href: "/admin/live-classes",
         }, */

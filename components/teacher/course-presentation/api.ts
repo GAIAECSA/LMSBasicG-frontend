@@ -1,40 +1,47 @@
-import { API_BASE_URL } from "./constants";
+import {
+    API_BASE_URL,
+} from "./constants";
 import type {
     ApiCourse,
-    CourseModule,
 } from "./types";
 import {
-    cleanText,
     normalizeCourse,
-    toNumber,
 } from "./utils";
 
 export async function getCourseById(
     courseId: string,
 ) {
-    const numericCourseId = Number(courseId);
+    const numericCourseId =
+        Number(courseId);
 
-    if (!Number.isFinite(numericCourseId)) {
+    if (
+        !Number.isFinite(
+            numericCourseId,
+        )
+    ) {
         return null;
     }
 
     try {
-        const responseById = await fetch(
-            `${API_BASE_URL}/courses/${numericCourseId}`,
-            {
-                method: "GET",
-                headers: {
-                    Accept: "application/json",
+        const responseById =
+            await fetch(
+                `${API_BASE_URL}/courses/${numericCourseId}`,
+                {
+                    method: "GET",
+                    headers: {
+                        Accept: "application/json",
+                    },
+                    cache: "no-store",
                 },
-                cache: "no-store",
-            },
-        );
+            );
 
         if (responseById.ok) {
             const course =
                 (await responseById.json()) as ApiCourse;
 
-            return normalizeCourse(course);
+            return normalizeCourse(
+                course,
+            );
         }
     } catch {
         // Si el endpoint individual no existe,
@@ -42,16 +49,17 @@ export async function getCourseById(
     }
 
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/courses/`,
-            {
-                method: "GET",
-                headers: {
-                    Accept: "application/json",
+        const response =
+            await fetch(
+                `${API_BASE_URL}/courses/`,
+                {
+                    method: "GET",
+                    headers: {
+                        Accept: "application/json",
+                    },
+                    cache: "no-store",
                 },
-                cache: "no-store",
-            },
-        );
+            );
 
         if (!response.ok) {
             return null;
@@ -60,72 +68,23 @@ export async function getCourseById(
         const courses =
             (await response.json()) as ApiCourse[];
 
-        const course = Array.isArray(courses)
-            ? courses.find(
-                  (item) =>
-                      Number(item.id) ===
-                      numericCourseId,
-              )
-            : null;
+        const course =
+            Array.isArray(courses)
+                ? courses.find(
+                    (item) =>
+                        Number(
+                            item.id,
+                        ) ===
+                        numericCourseId,
+                )
+                : null;
 
         return course
-            ? normalizeCourse(course)
+            ? normalizeCourse(
+                course,
+            )
             : null;
     } catch {
         return null;
-    }
-}
-
-export async function getModulesByCourse(
-    courseId: string,
-) {
-    const numericCourseId = Number(courseId);
-
-    if (!Number.isFinite(numericCourseId)) {
-        return [];
-    }
-
-    try {
-        const response = await fetch(
-            `${API_BASE_URL}/modules/courses/${numericCourseId}/modules`,
-            {
-                method: "GET",
-                headers: {
-                    Accept: "application/json",
-                },
-                cache: "no-store",
-            },
-        );
-
-        if (!response.ok) {
-            return [];
-        }
-
-        const modules =
-            (await response.json()) as CourseModule[];
-
-        return Array.isArray(modules)
-            ? modules
-                  .map((module) => ({
-                      id: Number(module.id),
-                      name: cleanText(
-                          module.name,
-                          "Módulo sin nombre",
-                      ),
-                      order: toNumber(
-                          module.order,
-                          0,
-                      ),
-                      course_id: Number(
-                          module.course_id,
-                      ),
-                  }))
-                  .sort(
-                      (a, b) =>
-                          a.order - b.order,
-                  )
-            : [];
-    } catch {
-        return [];
     }
 }
