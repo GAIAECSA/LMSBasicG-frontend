@@ -6,6 +6,8 @@ docker build -t lmsbasicg-frontend .
 docker run -d \
   --name lmsbasicg-frontend \
   -p 9001:9001 \
+  --restart unless-stopped \
+  --env-file "$(pwd)/.env.local" \
   lmsbasicg-frontend
 
   *********************************************
