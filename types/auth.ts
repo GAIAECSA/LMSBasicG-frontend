@@ -16,6 +16,7 @@ export interface AuthUser {
 export interface LoginPayload {
     username: string;
     password: string;
+    domain? : string;
 }
 
 export interface LoginResponse {

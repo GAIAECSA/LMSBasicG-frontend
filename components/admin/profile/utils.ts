@@ -58,13 +58,25 @@ export function mapUserToProfileForm(
     }
 
     return {
-        username: user.username ?? "",
-        idnumber: user.idnumber ?? "",
-        firstname: user.firstname ?? "",
-        lastname: user.lastname ?? "",
-        email: user.email ?? "",
+        username:
+            user.username ?? "",
+        idnumber:
+            user.idnumber ?? "",
+        firstname:
+            user.firstname ?? "",
+        lastname:
+            user.lastname ?? "",
+        email:
+            user.email ?? "",
         phone_number:
-            user.phone_number ?? "",
+            user.phone_number !==
+                null &&
+                user.phone_number !==
+                undefined
+                ? String(
+                    user.phone_number,
+                )
+                : "",
         departament:
             user.departament ?? "",
         password: "",

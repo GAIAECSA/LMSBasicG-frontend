@@ -174,12 +174,31 @@ export function ProfileFormCard({
                     Icon={
                         Phone
                     }
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={
+                        10
+                    }
+                    autoComplete="tel"
+                    helperText="Ingrese únicamente números. Máximo 10 dígitos."
                     onChange={(
                         value,
                     ) => {
+                        const onlyNumbers =
+                            value
+                                .replace(
+                                    /\D/g,
+                                    "",
+                                )
+                                .slice(
+                                    0,
+                                    10,
+                                );
+
                         profile.handleChange(
                             "phone_number",
-                            value,
+                            onlyNumbers,
                         );
                     }}
                 />

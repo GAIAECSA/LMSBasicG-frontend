@@ -1,6 +1,7 @@
 import type {
     ElementType,
     HTMLInputTypeAttribute,
+    InputHTMLAttributes,
 } from "react";
 
 type ProfileFieldProps = {
@@ -13,6 +14,12 @@ type ProfileFieldProps = {
     disabled?: boolean;
     required?: boolean;
     helperText?: string;
+    inputMode?:
+    InputHTMLAttributes<HTMLInputElement>["inputMode"];
+    pattern?: string;
+    minLength?: number;
+    maxLength?: number;
+    autoComplete?: string;
     onChange?: (
         value: string,
     ) => void;
@@ -28,6 +35,11 @@ export function ProfileField({
     disabled = false,
     required = false,
     helperText,
+    inputMode,
+    pattern,
+    minLength,
+    maxLength,
+    autoComplete,
     onChange,
 }: ProfileFieldProps) {
     const inactive =
@@ -76,6 +88,21 @@ export function ProfileField({
                     }
                     required={
                         required
+                    }
+                    inputMode={
+                        inputMode
+                    }
+                    pattern={
+                        pattern
+                    }
+                    minLength={
+                        minLength
+                    }
+                    maxLength={
+                        maxLength
+                    }
+                    autoComplete={
+                        autoComplete
                     }
                     aria-required={
                         required

@@ -50,6 +50,9 @@ export function CoursesAdminPanel() {
                     stats={
                         panel.stats
                     }
+                    canUseMdt={
+                        panel.canUseMdt
+                    }
                 />
 
                 <NoticeAlert
@@ -117,7 +120,7 @@ export function CoursesAdminPanel() {
                                 Math.max(
                                     1,
                                     page -
-                                        1,
+                                    1,
                                 ),
                         )
                     }
@@ -129,7 +132,7 @@ export function CoursesAdminPanel() {
                                 Math.min(
                                     panel.totalPages,
                                     page +
-                                        1,
+                                    1,
                                 ),
                         )
                     }
@@ -203,7 +206,7 @@ export function CoursesAdminPanel() {
                             Math.max(
                                 1,
                                 page -
-                                    1,
+                                1,
                             ),
                     )
                 }
@@ -215,7 +218,7 @@ export function CoursesAdminPanel() {
                             Math.min(
                                 panel.userTotalPages,
                                 page +
-                                    1,
+                                1,
                             ),
                     )
                 }
@@ -239,6 +242,9 @@ export function CoursesAdminPanel() {
                 }
                 form={
                     panel.form
+                }
+                canUseMdt={
+                    panel.canUseMdt
                 }
                 previewSrc={
                     panel.previewSrc

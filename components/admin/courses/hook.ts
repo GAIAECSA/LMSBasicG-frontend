@@ -29,6 +29,11 @@ import {
     type User,
 } from "@/services/users.service";
 import {
+    getMyModules,
+    hasBusinessLmsModule,
+    type BusinessLmsPlan,
+} from "@/services/business-lms-config.service";
+import {
     createEnrollment,
     getEnrollmentsByCourseAndRole,
     getEnrollmentsByUser,
@@ -78,6 +83,25 @@ function getErrorMessage(
 export function useCoursesAdminPanel() {
     const [courses, setCourses] =
         useState<Course[]>([]);
+
+    const [
+        businessPlans,
+        setBusinessPlans,
+    ] =
+        useState<
+            BusinessLmsPlan[] |
+            null
+        >(
+            null,
+        );
+
+    const [
+        businessPlansLoading,
+        setBusinessPlansLoading,
+    ] =
+        useState(
+            true,
+        );
 
     const [categories, setCategories] =
         useState<Category[]>([]);
@@ -411,9 +435,9 @@ export function useCoursesAdminPanel() {
                 const toastId =
                     showSuccess
                         ? notify.loading(
-                              "Actualizando cursos...",
-                              "Estamos consultando los cursos, categorías y subcategorías.",
-                          )
+                            "Actualizando cursos...",
+                            "Estamos consultando los cursos, categorías y subcategorías.",
+                        )
                         : null;
 
                 try {
@@ -543,7 +567,7 @@ export function useCoursesAdminPanel() {
                         );
                     }
                 } catch (
-                    error
+                error
                 ) {
                     if (
                         toastId !==
@@ -612,6 +636,64 @@ export function useCoursesAdminPanel() {
     }, [
         loadCoursesData,
     ]);
+
+    useEffect(() => {
+        let ignoreResponse =
+            false;
+
+        async function loadBusinessPlans() {
+            try {
+                const plans =
+                    await getMyModules();
+
+                if (
+                    ignoreResponse
+                ) {
+                    return;
+                }
+
+                setBusinessPlans(
+                    plans,
+                );
+            } catch (
+            error
+            ) {
+                if (
+                    ignoreResponse
+                ) {
+                    return;
+                }
+
+                /*
+                 * Si no se puede consultar el plan, MDT queda oculto.
+                 * Los módulos normales continúan disponibles.
+                 */
+                setBusinessPlans(
+                    [],
+                );
+
+                console.warn(
+                    "No se pudieron cargar los planes empresariales. MDT permanecerá oculto.",
+                    error,
+                );
+            } finally {
+                if (
+                    !ignoreResponse
+                ) {
+                    setBusinessPlansLoading(
+                        false,
+                    );
+                }
+            }
+        }
+
+        void loadBusinessPlans();
+
+        return () => {
+            ignoreResponse =
+                true;
+        };
+    }, []);
 
     useEffect(() => {
         if (
@@ -704,9 +786,9 @@ export function useCoursesAdminPanel() {
                         (
                             item,
                         ) => [
-                            item.id,
-                            item,
-                        ],
+                                item.id,
+                                item,
+                            ],
                     ),
                 ),
             [
@@ -722,9 +804,9 @@ export function useCoursesAdminPanel() {
                         (
                             item,
                         ) => [
-                            item.id,
-                            item,
-                        ],
+                                item.id,
+                                item,
+                            ],
                     ),
                 ),
             [
@@ -738,7 +820,7 @@ export function useCoursesAdminPanel() {
                 const categoryId =
                     Number(
                         form.category_id ||
-                            0,
+                        0,
                     );
 
                 if (
@@ -761,6 +843,46 @@ export function useCoursesAdminPanel() {
             ],
         );
 
+    const canUseMdt =
+        useMemo(
+            () =>
+                hasBusinessLmsModule(
+                    businessPlans,
+                    "mdt",
+                ),
+            [
+                businessPlans,
+            ],
+        );
+
+    /*
+     * En el plan básico no se muestran cursos MDT existentes.
+     * Esto evita que se puedan editar o gestionar desde esta vista.
+     */
+    const visibleCourses =
+        useMemo(
+            () => {
+                if (
+                    canUseMdt
+                ) {
+                    return courses;
+                }
+
+                return courses.filter(
+                    (
+                        course,
+                    ) =>
+                        !getCourseIsMdt(
+                            course,
+                        ),
+                );
+            },
+            [
+                canUseMdt,
+                courses,
+            ],
+        );
+
     const filteredCourses =
         useMemo(
             () => {
@@ -772,10 +894,10 @@ export function useCoursesAdminPanel() {
                 if (
                     !term
                 ) {
-                    return courses;
+                    return visibleCourses;
                 }
 
-                return courses.filter(
+                return visibleCourses.filter(
                     (
                         course,
                     ) => {
@@ -786,17 +908,17 @@ export function useCoursesAdminPanel() {
 
                         const subcategory =
                             courseSubcategoryId !==
-                            null
+                                null
                                 ? subcategoryMap.get(
-                                      courseSubcategoryId,
-                                  )
+                                    courseSubcategoryId,
+                                )
                                 : undefined;
 
                         const category =
                             subcategory
                                 ? categoryMap.get(
-                                      subcategory.category_id,
-                                  )
+                                    subcategory.category_id,
+                                )
                                 : null;
 
                         const mdtLabel =
@@ -831,7 +953,7 @@ export function useCoursesAdminPanel() {
                             ) ||
                             String(
                                 courseSubcategoryId ??
-                                    "",
+                                "",
                             ).includes(
                                 term,
                             ) ||
@@ -857,7 +979,7 @@ export function useCoursesAdminPanel() {
             },
             [
                 categoryMap,
-                courses,
+                visibleCourses,
                 search,
                 subcategoryMap,
             ],
@@ -868,7 +990,7 @@ export function useCoursesAdminPanel() {
             1,
             Math.ceil(
                 filteredCourses.length /
-                    ROWS_PER_PAGE,
+                ROWS_PER_PAGE,
             ),
         );
 
@@ -891,7 +1013,7 @@ export function useCoursesAdminPanel() {
                 return filteredCourses.slice(
                     startIndex,
                     startIndex +
-                        ROWS_PER_PAGE,
+                    ROWS_PER_PAGE,
                 );
             },
             [
@@ -973,7 +1095,7 @@ export function useCoursesAdminPanel() {
             1,
             Math.ceil(
                 filteredUsers.length /
-                    USERS_PER_PAGE,
+                USERS_PER_PAGE,
             ),
         );
 
@@ -996,7 +1118,7 @@ export function useCoursesAdminPanel() {
                 return filteredUsers.slice(
                     startIndex,
                     startIndex +
-                        USERS_PER_PAGE,
+                    USERS_PER_PAGE,
                 );
             },
             [
@@ -1009,26 +1131,26 @@ export function useCoursesAdminPanel() {
         useMemo(
             () => ({
                 total:
-                    courses.length,
+                    visibleCourses.length,
                 published:
-                    courses.filter(
+                    visibleCourses.filter(
                         getCourseIsPublished,
                     ).length,
                 free:
-                    courses.filter(
+                    visibleCourses.filter(
                         getCourseIsFree,
                     ).length,
                 openEnrollment:
-                    courses.filter(
+                    visibleCourses.filter(
                         getCourseOpenEnrollment,
                     ).length,
                 mdt:
-                    courses.filter(
+                    visibleCourses.filter(
                         getCourseIsMdt,
                     ).length,
             }),
             [
-                courses,
+                visibleCourses,
             ],
         );
 
@@ -1045,6 +1167,21 @@ export function useCoursesAdminPanel() {
         value:
             CourseFormState[K],
     ) {
+        if (
+            key ===
+            "is_mdt" &&
+            value ===
+            true &&
+            !canUseMdt
+        ) {
+            notify.warning(
+                "MDT no disponible.",
+                "El plan actual no permite crear cursos MDT.",
+            );
+
+            return;
+        }
+
         setForm(
             (
                 current,
@@ -1232,7 +1369,7 @@ export function useCoursesAdminPanel() {
                 ),
             );
         } catch (
-            error
+        error
         ) {
             const message =
                 getErrorMessage(
@@ -1326,41 +1463,41 @@ export function useCoursesAdminPanel() {
             const savedEnrollment =
                 courseEnrollment
                     ? await updateEnrollment(
-                          courseEnrollment.id,
-                          {
-                              accepted:
-                                  courseEnrollment.accepted ??
-                                  true,
-                              reference_code:
-                                  courseEnrollment.reference_code ??
-                                  null,
-                              comment:
-                                  courseEnrollment.comment ??
-                                  null,
-                              user_id:
-                                  user.id,
-                              course_id:
-                                  assigningCourse.id,
-                              role_id:
-                                  nextRoleId,
-                          },
-                      )
+                        courseEnrollment.id,
+                        {
+                            accepted:
+                                courseEnrollment.accepted ??
+                                true,
+                            reference_code:
+                                courseEnrollment.reference_code ??
+                                null,
+                            comment:
+                                courseEnrollment.comment ??
+                                null,
+                            user_id:
+                                user.id,
+                            course_id:
+                                assigningCourse.id,
+                            role_id:
+                                nextRoleId,
+                        },
+                    )
                     : await createEnrollment({
-                          accepted:
-                              true,
-                          reference_code:
-                              null,
-                          comment:
-                              "Asignado como docente desde administración.",
-                          user_id:
-                              user.id,
-                          course_id:
-                              assigningCourse.id,
-                          role_id:
-                              TEACHER_ROLE_ID,
-                          image:
-                              null,
-                      });
+                        accepted:
+                            true,
+                        reference_code:
+                            null,
+                        comment:
+                            "Asignado como docente desde administración.",
+                        user_id:
+                            user.id,
+                        course_id:
+                            assigningCourse.id,
+                        role_id:
+                            TEACHER_ROLE_ID,
+                        image:
+                            null,
+                    });
 
             setAssignedTeacherUserIds(
                 (
@@ -1405,7 +1542,7 @@ export function useCoursesAdminPanel() {
                     : "El usuario volvió al rol de estudiante en este curso.",
             );
         } catch (
-            error
+        error
         ) {
             notify.dismiss(
                 toastId,
@@ -1434,6 +1571,20 @@ export function useCoursesAdminPanel() {
     function handleEdit(
         course: Course,
     ) {
+        if (
+            !canUseMdt &&
+            getCourseIsMdt(
+                course,
+            )
+        ) {
+            notify.warning(
+                "Curso MDT no disponible.",
+                "El plan actual no permite administrar cursos MDT.",
+            );
+
+            return;
+        }
+
         const courseSubcategoryId =
             getCourseSubcategoryId(
                 course,
@@ -1441,10 +1592,10 @@ export function useCoursesAdminPanel() {
 
         const foundSubcategory =
             courseSubcategoryId !==
-            null
+                null
                 ? subcategoryMap.get(
-                      courseSubcategoryId,
-                  )
+                    courseSubcategoryId,
+                )
                 : undefined;
 
         const nextForm = {
@@ -1454,13 +1605,13 @@ export function useCoursesAdminPanel() {
             category_id:
                 foundSubcategory
                     ? String(
-                          foundSubcategory.category_id,
-                      )
+                        foundSubcategory.category_id,
+                    )
                     : "",
             subcategory_id:
                 String(
                     courseSubcategoryId ??
-                        "",
+                    "",
                 ),
         };
 
@@ -1579,7 +1730,7 @@ export function useCoursesAdminPanel() {
                 `${courseName} fue eliminado correctamente.`,
             );
         } catch (
-            error
+        error
         ) {
             const message =
                 getErrorMessage(
@@ -1655,7 +1806,7 @@ export function useCoursesAdminPanel() {
         if (
             !subcategoryId ||
             subcategoryId <=
-                0
+            0
         ) {
             return "La subcategoría es obligatoria.";
         }
@@ -1669,7 +1820,7 @@ export function useCoursesAdminPanel() {
         if (
             !form.is_free &&
             price <
-                0
+            0
         ) {
             return "El precio no puede ser negativo.";
         }
@@ -1677,7 +1828,7 @@ export function useCoursesAdminPanel() {
         if (
             !form.is_free &&
             discountPrice <
-                0
+            0
         ) {
             return "El precio con descuento no puede ser negativo.";
         }
@@ -1685,11 +1836,11 @@ export function useCoursesAdminPanel() {
         if (
             !form.is_free &&
             discountPrice >
-                0 &&
+            0 &&
             price >
-                0 &&
+            0 &&
             discountPrice >=
-                price
+            price
         ) {
             return "El precio con descuento debe ser menor que el precio normal.";
         }
@@ -1769,9 +1920,9 @@ export function useCoursesAdminPanel() {
                     form.is_free
                         ? 0
                         : parseNumberInput(
-                              form.price,
-                              0,
-                          ),
+                            form.price,
+                            0,
+                        ),
                 is_free:
                     form.is_free,
                 level:
@@ -1793,7 +1944,9 @@ export function useCoursesAdminPanel() {
                 subcategory_id:
                     subcategoryId,
                 is_mdt:
-                    form.is_mdt,
+                    canUseMdt
+                        ? form.is_mdt
+                        : false,
                 image:
                     selectedImageFile ??
                     undefined,
@@ -1801,9 +1954,9 @@ export function useCoursesAdminPanel() {
                     form.is_free
                         ? 0
                         : parseNumberInput(
-                              form.discount_price,
-                              0,
-                          ),
+                            form.discount_price,
+                            0,
+                        ),
             };
 
             if (
@@ -1824,7 +1977,7 @@ export function useCoursesAdminPanel() {
                                 item,
                             ) =>
                                 item.id ===
-                                editingCourseId
+                                    editingCourseId
                                     ? updatedCourse
                                     : item,
                         ),
@@ -1839,9 +1992,9 @@ export function useCoursesAdminPanel() {
                     (
                         current,
                     ) => [
-                        createdCourse,
-                        ...current,
-                    ],
+                            createdCourse,
+                            ...current,
+                        ],
                 );
             }
 
@@ -1864,7 +2017,7 @@ export function useCoursesAdminPanel() {
                     : "El nuevo curso fue registrado correctamente.",
             );
         } catch (
-            error
+        error
         ) {
             const message =
                 getErrorMessage(
@@ -1905,6 +2058,8 @@ export function useCoursesAdminPanel() {
         availableSubcategories,
 
         form,
+        canUseMdt,
+        businessPlansLoading,
         editingCourseId,
         selectedImageFile,
         previewSrc,
@@ -1968,6 +2123,6 @@ function getCourseNameSafe(
 ) {
     return String(
         course.name ??
-            "",
+        "",
     ).toLowerCase();
 }

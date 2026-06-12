@@ -327,8 +327,7 @@ export function useUserProfileForm() {
                 email:
                     form.email.trim(),
                 phone_number:
-                    form.phone_number.trim() ||
-                    null,
+                    form.phone_number || null,
                 departament:
                     form.departament.trim() ||
                     null,

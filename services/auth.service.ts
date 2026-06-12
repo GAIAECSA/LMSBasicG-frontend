@@ -6,6 +6,68 @@ const API_URL = (
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
 
+function normalizeDomain(
+    value?: string | null,
+): string {
+    if (
+        !value
+    ) {
+        return "";
+    }
+
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(
+            /^https?:\/\//,
+            "",
+        )
+        .split(
+            "/",
+        )[0]
+        .split(
+            ":",
+        )[0]
+        .trim();
+}
+
+function resolveLoginDomain(
+    payloadDomain?: string,
+): string {
+
+    const configuredDomain =
+        normalizeDomain(
+            process.env
+                .NEXT_PUBLIC_BUSINESS_DOMAIN,
+        );
+
+    const browserDomain =
+        typeof window !==
+            "undefined"
+            ? normalizeDomain(
+                window.location
+                    .hostname,
+            )
+            : "";
+
+    const domain =
+        normalizeDomain(
+            payloadDomain,
+        ) ||
+        configuredDomain ||
+        browserDomain;
+
+    if (
+        !domain
+    ) {
+        throw new Error(
+            "No se pudo identificar el dominio de la empresa.",
+        );
+    }
+
+    return domain;
+}
+
 export interface RegisterPayload {
     username: string;
     idnumber: string;
@@ -403,37 +465,82 @@ export async function getCurrentUserService(
     return normalizeCurrentUserResponse(data);
 }
 
-export async function loginService(payload: LoginPayload): Promise<LoginResponse> {
-    const response = await fetch(`${API_URL}/api/v1/users/login`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-        },
-        body: JSON.stringify({
-            username: payload.username.trim(),
-            password: payload.password,
-        }),
-        cache: "no-store",
-    });
+export async function loginService(
+    payload: LoginPayload,
+): Promise<LoginResponse> {
+    const domain =
+        resolveLoginDomain(
+            payload.domain,
+        );
 
-    const loginData = await parseResponse<unknown>(response);
-    const authData = extractAuthTokenData(loginData);
+    const response =
+        await fetch(
+            `${API_URL}/api/v1/users/login`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                    Accept:
+                        "application/json",
+                },
+                body:
+                    JSON.stringify(
+                        {
+                            username:
+                                payload
+                                    .username
+                                    .trim(),
+                            password:
+                                payload
+                                    .password,
+                            domain,
+                        },
+                    ),
+                cache:
+                    "no-store",
+            },
+        );
 
-    if (isTokenExpired(authData.accessToken)) {
-        throw new Error("El token recibido ya se encuentra expirado.");
+    const loginData =
+        await parseResponse<unknown>(
+            response,
+        );
+
+    const authData =
+        extractAuthTokenData(
+            loginData,
+        );
+
+    if (
+        isTokenExpired(
+            authData.accessToken,
+        )
+    ) {
+        throw new Error(
+            "El token recibido ya se encuentra expirado.",
+        );
     }
 
-    const user = await getCurrentUserService(authData.accessToken);
+    const user =
+        await getCurrentUserService(
+            authData.accessToken,
+        );
 
-    const session: LoginResponse = {
-        accessToken: authData.accessToken,
-        refreshToken: authData.refreshToken,
-        tokenType: authData.tokenType,
+    const session:
+        LoginResponse = {
+        accessToken:
+            authData.accessToken,
+        refreshToken:
+            authData.refreshToken,
+        tokenType:
+            authData.tokenType,
         user,
     };
 
-    saveAuthSession(session);
+    saveAuthSession(
+        session,
+    );
 
     return session;
 }

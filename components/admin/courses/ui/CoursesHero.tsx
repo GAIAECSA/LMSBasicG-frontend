@@ -4,45 +4,59 @@ import type {
 
 type CoursesHeroProps = {
     isLoading:
-        boolean;
+    boolean;
     stats:
-        CourseStats;
+    CourseStats;
+    canUseMdt:
+    boolean;
 };
 
 const statItems: Array<{
     key:
-        keyof Pick<
-            CourseStats,
-            | "total"
-            | "published"
-            | "free"
-            | "mdt"
-        >;
+    keyof Pick<
+        CourseStats,
+        | "total"
+        | "published"
+        | "free"
+        | "mdt"
+    >;
     label:
-        string;
+    string;
 }> = [
-    {
-        key: "total",
-        label: "Total",
-    },
-    {
-        key: "published",
-        label: "Publicados",
-    },
-    {
-        key: "free",
-        label: "Gratis",
-    },
-    {
-        key: "mdt",
-        label: "MDT",
-    },
-];
+        {
+            key: "total",
+            label: "Total",
+        },
+        {
+            key: "published",
+            label: "Publicados",
+        },
+        {
+            key: "free",
+            label: "Gratis",
+        },
+        {
+            key: "mdt",
+            label: "MDT",
+        },
+    ];
 
 export function CoursesHero({
     isLoading,
     stats,
+    canUseMdt,
 }: CoursesHeroProps) {
+    const visibleStatItems =
+        canUseMdt
+            ? statItems
+            : statItems.filter(
+                (
+                    item,
+                ) =>
+                    item.key !==
+                    "mdt",
+            );
+
     return (
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#07111F] via-[#172861] via-70% to-[#F97316] p-4 text-white shadow-lg sm:rounded-3xl sm:p-5 lg:p-6 [@media(max-height:760px)]:p-4">
             <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(500px,620px)] xl:items-start xl:gap-6">
@@ -62,8 +76,13 @@ export function CoursesHero({
                     </p>
                 </div>
 
-                <div className="grid w-full grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-                    {statItems.map(
+                <div
+                    className={`grid w-full grid-cols-2 gap-2 sm:gap-3 ${canUseMdt
+                            ? "lg:grid-cols-4"
+                            : "lg:grid-cols-3"
+                        }`}
+                >
+                    {visibleStatItems.map(
                         (
                             item,
                         ) => (
@@ -83,8 +102,8 @@ export function CoursesHero({
                                     {isLoading
                                         ? "..."
                                         : stats[
-                                              item.key
-                                          ]}
+                                        item.key
+                                        ]}
                                 </p>
                             </div>
                         ),

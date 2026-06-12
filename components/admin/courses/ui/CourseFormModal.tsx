@@ -34,55 +34,57 @@ import {
 
 type CourseFormModalProps = {
     open:
-        boolean;
+    boolean;
     editingCourseId:
-        number |
-        null;
+    number |
+    null;
     form:
-        CourseFormState;
+    CourseFormState;
+    canUseMdt:
+    boolean;
     previewSrc:
-        string;
+    string;
     selectedImageFile:
-        File |
-        null;
+    File |
+    null;
     categories:
-        Category[];
+    Category[];
     subcategories:
-        Subcategory[];
+    Subcategory[];
     availableSubcategories:
-        Subcategory[];
+    Subcategory[];
     categoriesLoading:
-        boolean;
+    boolean;
     subcategoriesLoading:
-        boolean;
+    boolean;
     isSaving:
-        boolean;
+    boolean;
     onClose:
-        () => void;
+    () => void;
     onSubmit:
-        (
-            event:
-                FormEvent<HTMLFormElement>,
-        ) => void;
+    (
+        event:
+            FormEvent<HTMLFormElement>,
+    ) => void;
     onImageChange:
-        (
-            event:
-                ChangeEvent<HTMLInputElement>,
-        ) => void;
+    (
+        event:
+            ChangeEvent<HTMLInputElement>,
+    ) => void;
     onCategoryChange:
-        (
-            categoryId:
-                string,
-        ) => void;
+    (
+        categoryId:
+            string,
+    ) => void;
     onUpdateForm:
-        <
-            K extends keyof CourseFormState,
-        >(
-            key:
-                K,
-            value:
-                CourseFormState[K],
-        ) => void;
+    <
+        K extends keyof CourseFormState,
+    >(
+        key:
+            K,
+        value:
+            CourseFormState[K],
+    ) => void;
 };
 
 const inputClass =
@@ -92,6 +94,7 @@ export function CourseFormModal({
     open,
     editingCourseId,
     form,
+    canUseMdt,
     previewSrc,
     selectedImageFile,
     categories,
@@ -349,8 +352,8 @@ export function CourseFormModal({
                                                 {!form.category_id
                                                     ? "Selecciona categoría"
                                                     : subcategoriesLoading
-                                                      ? "Cargando..."
-                                                      : "Selecciona subcategoría"}
+                                                        ? "Cargando..."
+                                                        : "Selecciona subcategoría"}
                                             </option>
 
                                             {availableSubcategories.map(
@@ -534,20 +537,22 @@ export function CourseFormModal({
                                         }
                                     />
 
-                                    <SwitchCard
-                                        checked={
-                                            form.is_mdt
-                                        }
-                                        label="Curso MDT"
-                                        onChange={(
-                                            value,
-                                        ) =>
-                                            onUpdateForm(
-                                                "is_mdt",
+                                    {canUseMdt ? (
+                                        <SwitchCard
+                                            checked={
+                                                form.is_mdt
+                                            }
+                                            label="Curso MDT"
+                                            onChange={(
                                                 value,
-                                            )
-                                        }
-                                    />
+                                            ) =>
+                                                onUpdateForm(
+                                                    "is_mdt",
+                                                    value,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
                                 </div>
                             </div>
                         </div>
@@ -555,6 +560,9 @@ export function CourseFormModal({
                         <CoursePreview
                             form={
                                 form
+                            }
+                            canUseMdt={
+                                canUseMdt
                             }
                             previewSrc={
                                 previewSrc
@@ -596,8 +604,8 @@ export function CourseFormModal({
                             {isSaving
                                 ? "Guardando..."
                                 : editingCourseId
-                                  ? "Actualizar curso"
-                                  : "Crear curso"}
+                                    ? "Actualizar curso"
+                                    : "Crear curso"}
                         </button>
                     </div>
                 </form>
@@ -609,16 +617,16 @@ export function CourseFormModal({
 function FieldLabel({
     label,
     required =
-        false,
+    false,
     value =
-        "",
+    "",
 }: {
     label:
-        string;
+    string;
     required?:
-        boolean;
+    boolean;
     value?:
-        string;
+    string;
 }) {
     const showRequiredMark =
         required &&
@@ -640,37 +648,37 @@ function FieldLabel({
 function FieldInput({
     label,
     type =
-        "text",
+    "text",
     value,
     disabled =
-        false,
+    false,
     placeholder,
     className =
-        "",
+    "",
     required =
-        false,
+    false,
     onChange,
 }: {
     label:
-        string;
+    string;
     type?:
-        "text" |
-        "number";
+    "text" |
+    "number";
     value:
-        string;
+    string;
     disabled?:
-        boolean;
+    boolean;
     placeholder?:
-        string;
+    string;
     className?:
-        string;
+    string;
     required?:
-        boolean;
+    boolean;
     onChange:
-        (
-            value:
-                string,
-        ) => void;
+    (
+        value:
+            string,
+    ) => void;
 }) {
     return (
         <div>
@@ -692,13 +700,13 @@ function FieldInput({
                 }
                 step={
                     type ===
-                    "number"
+                        "number"
                         ? "0.01"
                         : undefined
                 }
                 min={
                     type ===
-                    "number"
+                        "number"
                         ? "0"
                         : undefined
                 }
@@ -727,18 +735,21 @@ function FieldInput({
 
 function CoursePreview({
     form,
+    canUseMdt,
     previewSrc,
     categories,
     subcategories,
 }: {
     form:
-        CourseFormState;
+    CourseFormState;
+    canUseMdt:
+    boolean;
     previewSrc:
-        string;
+    string;
     categories:
-        Category[];
+    Category[];
     subcategories:
-        Subcategory[];
+    Subcategory[];
 }) {
     return (
         <aside className="border-t border-slate-200 bg-gradient-to-b from-slate-50 via-white to-slate-100/70 px-4 py-4 sm:px-5 sm:py-5 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 [@media(max-height:760px)]:py-3">
@@ -760,7 +771,8 @@ function CoursePreview({
                                 {form.level}
                             </PreviewBadge>
 
-                            {form.is_mdt ? (
+                            {canUseMdt &&
+                                form.is_mdt ? (
                                 <PreviewBadge className="bg-purple-300 text-slate-950">
                                     MDT
                                 </PreviewBadge>
@@ -783,12 +795,12 @@ function CoursePreview({
                             {form.is_free
                                 ? "Gratis"
                                 : formatMoney(
-                                      parseNumberInput(
-                                          form.price,
-                                          0,
-                                      ),
-                                      form.currency,
-                                  )}
+                                    parseNumberInput(
+                                        form.price,
+                                        0,
+                                    ),
+                                    form.currency,
+                                )}
                         </div>
                     </div>
 
@@ -820,15 +832,15 @@ function CoursePreview({
                             value={
                                 form.category_id
                                     ? categories.find(
-                                          (
-                                              item,
-                                          ) =>
-                                              String(
-                                                  item.id,
-                                              ) ===
-                                              form.category_id,
-                                      )?.name ??
-                                      "Sin categoría"
+                                        (
+                                            item,
+                                        ) =>
+                                            String(
+                                                item.id,
+                                            ) ===
+                                            form.category_id,
+                                    )?.name ??
+                                    "Sin categoría"
                                     : "Sin categoría"
                             }
                         />
@@ -838,15 +850,15 @@ function CoursePreview({
                             value={
                                 form.subcategory_id
                                     ? subcategories.find(
-                                          (
-                                              item,
-                                          ) =>
-                                              String(
-                                                  item.id,
-                                              ) ===
-                                              form.subcategory_id,
-                                      )?.name ??
-                                      "Sin subcategoría"
+                                        (
+                                            item,
+                                        ) =>
+                                            String(
+                                                item.id,
+                                            ) ===
+                                            form.subcategory_id,
+                                    )?.name ??
+                                    "Sin subcategoría"
                                     : "Sin subcategoría"
                             }
                         />
@@ -869,12 +881,12 @@ function CoursePreview({
 function PreviewBadge({
     children,
     className =
-        "border border-white/20 bg-white/15 text-white backdrop-blur-md",
+    "border border-white/20 bg-white/15 text-white backdrop-blur-md",
 }: {
     children:
-        ReactNode;
+    ReactNode;
     className?:
-        string;
+    string;
 }) {
     return (
         <span
@@ -890,9 +902,9 @@ function PreviewValue({
     value,
 }: {
     label:
-        string;
+    string;
     value:
-        string;
+    string;
 }) {
     return (
         <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-2.5">

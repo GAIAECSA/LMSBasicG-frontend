@@ -4,6 +4,7 @@ export interface SidebarItem {
     label: string;
     href?: string;
     children?: SidebarItem[];
+    businessModuleKey?: string;
 }
 
 export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
@@ -60,14 +61,17 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 {
                     label: "Matriculación masiva",
                     href: "/admin/bulk-enrollment",
+                    
                 },
                 {
                     label: "Asistencia Estudiante",
                     href: "/admin/attendance/student",
+                    businessModuleKey: "mdt",
                 },
                 {
                     label: "Asistencia Profesor",
                     href: "/admin/attendance/teacher",
+                    businessModuleKey: "mdt",
                 },
                 {
                     label: "Calificaciones",
@@ -85,10 +89,12 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 {
                     label: "Archivos MDT",
                     href: "/admin/mdt-required-files",
+                    businessModuleKey: "mdt",
                 },
                 {
                     label: "Certificados MDT",
                     href: "/admin/mdt-certificados",
+                    businessModuleKey: "mdt",
                 },
             ],
         },
@@ -102,6 +108,7 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 {
                     label: "Reportes",
                     href: "/admin/reports",
+                    businessModuleKey: "mdt",
                 },
                 {
                     label: "Políticas de privacidad",
@@ -317,20 +324,24 @@ export function getSidebarItemsByRoute(
                 {
                     label: "Mi Asistencia",
                     href: `/teacher/courses/${courseId}/my-attendance`,
+                    businessModuleKey: "mdt",
                 },
                 {
                     label: "Asistencia Estudiante",
                     href: `/teacher/courses/${courseId}/attendance`,
+                    businessModuleKey: "mdt",
                 },
                 ...(isTeacherMdtCourse
                     ? [
                         {
                             label: "Certificados MDT",
                             href: `/teacher/courses/${courseId}/mdt-certificados`,
+                            businessModuleKey: "mdt",
                         },
                         {
                             label: "Archivos MDT",
                             href: `/teacher/courses/${courseId}/mdt-required-files`,
+                            businessModuleKey: "mdt",
                         },
                     ]
                     : []),
