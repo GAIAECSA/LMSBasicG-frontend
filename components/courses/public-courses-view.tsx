@@ -2,16 +2,16 @@
 
 /* eslint-disable @next/next/no-img-element */
 
+import {
+    getPublicCourses,
+    type Course,
+} from "@/services/courses.service";
 import Link from "next/link";
 import {
     useEffect,
     useMemo,
     useState,
 } from "react";
-import {
-    getAllCourses,
-    type Course,
-} from "@/services/courses.service";
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(
@@ -543,7 +543,7 @@ export function PublicCoursesView() {
         async function loadCourses() {
             try {
                 const data =
-                    await getAllCourses();
+                    await getPublicCourses();
 
                 if (!mounted) {
                     return;
