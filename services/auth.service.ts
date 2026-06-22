@@ -77,6 +77,7 @@ export interface RegisterPayload {
     phone_number: string;
     departament?: string;
     password: string;
+    domain: string;
 }
 
 export interface RegisterResponse {
@@ -563,6 +564,7 @@ export async function registerService(
             email: payload.email.trim(),
             phone_number: payload.phone_number.trim(),
             departament: payload.departament?.trim() ?? "",
+            domain: resolveLoginDomain(payload.domain)
         }),
         cache: "no-store",
     });
