@@ -30,9 +30,9 @@ import {
 import {
     deleteUser,
     getAllUsers,
-    registerUser,
     updateUser,
-    type RegisterUserPayload,
+    createUser,
+    type CreateUserPayload,
     type UpdateUserPayload,
     type User,
 } from "@/services/users.service";
@@ -73,8 +73,8 @@ type UserWithIdnumber = User & {
     idnumber?: string | null;
 };
 
-type RegisterUserPayloadWithIdnumber =
-    RegisterUserPayload & {
+type CreateUserPayloadWithIdnumber =
+    CreateUserPayload & {
         idnumber: string;
         privacy_policy_id?: number;
         privacyPolicyId?: number;
@@ -990,7 +990,7 @@ export default function UsersPage() {
                 );
             } else {
                 const payload:
-                    RegisterUserPayloadWithIdnumber =
+                    CreateUserPayloadWithIdnumber =
                 {
                     username:
                         form.username.trim(),
@@ -1033,7 +1033,7 @@ export default function UsersPage() {
                         true;
                 }
 
-                await registerUser(
+                await createUser(
                     payload,
                 );
             }
@@ -1336,8 +1336,8 @@ export default function UsersPage() {
                         >
                             <RefreshCw
                                 className={`h-4 w-4 shrink-0 ${isRefreshing
-                                        ? "animate-spin"
-                                        : ""
+                                    ? "animate-spin"
+                                    : ""
                                     }`}
                             />
 
@@ -2264,8 +2264,8 @@ function MobileDetail({
     return (
         <div
             className={`min-w-0 ${wide
-                    ? "sm:col-span-2"
-                    : ""
+                ? "sm:col-span-2"
+                : ""
                 }`}
         >
             <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">

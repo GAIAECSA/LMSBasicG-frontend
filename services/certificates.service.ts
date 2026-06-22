@@ -14,6 +14,48 @@ function normalizeApiBaseUrl(url: string) {
 const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL);
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, "");
 
+function getRequestDomain() {
+    const envDomain =
+        process.env.NEXT_PUBLIC_DOMAIN ??
+        process.env.NEXT_PUBLIC_APP_DOMAIN ??
+        "";
+
+    if (envDomain.trim()) {
+        return envDomain
+            .trim()
+            .replace(/^https?:\/\//i, "")
+            .replace(/\/+$/, "");
+    }
+
+    if (typeof window !== "undefined") {
+        return window.location.hostname;
+    }
+
+    return "";
+}
+
+function addDomainQueryParam(
+    url: string,
+    domain = getRequestDomain(),
+) {
+    const cleanDomain =
+        domain
+            .trim()
+            .replace(/^https?:\/\//i, "")
+            .replace(/\/+$/, "");
+
+    if (!cleanDomain) {
+        return url;
+    }
+
+    const separator =
+        url.includes("?")
+            ? "&"
+            : "?";
+
+    return `${url}${separator}domain=${encodeURIComponent(cleanDomain)}`;
+}
+
 const CERTIFICATE_TEMPLATES_URL = `${API_BASE_URL}/certificate_templates`;
 const CERTIFICATES_URL = `${API_BASE_URL}/certificates`;
 
@@ -1155,22 +1197,40 @@ export async function getValidCertificateByUserAndCourse(
     return getCertificateByUserAndCourse(userId, courseId);
 }
 
-export async function getCertificateByCode(code: string) {
-    const response = await fetch(`${CERTIFICATES_URL}/code/${code}`, {
-        method: "GET",
-        headers: getHeaders(),
-    });
+export async function getCertificateByCode(
+    code: string,
+    domain?: string,
+) {
+    const response = await fetch(
+        addDomainQueryParam(
+            `${CERTIFICATES_URL}/code/${encodeURIComponent(code)}`,
+            domain,
+        ),
+        {
+            method: "GET",
+            headers: getHeaders(),
+        },
+    );
 
     const data = await parseResponse<ApiCertificate>(response);
 
     return normalizeCertificate(data);
 }
 
-export async function verifyCertificate(code: string) {
-    const response = await fetch(`${CERTIFICATES_URL}/verify/${code}`, {
-        method: "GET",
-        headers: getHeaders(),
-    });
+export async function verifyCertificate(
+    code: string,
+    domain?: string,
+) {
+    const response = await fetch(
+        addDomainQueryParam(
+            `${CERTIFICATES_URL}/verify/${encodeURIComponent(code)}`,
+            domain,
+        ),
+        {
+            method: "GET",
+            headers: getHeaders(),
+        },
+    );
 
     const data = await parseResponse<ApiCertificate>(response);
 

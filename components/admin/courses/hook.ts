@@ -35,6 +35,7 @@ import {
 } from "@/services/business-lms-config.service";
 import {
     createEnrollment,
+    deleteEnrollment,
     getEnrollmentsByCourseAndRole,
     getEnrollmentsByUser,
     updateEnrollment,
@@ -44,7 +45,6 @@ import {
 } from "@/lib/notify";
 import {
     ROWS_PER_PAGE,
-    STUDENT_ROLE_ID,
     TEACHER_ROLE_ID,
     USERS_PER_PAGE,
     initialFormState,
@@ -1427,15 +1427,10 @@ export function useCoursesAdminPanel() {
             user.id,
         );
 
-        const nextRoleId =
-            isTeacher
-                ? STUDENT_ROLE_ID
-                : TEACHER_ROLE_ID;
-
         const toastId =
             notify.loading(
                 isTeacher
-                    ? "Quitando docente..."
+                    ? "Quitando acceso del docente..."
                     : "Asignando docente...",
                 `${getUserFullName(
                     user,
@@ -1450,15 +1445,103 @@ export function useCoursesAdminPanel() {
                     user.id,
                 );
 
-            const courseEnrollment =
-                userEnrollments.find(
+            const courseEnrollments =
+                userEnrollments.filter(
                     (
                         enrollment,
                     ) =>
-                        enrollment.course
-                            .id ===
-                        assigningCourse.id,
+                        Number(
+                            enrollment.course
+                                ?.id,
+                        ) ===
+                        Number(
+                            assigningCourse.id,
+                        ),
                 );
+
+            /*
+             * Si ya es docente y presionas "Volver" / "Quitar",
+             * se elimina la matrícula del curso.
+             * Así el usuario NO queda con acceso ni como docente ni como estudiante.
+             */
+            if (
+                isTeacher
+            ) {
+                if (
+                    courseEnrollments.length ===
+                    0
+                ) {
+                    setAssignedTeacherUserIds(
+                        (
+                            current,
+                        ) => {
+                            const next =
+                                new Set(
+                                    current,
+                                );
+
+                            next.delete(
+                                user.id,
+                            );
+
+                            return next;
+                        },
+                    );
+
+                    notify.dismiss(
+                        toastId,
+                    );
+
+                    notify.warning(
+                        "Matrícula no encontrada.",
+                        "Se quitó el usuario de la lista local, pero no había matrícula para eliminar.",
+                    );
+
+                    return;
+                }
+
+                await Promise.all(
+                    courseEnrollments.map(
+                        (
+                            enrollment,
+                        ) =>
+                            deleteEnrollment(
+                                enrollment.id,
+                            ),
+                    ),
+                );
+
+                setAssignedTeacherUserIds(
+                    (
+                        current,
+                    ) => {
+                        const next =
+                            new Set(
+                                current,
+                            );
+
+                        next.delete(
+                            user.id,
+                        );
+
+                        return next;
+                    },
+                );
+
+                notify.dismiss(
+                    toastId,
+                );
+
+                notify.success(
+                    "Acceso retirado.",
+                    "La matrícula fue eliminada. El usuario ya no tiene acceso a este curso.",
+                );
+
+                return;
+            }
+
+            const courseEnrollment =
+                courseEnrollments[0];
 
             const savedEnrollment =
                 courseEnrollment
@@ -1479,7 +1562,7 @@ export function useCoursesAdminPanel() {
                             course_id:
                                 assigningCourse.id,
                             role_id:
-                                nextRoleId,
+                                TEACHER_ROLE_ID,
                         },
                     )
                     : await createEnrollment({
@@ -1508,20 +1591,10 @@ export function useCoursesAdminPanel() {
                             current,
                         );
 
-                    if (
-                        nextRoleId ===
-                        TEACHER_ROLE_ID
-                    ) {
-                        next.add(
-                            savedEnrollment.user
-                                .id,
-                        );
-                    } else {
-                        next.delete(
-                            savedEnrollment.user
-                                .id,
-                        );
-                    }
+                    next.add(
+                        savedEnrollment.user
+                            .id,
+                    );
 
                     return next;
                 },
@@ -1532,14 +1605,8 @@ export function useCoursesAdminPanel() {
             );
 
             notify.success(
-                nextRoleId ===
-                    TEACHER_ROLE_ID
-                    ? "Docente asignado."
-                    : "Asignación actualizada.",
-                nextRoleId ===
-                    TEACHER_ROLE_ID
-                    ? "El usuario ya tiene acceso docente al curso."
-                    : "El usuario volvió al rol de estudiante en este curso.",
+                "Docente asignado.",
+                "El usuario ya tiene acceso docente al curso.",
             );
         } catch (
         error
@@ -1550,7 +1617,7 @@ export function useCoursesAdminPanel() {
 
             notify.error(
                 isTeacher
-                    ? "No se pudo quitar el docente."
+                    ? "No se pudo quitar el acceso."
                     : "No se pudo asignar el docente.",
                 getErrorMessage(
                     error,

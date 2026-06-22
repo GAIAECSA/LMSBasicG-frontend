@@ -10,7 +10,7 @@ export interface User {
     departament: string | null;
 }
 
-export interface RegisterUserPayload {
+export interface CreateUserPayload {
     username: string;
     idnumber?: string;
     password: string;
@@ -19,8 +19,28 @@ export interface RegisterUserPayload {
     email: string;
     phone_number?: string | null;
     departament?: string | null;
+
+    /**
+     * Se mantiene opcional porque tu frontend todavía lo usa,
+     * pero NO se envía al endpoint /users/create porque tu backend
+     * no lo pide en el schema.
+     */
     role_id?: number;
+
+    /**
+     * Se mantienen opcionales por compatibilidad con tu formulario actual.
+     * Tampoco se envían al endpoint /users/create.
+     */
+    privacy_policy_id?: number;
+    privacyPolicyId?: number;
+    privacy_policy_accepted?: boolean;
+    privacyPolicyAccepted?: boolean;
 }
+
+/**
+ * Alias para no romper pantallas que todavía importan RegisterUserPayload.
+ */
+export type RegisterUserPayload = CreateUserPayload;
 
 export interface LoginPayload {
     username: string;
@@ -54,7 +74,7 @@ const API_BASE_URL =
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
 
-const REGISTER_ENDPOINT = `${API_BASE_URL}/api/v1/users/register`;
+const CREATE_USER_ENDPOINT = `${API_BASE_URL}/api/v1/users/create`;
 const LOGIN_ENDPOINT = `${API_BASE_URL}/api/v1/users/login`;
 const ME_ENDPOINT = `${API_BASE_URL}/api/v1/users/me`;
 const USERS_ENDPOINT = `${API_BASE_URL}/api/v1/users/users`;
@@ -62,13 +82,17 @@ const USERS_ENDPOINT = `${API_BASE_URL}/api/v1/users/users`;
 const userEndpoint = (userId: number) => `${USERS_ENDPOINT}/${userId}`;
 
 function clearAuthSession() {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+        return;
+    }
 
     localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
 function cleanToken(value: unknown): string {
-    if (typeof value !== "string") return "";
+    if (typeof value !== "string") {
+        return "";
+    }
 
     return value.trim().replace(/^Bearer\s+/i, "");
 }
@@ -77,11 +101,17 @@ function decodeJwtPayload(token: string): { exp?: number } | null {
     try {
         const payload = token.split(".")[1];
 
-        if (!payload) return null;
+        if (!payload) {
+            return null;
+        }
 
-        const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+        const normalizedPayload = payload
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+
         const paddedPayload = normalizedPayload.padEnd(
-            normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+            normalizedPayload.length +
+            ((4 - (normalizedPayload.length % 4)) % 4),
             "=",
         );
 
@@ -94,7 +124,9 @@ function decodeJwtPayload(token: string): { exp?: number } | null {
 function isTokenExpired(token: string): boolean {
     const payload = decodeJwtPayload(token);
 
-    if (!payload?.exp) return false;
+    if (!payload?.exp) {
+        return false;
+    }
 
     const currentTimeInSeconds = Math.floor(Date.now() / 1000);
 
@@ -102,11 +134,15 @@ function isTokenExpired(token: string): boolean {
 }
 
 function getAuthToken(): string | null {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {
+        return null;
+    }
 
     const rawSession = localStorage.getItem(AUTH_STORAGE_KEY);
 
-    if (!rawSession) return null;
+    if (!rawSession) {
+        return null;
+    }
 
     try {
         const parsed = JSON.parse(rawSession);
@@ -170,13 +206,21 @@ function buildHeaders(hasBody = false): HeadersInit {
 }
 
 function textValue(value: unknown): string {
-    if (typeof value === "string") return value.trim();
-    if (typeof value === "number") return String(value);
+    if (typeof value === "string") {
+        return value.trim();
+    }
+
+    if (typeof value === "number") {
+        return String(value);
+    }
+
     return "";
 }
 
 function nullableTextValue(value: string | null | undefined): string {
-    if (typeof value !== "string") return "";
+    if (typeof value !== "string") {
+        return "";
+    }
 
     return value.trim();
 }
@@ -212,7 +256,7 @@ async function parseUserErrorResponse(response: Response): Promise<never> {
     try {
         const parsed = JSON.parse(rawText) as
             | {
-                detail?: string | Array<{ msg?: string }>;
+                detail?: string | Array<{ loc?: unknown[]; msg?: string }>;
                 message?: string;
                 error?: string;
             }
@@ -220,7 +264,15 @@ async function parseUserErrorResponse(response: Response): Promise<never> {
 
         if (Array.isArray(parsed?.detail) && parsed.detail.length > 0) {
             const detailMessage = parsed.detail
-                .map((item) => item.msg)
+                .map((item) => {
+                    const field = Array.isArray(item.loc)
+                        ? item.loc.join(".")
+                        : "";
+
+                    return field && item.msg
+                        ? `${field}: ${item.msg}`
+                        : item.msg;
+                })
                 .filter(Boolean)
                 .join(", ");
 
@@ -244,7 +296,9 @@ async function parseUserErrorResponse(response: Response): Promise<never> {
 
         throw new ApiError(rawText, response.status);
     } catch (error) {
-        if (error instanceof ApiError) throw error;
+        if (error instanceof ApiError) {
+            throw error;
+        }
 
         throw new ApiError(rawText, response.status);
     }
@@ -286,13 +340,13 @@ async function apiRequest<T>(
     return readResponse<T>(response);
 }
 
-function buildRegisterPayload(payload: RegisterUserPayload) {
+function buildCreateUserPayload(payload: CreateUserPayload) {
     return {
         username: textValue(payload.username),
-        idnumber: textValue(payload.idnumber),
         password: textValue(payload.password),
         firstname: textValue(payload.firstname),
         lastname: textValue(payload.lastname),
+        idnumber: textValue(payload.idnumber),
         email: textValue(payload.email),
         phone_number: nullableTextValue(payload.phone_number),
         departament: nullableTextValue(payload.departament),
@@ -337,13 +391,22 @@ function buildUpdatePayload(payload: UpdateUserPayload) {
     return body;
 }
 
+export async function createUser(
+    payload: CreateUserPayload,
+): Promise<string> {
+    return apiRequest<string>(CREATE_USER_ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify(buildCreateUserPayload(payload)),
+    });
+}
+
+/**
+ * Alias para que tu página actual siga funcionando aunque todavía llame registerUser().
+ */
 export async function registerUser(
     payload: RegisterUserPayload,
 ): Promise<string> {
-    return apiRequest<string>(REGISTER_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify(buildRegisterPayload(payload)),
-    });
+    return createUser(payload);
 }
 
 export async function loginUser(payload: LoginPayload): Promise<string> {

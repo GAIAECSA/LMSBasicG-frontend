@@ -109,7 +109,9 @@ export function LessonItemEditorPage({
                 }
             >
                 <div className="min-w-0 space-y-3 sm:space-y-4 lg:space-y-5">
-                    <GeneralSection item={item} />
+                    {item.itemType !== "image" ? (
+                        <GeneralSection item={item} />
+                    ) : null}
                     <TextSection item={item} />
                     <FileSection item={item} />
                     <VideoSection item={item} />
