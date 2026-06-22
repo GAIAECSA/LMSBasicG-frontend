@@ -80,6 +80,17 @@ function getErrorMessage(
     return "No se pudo completar el registro.";
 }
 
+function getRequestDomain() {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    return window.location.hostname
+        .trim()
+        .replace(/^https?:\/\//i, "")
+        .replace(/\/+$/, "");
+}
+
 export function RegisterForm() {
     const router = useRouter();
 
@@ -277,6 +288,8 @@ export function RegisterForm() {
                     form.phone_number.trim(),
                 password:
                     form.password,
+                domain:
+                    getRequestDomain(),
             };
 
             const response =
