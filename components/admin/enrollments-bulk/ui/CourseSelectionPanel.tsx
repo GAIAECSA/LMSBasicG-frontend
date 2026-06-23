@@ -46,7 +46,9 @@ export function CourseSelectionPanel({
 
                             <input
                                 type="text"
-                                value={panel.courseSearch}
+                                value={
+                                    panel.courseSearch
+                                }
                                 onChange={(event) =>
                                     panel.setCourseSearch(
                                         event.target.value,
@@ -68,7 +70,9 @@ export function CourseSelectionPanel({
 
                         <select
                             id="course-id"
-                            value={panel.courseId}
+                            value={
+                                panel.courseId
+                            }
                             onChange={(event) =>
                                 panel.handleCourseChange(
                                     event.target.value,
@@ -89,8 +93,12 @@ export function CourseSelectionPanel({
                             {panel.filteredCourses.map(
                                 (course) => (
                                     <option
-                                        key={course.id}
-                                        value={course.id}
+                                        key={
+                                            course.id
+                                        }
+                                        value={
+                                            course.id
+                                        }
                                     >
                                         {getCourseName(
                                             course,
@@ -105,10 +113,14 @@ export function CourseSelectionPanel({
                 <div className="grid shrink-0 grid-cols-1 gap-2 xs:grid-cols-2 sm:flex">
                     <button
                         type="button"
-                        onClick={
-                            panel.handleDownloadTemplate
+                        onClick={() => {
+                            panel.handleDownloadTemplate();
+                        }}
+                        disabled={
+                            panel.isSubmitting ||
+                            panel.isReadingFile
                         }
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#172861]/15 bg-white px-3 text-xs font-black text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#172861]/15 bg-white px-3 text-xs font-black text-[#172861] shadow-sm transition hover:bg-blue-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm"
                     >
                         <Download className="h-4 w-4 shrink-0" />
 
@@ -117,9 +129,9 @@ export function CourseSelectionPanel({
 
                     <button
                         type="button"
-                        onClick={
-                            panel.handleImportExcelClick
-                        }
+                        onClick={() => {
+                            panel.handleImportExcelClick();
+                        }}
                         disabled={
                             !panel.hasSelectedCourse ||
                             panel.isSubmitting ||
@@ -143,7 +155,8 @@ export function CourseSelectionPanel({
                         }
                         disabled={
                             panel.isRefreshingCourses ||
-                            panel.isSubmitting
+                            panel.isSubmitting ||
+                            panel.isReadingFile
                         }
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 sm:h-11 sm:w-11 sm:rounded-2xl sm:px-0"
                         title="Actualizar cursos"
@@ -151,8 +164,8 @@ export function CourseSelectionPanel({
                     >
                         <RefreshCw
                             className={`h-4 w-4 ${panel.isRefreshingCourses
-                                ? "animate-spin"
-                                : ""
+                                    ? "animate-spin"
+                                    : ""
                                 }`}
                         />
 
@@ -162,12 +175,19 @@ export function CourseSelectionPanel({
                     </button>
 
                     <input
+                        ref={(input) => {
+                            panel.setFileInputElement(
+                                input,
+                            );
+                        }}
                         id="bulk-enrollment-excel-file"
                         type="file"
-                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                        onChange={
-                            panel.handleFileChange
-                        }
+                        accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                        onChange={(event) => {
+                            void panel.handleFileChange(
+                                event,
+                            );
+                        }}
                         className="hidden"
                     />
                 </div>

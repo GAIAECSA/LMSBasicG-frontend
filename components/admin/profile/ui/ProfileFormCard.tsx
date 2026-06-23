@@ -1,9 +1,13 @@
+import type {
+    ChangeEvent,
+} from "react";
+
 import {
-    Building2,
     CreditCard,
     Loader2,
     LockKeyhole,
     Mail,
+    MapPin,
     Phone,
     Save,
     UserRound,
@@ -12,14 +16,41 @@ import {
 import type {
     UserProfileFormState,
 } from "../hook";
+
 import {
     ProfileField,
 } from "./ProfileField";
 
 type ProfileFormCardProps = {
-    profile:
-    UserProfileFormState;
+    profile: UserProfileFormState;
 };
+
+const ECUADOR_PROVINCES = [
+    "Azuay",
+    "Bolívar",
+    "Cañar",
+    "Carchi",
+    "Chimborazo",
+    "Cotopaxi",
+    "El Oro",
+    "Esmeraldas",
+    "Galápagos",
+    "Guayas",
+    "Imbabura",
+    "Loja",
+    "Los Ríos",
+    "Manabí",
+    "Morona Santiago",
+    "Napo",
+    "Orellana",
+    "Pastaza",
+    "Pichincha",
+    "Santa Elena",
+    "Santo Domingo de los Tsáchilas",
+    "Sucumbíos",
+    "Tungurahua",
+    "Zamora Chinchipe",
+];
 
 export function ProfileFormCard({
     profile,
@@ -86,15 +117,11 @@ export function ProfileFormCard({
                     disabled
                 />
 
-                <ProfileField
-                    label="Departamento"
+                <ProvinceSelectField
+                    label="Provincia"
                     value={
                         profile.form
                             .departament
-                    }
-                    placeholder="Ingrese su departamento"
-                    Icon={
-                        Building2
                     }
                     onChange={(
                         value,
@@ -246,6 +273,71 @@ export function ProfileFormCard({
                 </button>
             </div>
         </form>
+    );
+}
+
+function ProvinceSelectField({
+    label,
+    value,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    onChange: (
+        value: string,
+    ) => void;
+}) {
+    function handleChange(
+        event: ChangeEvent<HTMLSelectElement>,
+    ) {
+        onChange(
+            event.target.value,
+        );
+    }
+
+    return (
+        <div className="min-w-0">
+            <label className="mb-1.5 block text-xs font-black text-[var(--foreground)] sm:text-sm">
+                {label}
+            </label>
+
+            <div className="relative">
+                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+
+                <select
+                    value={
+                        value
+                    }
+                    onChange={
+                        handleChange
+                    }
+                    className="h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 pl-9 text-xs font-semibold text-[var(--foreground)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/10 sm:h-11 sm:rounded-2xl sm:px-4 sm:pl-10 sm:text-sm"
+                >
+                    <option value="">
+                        Selecciona una provincia
+                    </option>
+
+                    {ECUADOR_PROVINCES.map(
+                        (
+                            province,
+                        ) => (
+                            <option
+                                key={
+                                    province
+                                }
+                                value={
+                                    province
+                                }
+                            >
+                                {
+                                    province
+                                }
+                            </option>
+                        ),
+                    )}
+                </select>
+            </div>
+        </div>
     );
 }
 

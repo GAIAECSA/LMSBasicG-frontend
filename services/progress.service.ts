@@ -1,17 +1,15 @@
-const API_URL = (
-    process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000"
-).replace(/\/+$/, "");
+const RAW_API_URL =
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://213.165.74.184:9000";
 
-const BLOCKS_PROGRESS_ENDPOINT = `${API_URL}/api/v1/blocks-progress/progress`;
+const API_URL = RAW_API_URL
+    .replace(/\/+$/, "")
+    .replace(/\/api\/v1$/i, "");
+
+const PROGRESS_URL =
+    `${API_URL}/api/v1/blocks-progress/progress`;
 
 const AUTH_STORAGE_KEY = "lmsbasicg_auth";
-
-export type UpdateBlockProgressPayload = {
-    is_completed?: boolean;
-    attempts?: number;
-    started_at?: string | Date | null;
-    completed_at?: string | Date | null;
-};
 
 export type BlockProgress = {
     id: number;
@@ -23,62 +21,47 @@ export type BlockProgress = {
     completed_at?: string | null;
 };
 
-type BackendValidationError = {
-    detail?: string | Array<{ loc?: unknown[]; msg?: string; type?: string }>;
-    message?: string;
+export type UpdateBlockProgressPayload = {
+    is_completed?: boolean;
+    attempts?: number;
+    started_at?: string | Date | null;
+    completed_at?: string | Date | null;
 };
 
 function clearAuthSession() {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+        return;
+    }
 
     localStorage.removeItem(AUTH_STORAGE_KEY);
 }
 
-function decodeJwtPayload(token: string): { exp?: number } | null {
-    try {
-        const payload = token.split(".")[1];
-
-        if (!payload) return null;
-
-        const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
-        const paddedPayload = normalizedPayload.padEnd(
-            normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
-            "=",
-        );
-
-        return JSON.parse(window.atob(paddedPayload)) as { exp?: number };
-    } catch {
+function cleanToken(value: unknown): string | null {
+    if (typeof value !== "string") {
         return null;
     }
-}
 
-function isTokenExpired(token: string): boolean {
-    const payload = decodeJwtPayload(token);
-
-    if (!payload?.exp) return false;
-
-    const currentTimeInSeconds = Math.floor(Date.now() / 1000);
-
-    return payload.exp <= currentTimeInSeconds;
-}
-
-function cleanToken(value: unknown): string | null {
-    if (typeof value !== "string") return null;
-
-    const token = value.trim().replace(/^Bearer\s+/i, "");
+    const token = value
+        .trim()
+        .replace(/^Bearer\s+/i, "");
 
     return token || null;
 }
 
 function getAuthToken(): string | null {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {
+        return null;
+    }
 
-    const rawSession = localStorage.getItem(AUTH_STORAGE_KEY);
+    const rawSession =
+        localStorage.getItem(AUTH_STORAGE_KEY);
 
-    if (!rawSession) return null;
+    if (!rawSession) {
+        return null;
+    }
 
     try {
-        const parsedSession = JSON.parse(rawSession) as {
+        const session = JSON.parse(rawSession) as {
             accessToken?: string;
             token?: string;
             access_token?: string;
@@ -94,309 +77,335 @@ function getAuthToken(): string | null {
             };
         };
 
-        const token = cleanToken(
-            parsedSession.accessToken ??
-            parsedSession.token ??
-            parsedSession.access_token ??
-            parsedSession.data?.accessToken ??
-            parsedSession.data?.token ??
-            parsedSession.data?.access_token ??
-            parsedSession.session?.accessToken ??
-            parsedSession.session?.token ??
-            parsedSession.session?.access_token,
+        return cleanToken(
+            session.accessToken ??
+            session.token ??
+            session.access_token ??
+            session.data?.accessToken ??
+            session.data?.token ??
+            session.data?.access_token ??
+            session.session?.accessToken ??
+            session.session?.token ??
+            session.session?.access_token,
         );
-
-        if (!token) {
-            clearAuthSession();
-            return null;
-        }
-
-        if (isTokenExpired(token)) {
-            clearAuthSession();
-            return null;
-        }
-
-        return token;
     } catch {
-        const token = cleanToken(rawSession);
-
-        if (!token) {
-            clearAuthSession();
-            return null;
-        }
-
-        if (isTokenExpired(token)) {
-            clearAuthSession();
-            return null;
-        }
-
-        return token;
+        return cleanToken(rawSession);
     }
 }
 
-function getJsonHeaders(): HeadersInit {
+function getHeaders(): HeadersInit {
     const token = getAuthToken();
 
     if (!token) {
-        throw new Error("No se encontró un token válido. Inicia sesión nuevamente.");
+        throw new Error(
+            "No se encontró un token válido. Inicia sesión nuevamente.",
+        );
     }
 
     return {
-        "Content-Type": "application/json",
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
     };
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
-    const rawText = await response.text();
+async function parseResponse<T>(
+    response: Response,
+): Promise<T> {
+    const text =
+        await response.text();
 
     if (!response.ok) {
         if (response.status === 401) {
             clearAuthSession();
 
-            throw new Error("Tu sesión expiró o no es válida. Inicia sesión nuevamente.");
+            throw new Error(
+                "Tu sesión expiró. Inicia sesión nuevamente.",
+            );
         }
 
-        let errorMessage = `Error ${response.status}: ${response.statusText}`;
+        if (!text) {
+            throw new Error(
+                `Error ${response.status}: ${response.statusText}`,
+            );
+        }
 
-        if (rawText) {
-            try {
-                const errorData = JSON.parse(rawText) as BackendValidationError;
+        try {
+            const data = JSON.parse(text) as {
+                detail?: string | Array<{
+                    msg?: string;
+                    loc?: unknown[];
+                }>;
+                message?: string;
+            };
 
-                if (typeof errorData.detail === "string") {
-                    errorMessage = errorData.detail;
-                } else if (Array.isArray(errorData.detail)) {
-                    errorMessage =
-                        errorData.detail
-                            .map((item) => {
-                                const field = Array.isArray(item.loc)
-                                    ? item.loc.join(".")
-                                    : "";
-
-                                return field ? `${field}: ${item.msg}` : item.msg;
-                            })
-                            .filter(Boolean)
-                            .join(", ") || "Error de validación en la solicitud.";
-                } else if (typeof errorData.message === "string") {
-                    errorMessage = errorData.message;
-                } else {
-                    errorMessage = rawText;
-                }
-            } catch {
-                errorMessage = rawText;
+            if (typeof data.detail === "string") {
+                throw new Error(data.detail);
             }
-        }
 
-        throw new Error(errorMessage);
+            if (Array.isArray(data.detail)) {
+                throw new Error(
+                    data.detail
+                        .map((item) => item.msg)
+                        .filter(Boolean)
+                        .join(", ") ||
+                    "Error de validación.",
+                );
+            }
+
+            if (data.message) {
+                throw new Error(data.message);
+            }
+
+            throw new Error(text);
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+
+            throw new Error(text);
+        }
     }
 
-    if (!rawText) {
+    if (!text) {
         return undefined as T;
     }
 
-    const contentType = response.headers.get("content-type") || "";
-
-    if (contentType.includes("application/json")) {
-        return JSON.parse(rawText) as T;
+    try {
+        return JSON.parse(text) as T;
+    } catch {
+        return text as T;
     }
-
-    return rawText as T;
 }
 
-function validateId(value: number, label: string): number {
-    const numericValue = Number(value);
+function validateId(
+    value: number,
+    label: string,
+): number {
+    const numericValue =
+        Number(value);
 
-    if (!Number.isFinite(numericValue) || numericValue <= 0) {
-        throw new Error(`${label} no válido.`);
+    if (
+        !Number.isInteger(numericValue) ||
+        numericValue <= 0
+    ) {
+        throw new Error(
+            `${label} no válido.`,
+        );
     }
 
     return numericValue;
 }
 
-function formatDateValue(value: string | Date | null | undefined) {
-    if (!value) return null;
+function normalizeBlockProgress(
+    value: unknown,
+): BlockProgress {
+    const item =
+        value as Partial<BlockProgress>;
 
-    if (value instanceof Date) {
-        return value.toISOString();
-    }
-
-    return value;
-}
-
-function buildUpdateProgressPayload(payload: UpdateBlockProgressPayload) {
     return {
-        is_completed: payload.is_completed,
-        attempts: payload.attempts,
-        started_at: formatDateValue(payload.started_at),
-        completed_at: formatDateValue(payload.completed_at),
+        id: Number(item.id),
+        enrollment_id: Number(item.enrollment_id),
+        lesson_block_id: Number(item.lesson_block_id),
+        is_completed: Boolean(item.is_completed),
+        attempts:
+            item.attempts === undefined
+                ? undefined
+                : Number(item.attempts),
+        started_at:
+            item.started_at ?? null,
+        completed_at:
+            item.completed_at ?? null,
     };
-}
-
-export async function updateBlockProgress(
-    progressId: number,
-    payload: UpdateBlockProgressPayload,
-): Promise<BlockProgress> {
-    const validProgressId = validateId(progressId, "ID del progreso");
-
-    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${validProgressId}`, {
-        method: "PUT",
-        headers: getJsonHeaders(),
-        body: JSON.stringify(buildUpdateProgressPayload(payload)),
-    });
-
-    return handleResponse<BlockProgress>(response);
 }
 
 export async function getBlockProgress(
     progressId: number,
 ): Promise<BlockProgress> {
-    const validProgressId = validateId(progressId, "ID del progreso");
+    const validProgressId =
+        validateId(
+            progressId,
+            "ID del progreso",
+        );
 
-    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${validProgressId}`, {
-        method: "GET",
-        headers: getJsonHeaders(),
-        cache: "no-store",
-    });
+    const response =
+        await fetch(
+            `${PROGRESS_URL}/${validProgressId}`,
+            {
+                method: "GET",
+                headers: getHeaders(),
+                cache: "no-store",
+            },
+        );
 
-    return handleResponse<BlockProgress>(response);
-}
+    const data =
+        await parseResponse<unknown>(
+            response,
+        );
 
-export async function deleteBlockProgress(progressId: number): Promise<string> {
-    const validProgressId = validateId(progressId, "ID del progreso");
-
-    const response = await fetch(`${BLOCKS_PROGRESS_ENDPOINT}/${validProgressId}`, {
-        method: "DELETE",
-        headers: getJsonHeaders(),
-    });
-
-    return handleResponse<string>(response);
+    return normalizeBlockProgress(data);
 }
 
 export async function getProgressByEnrollment(
     enrollmentId: number,
 ): Promise<BlockProgress[]> {
-    const validEnrollmentId = validateId(enrollmentId, "ID de matrícula");
+    const validEnrollmentId =
+        validateId(
+            enrollmentId,
+            "ID de matrícula",
+        );
 
-    const response = await fetch(
-        `${BLOCKS_PROGRESS_ENDPOINT}/enrollment/${validEnrollmentId}`,
-        {
-            method: "GET",
-            headers: getJsonHeaders(),
-            cache: "no-store",
-        },
-    );
+    const response =
+        await fetch(
+            `${PROGRESS_URL}/enrollment/${validEnrollmentId}`,
+            {
+                method: "GET",
+                headers: getHeaders(),
+                cache: "no-store",
+            },
+        );
 
-    const data = await handleResponse<BlockProgress[]>(response);
+    const data =
+        await parseResponse<unknown[]>(
+            response,
+        );
 
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data)
+        ? data.map(normalizeBlockProgress)
+        : [];
 }
 
 export async function completeBlockProgress(
     enrollmentId: number,
     lessonBlockId: number,
-): Promise<BlockProgress> {
-    const validEnrollmentId = validateId(
-        enrollmentId,
-        "ID de matrícula",
-    );
-
-    const validLessonBlockId = validateId(
-        lessonBlockId,
-        "ID del contenido",
-    );
-
-    const completedAt =
-        new Date().toISOString();
-
-    const progressRecords =
-        await getProgressByEnrollment(
-            validEnrollmentId,
+): Promise<unknown> {
+    const validEnrollmentId =
+        validateId(
+            enrollmentId,
+            "ID de matrícula",
         );
 
-    const existingProgress =
-        progressRecords.find(
-            (item) =>
-                Number(
-                    item.lesson_block_id,
-                ) === validLessonBlockId,
-        ) ?? null;
-
-    /*
-     * Si el registro ya existe, se actualiza mediante PUT.
-     * Debe utilizarse progress.id y no lesson_block_id.
-     */
-    if (existingProgress) {
-        return updateBlockProgress(
-            existingProgress.id,
-            {
-                is_completed: true,
-                attempts:
-                    existingProgress.attempts ??
-                    0,
-                started_at:
-                    existingProgress.started_at ??
-                    completedAt,
-                completed_at:
-                    completedAt,
-            },
+    const validLessonBlockId =
+        validateId(
+            lessonBlockId,
+            "ID del bloque",
         );
-    }
 
-    /*
-     * Si todavía no existe el registro, se completa
-     * mediante el endpoint disponible en el backend.
-     */
-    const query =
+    const params =
         new URLSearchParams({
-            enrollment_id: String(
-                validEnrollmentId,
-            ),
-            lesson_block_id: String(
-                validLessonBlockId,
-            ),
+            enrollment_id:
+                String(validEnrollmentId),
+            lesson_block_id:
+                String(validLessonBlockId),
         });
 
     const response =
         await fetch(
-            `${BLOCKS_PROGRESS_ENDPOINT}/complete?${query.toString()}`,
+            `${PROGRESS_URL}/complete?${params.toString()}`,
             {
                 method: "POST",
-                headers:
-                    getJsonHeaders(),
+                headers: getHeaders(),
+                cache: "no-store",
             },
         );
 
-    /*
-     * El backend puede responder únicamente con un texto.
-     * No intentamos convertirlo directamente en BlockProgress.
-     */
-    await handleResponse<unknown>(
+    return parseResponse<unknown>(
         response,
     );
+}
 
-    /*
-     * Se consulta nuevamente la lista para obtener
-     * el registro real creado por el backend.
-     */
-    const refreshedRecords =
+export async function markBlockAsCompleted(
+    enrollmentId: number,
+    lessonBlockId: number,
+): Promise<BlockProgress> {
+    const validEnrollmentId =
+        validateId(
+            enrollmentId,
+            "ID de matrícula",
+        );
+
+    const validLessonBlockId =
+        validateId(
+            lessonBlockId,
+            "ID del bloque",
+        );
+
+    const result =
+        await completeBlockProgress(
+            validEnrollmentId,
+            validLessonBlockId,
+        );
+
+    if (
+        typeof result === "object" &&
+        result !== null &&
+        "id" in result &&
+        "enrollment_id" in result &&
+        "lesson_block_id" in result
+    ) {
+        return normalizeBlockProgress(result);
+    }
+
+    const progressList =
         await getProgressByEnrollment(
             validEnrollmentId,
         );
 
-    const createdProgress =
-        refreshedRecords.find(
+    const progress =
+        progressList.find(
             (item) =>
-                Number(
-                    item.lesson_block_id,
-                ) === validLessonBlockId,
-        ) ?? null;
+                Number(item.lesson_block_id) ===
+                validLessonBlockId,
+        );
 
-    if (!createdProgress) {
+    if (progress) {
+        return progress;
+    }
+
+    return {
+        id: 0,
+        enrollment_id: validEnrollmentId,
+        lesson_block_id: validLessonBlockId,
+        is_completed: true,
+        completed_at:
+            new Date().toISOString(),
+    };
+}
+
+/**
+ * Compatibilidad con código anterior.
+ * Antes se intentaba usar:
+ * PUT /api/v1/blocks-progress/progress/{progress_id}
+ *
+ * Pero tu backend actual usa:
+ * POST /api/v1/blocks-progress/progress/complete?enrollment_id=...&lesson_block_id=...
+ */
+export async function updateBlockProgress(
+    progressId: number,
+    payload: UpdateBlockProgressPayload,
+): Promise<BlockProgress> {
+    const validProgressId =
+        validateId(
+            progressId,
+            "ID del progreso",
+        );
+
+    if (payload.is_completed === false) {
         throw new Error(
-            "El backend confirmó la finalización, pero el progreso no aparece al volver a consultarlo.",
+            "El backend actual no permite desmarcar un bloque como incompleto.",
         );
     }
 
-    return createdProgress;
+    const currentProgress =
+        await getBlockProgress(
+            validProgressId,
+        );
+
+    if (payload.is_completed !== true) {
+        return currentProgress;
+    }
+
+    return markBlockAsCompleted(
+        currentProgress.enrollment_id,
+        currentProgress.lesson_block_id,
+    );
 }

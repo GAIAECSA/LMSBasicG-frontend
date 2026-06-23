@@ -48,8 +48,8 @@ export const BULK_FIELDS: BulkFieldConfig[] = [
     },
     {
         key: "departament",
-        label: "Departamento",
-        placeholder: "General",
+        label: "Provincia",
+        placeholder: "Tungurahua",
         required: false,
     },
 ];
@@ -62,7 +62,7 @@ export const EXCEL_HEADERS = [
     "idnumber",
     "email",
     "phone_number",
-    "departament",
+    "province",
 ];
 
 export const EXCEL_EXAMPLE_ROWS = [
@@ -74,7 +74,7 @@ export const EXCEL_EXAMPLE_ROWS = [
         "0102030405",
         "juan@correo.com",
         "0999999999",
-        "General",
+        "Tungurahua",
     ],
     [
         "mlopez",
@@ -84,9 +84,9 @@ export const EXCEL_EXAMPLE_ROWS = [
         "1102030405",
         "maria@correo.com",
         "0988888888",
-        "General",
+        "Pichincha",
     ],
-];  
+];
 
 export const EMAIL_REGEX =
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -28,10 +28,10 @@ import {
     type PrivacyPolicy,
 } from "@/services/privacy-policy.service";
 import {
+    createUser,
     deleteUser,
     getAllUsers,
     updateUser,
-    createUser,
     type CreateUserPayload,
     type UpdateUserPayload,
     type User,
@@ -42,6 +42,33 @@ const ROWS_PER_PAGE = 7;
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
     "http://213.165.74.184:9000";
+
+const ECUADOR_PROVINCES = [
+    "Azuay",
+    "Bolívar",
+    "Cañar",
+    "Carchi",
+    "Chimborazo",
+    "Cotopaxi",
+    "El Oro",
+    "Esmeraldas",
+    "Galápagos",
+    "Guayas",
+    "Imbabura",
+    "Loja",
+    "Los Ríos",
+    "Manabí",
+    "Morona Santiago",
+    "Napo",
+    "Orellana",
+    "Pastaza",
+    "Pichincha",
+    "Santa Elena",
+    "Santo Domingo de los Tsáchilas",
+    "Sucumbíos",
+    "Tungurahua",
+    "Zamora Chinchipe",
+];
 
 const roleLabels = [
     {
@@ -71,6 +98,8 @@ const modalRoleOptions = [
 
 type UserWithIdnumber = User & {
     idnumber?: string | null;
+    province?: string | null;
+    departament?: string | null;
 };
 
 type CreateUserPayloadWithIdnumber =
@@ -100,7 +129,7 @@ interface UserFormState {
     lastname: string;
     email: string;
     phone_number: string;
-    departament: string;
+    province: string;
     role_id: number;
     accepted_privacy_policy: boolean;
 }
@@ -113,7 +142,7 @@ const emptyForm: UserFormState = {
     lastname: "",
     email: "",
     phone_number: "",
-    departament: "",
+    province: "",
     role_id: 2,
     accepted_privacy_policy: false,
 };
@@ -222,6 +251,16 @@ function getUserDisplayName(
         fullName ||
         user.username ||
         "este usuario"
+    );
+}
+
+function getUserProvince(
+    user: UserWithIdnumber,
+) {
+    return (
+        user.province ||
+        user.departament ||
+        ""
     );
 }
 
@@ -541,6 +580,11 @@ export default function UsersPage() {
                             user.role_id,
                         ).toLowerCase();
 
+                    const province =
+                        getUserProvince(
+                            user,
+                        ).toLowerCase();
+
                     return (
                         fullName.includes(
                             query,
@@ -580,14 +624,9 @@ export default function UsersPage() {
                             .includes(
                                 query,
                             ) ||
-                        (
-                            user.departament ||
-                            ""
-                        )
-                            .toLowerCase()
-                            .includes(
-                                query,
-                            ) ||
+                        province.includes(
+                            query,
+                        ) ||
                         String(
                             user.id,
                         ).includes(
@@ -724,9 +763,10 @@ export default function UsersPage() {
             phone_number:
                 user.phone_number ||
                 "",
-            departament:
-                user.departament ||
-                "",
+            province:
+                getUserProvince(
+                    user,
+                ),
             role_id:
                 user.role_id,
             accepted_privacy_policy:
@@ -876,6 +916,12 @@ export default function UsersPage() {
         }
 
         if (
+            !form.province.trim()
+        ) {
+            return "Selecciona una provincia.";
+        }
+
+        if (
             form.password.trim() &&
             form.password.trim()
                 .length < 6
@@ -973,7 +1019,7 @@ export default function UsersPage() {
                         form.phone_number.trim() ||
                         null,
                     departament:
-                        form.departament.trim() ||
+                        form.province.trim() ||
                         null,
                 };
 
@@ -1008,7 +1054,7 @@ export default function UsersPage() {
                         form.phone_number.trim() ||
                         null,
                     departament:
-                        form.departament.trim() ||
+                        form.province.trim() ||
                         null,
                     role_id:
                         Number(
@@ -1295,7 +1341,6 @@ export default function UsersPage() {
                 </div>
             </div>
 
-
             <div className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 [@media(max-height:760px)]:p-4">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -1305,7 +1350,7 @@ export default function UsersPage() {
 
                         <p className="mt-1 text-xs leading-5 text-[var(--muted-foreground)] sm:text-sm">
                             Busca por nombre, usuario, cédula, correo, teléfono,
-                            departamento, rol o ID.
+                            provincia, rol o ID.
                         </p>
                     </div>
 
@@ -1336,8 +1381,8 @@ export default function UsersPage() {
                         >
                             <RefreshCw
                                 className={`h-4 w-4 shrink-0 ${isRefreshing
-                                    ? "animate-spin"
-                                    : ""
+                                        ? "animate-spin"
+                                        : ""
                                     }`}
                             />
 
@@ -1368,7 +1413,7 @@ export default function UsersPage() {
                                 1,
                             );
                         }}
-                        placeholder="Buscar usuario, cédula, nombre, correo, rol o ID"
+                        placeholder="Buscar usuario, cédula, nombre, correo, provincia, rol o ID"
                         className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-xs font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:text-sm"
                     />
                 </div>
@@ -1396,7 +1441,7 @@ export default function UsersPage() {
                                 </TableHeader>
 
                                 <TableHeader className="hidden w-[15%] 2xl:table-cell">
-                                    Departamento
+                                    Provincia
                                 </TableHeader>
 
                                 <TableHeader className="w-[14%]">
@@ -1470,8 +1515,10 @@ export default function UsersPage() {
                                                     {user.phone_number ||
                                                         "Sin teléfono"}
                                                     {" · "}
-                                                    {user.departament ||
-                                                        "Sin departamento"}
+                                                    {getUserProvince(
+                                                        user,
+                                                    ) ||
+                                                        "Sin provincia"}
                                                 </p>
                                             </td>
 
@@ -1492,12 +1539,16 @@ export default function UsersPage() {
                                                 <p
                                                     className="truncate"
                                                     title={
-                                                        user.departament ||
-                                                        "Sin departamento"
+                                                        getUserProvince(
+                                                            user,
+                                                        ) ||
+                                                        "Sin provincia"
                                                     }
                                                 >
-                                                    {user.departament ||
-                                                        "Sin departamento"}
+                                                    {getUserProvince(
+                                                        user,
+                                                    ) ||
+                                                        "Sin provincia"}
                                                 </p>
                                             </td>
 
@@ -1624,10 +1675,12 @@ export default function UsersPage() {
                                         />
 
                                         <MobileDetail
-                                            label="Departamento"
+                                            label="Provincia"
                                             value={
-                                                user.departament ||
-                                                "Sin departamento"
+                                                getUserProvince(
+                                                    user,
+                                                ) ||
+                                                "Sin provincia"
                                             }
                                             wide
                                         />
@@ -1887,16 +1940,16 @@ export default function UsersPage() {
                                     placeholder="0999999999"
                                 />
 
-                                <UserFormField
-                                    label="Departamento"
-                                    name="departament"
+                                <ProvinceSelectField
+                                    label="Provincia"
+                                    name="province"
                                     value={
-                                        form.departament
+                                        form.province
                                     }
                                     onChange={
                                         handleInputChange
                                     }
-                                    placeholder="Ej: Académico"
+                                    required
                                 />
 
                                 <div>
@@ -2264,8 +2317,8 @@ function MobileDetail({
     return (
         <div
             className={`min-w-0 ${wide
-                ? "sm:col-span-2"
-                : ""
+                    ? "sm:col-span-2"
+                    : ""
                 }`}
         >
             <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -2346,6 +2399,80 @@ function UserFormField({
                 }
                 className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
             />
+        </div>
+    );
+}
+
+function ProvinceSelectField({
+    label,
+    name,
+    value,
+    required = false,
+    onChange,
+}: {
+    label: string;
+    name: keyof UserFormState;
+    value: string;
+    required?: boolean;
+    onChange: (
+        event:
+            ChangeEvent<HTMLSelectElement>,
+    ) => void;
+}) {
+    const showRequiredMark =
+        required &&
+        !value.trim();
+
+    return (
+        <div>
+            <label className="mb-1 block text-xs font-bold text-slate-700 sm:text-sm">
+                {label}
+
+                {showRequiredMark ? (
+                    <span className="ml-1 text-red-600">
+                        *
+                    </span>
+                ) : null}
+            </label>
+
+            <select
+                name={
+                    name
+                }
+                value={
+                    value
+                }
+                required={
+                    required
+                }
+                onChange={
+                    onChange
+                }
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:h-11 sm:rounded-2xl sm:px-4 sm:text-sm [@media(max-height:760px)]:h-9"
+            >
+                <option value="">
+                    Selecciona una provincia
+                </option>
+
+                {ECUADOR_PROVINCES.map(
+                    (
+                        province,
+                    ) => (
+                        <option
+                            key={
+                                province
+                            }
+                            value={
+                                province
+                            }
+                        >
+                            {
+                                province
+                            }
+                        </option>
+                    ),
+                )}
+            </select>
         </div>
     );
 }
