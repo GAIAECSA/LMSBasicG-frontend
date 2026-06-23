@@ -14,37 +14,65 @@ function normalizeApiBaseUrl(url: string) {
 const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL);
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, "");
 
+function cleanDomain(
+    value: string,
+) {
+    return value
+        .trim()
+        .replace(/^https?:\/\//i, "")
+        .replace(/\/+$/, "");
+}
+
 function getRequestDomain() {
+    if (typeof window !== "undefined") {
+        const searchParams =
+            new URLSearchParams(
+                window.location.search,
+            );
+
+        const queryDomain =
+            searchParams.get("domain");
+
+        if (queryDomain?.trim()) {
+            return cleanDomain(
+                queryDomain,
+            );
+        }
+
+        const hostname =
+            window.location.hostname;
+
+        if (
+            hostname &&
+            hostname !== "localhost" &&
+            hostname !== "127.0.0.1"
+        ) {
+            return cleanDomain(
+                hostname,
+            );
+        }
+    }
+
     const envDomain =
         process.env.NEXT_PUBLIC_DOMAIN ??
         process.env.NEXT_PUBLIC_APP_DOMAIN ??
         "";
 
-    if (envDomain.trim()) {
-        return envDomain
-            .trim()
-            .replace(/^https?:\/\//i, "")
-            .replace(/\/+$/, "");
-    }
-
-    if (typeof window !== "undefined") {
-        return window.location.hostname;
-    }
-
-    return "";
+    return cleanDomain(
+        envDomain,
+    );
 }
 
 function addDomainQueryParam(
     url: string,
     domain = getRequestDomain(),
 ) {
-    const cleanDomain =
-        domain
-            .trim()
-            .replace(/^https?:\/\//i, "")
-            .replace(/\/+$/, "");
+    const cleanDomainValue =
+        cleanDomain(
+            domain,
+        );
 
-    if (!cleanDomain) {
+    if (!cleanDomainValue) {
         return url;
     }
 
@@ -53,7 +81,9 @@ function addDomainQueryParam(
             ? "&"
             : "?";
 
-    return `${url}${separator}domain=${encodeURIComponent(cleanDomain)}`;
+    return `${url}${separator}domain=${encodeURIComponent(
+        cleanDomainValue,
+    )}`;
 }
 
 const CERTIFICATE_TEMPLATES_URL = `${API_BASE_URL}/certificate_templates`;
@@ -1197,26 +1227,6 @@ export async function getValidCertificateByUserAndCourse(
     return getCertificateByUserAndCourse(userId, courseId);
 }
 
-export async function getCertificateByCode(
-    code: string,
-    domain?: string,
-) {
-    const response = await fetch(
-        addDomainQueryParam(
-            `${CERTIFICATES_URL}/code/${encodeURIComponent(code)}`,
-            domain,
-        ),
-        {
-            method: "GET",
-            headers: getHeaders(),
-        },
-    );
-
-    const data = await parseResponse<ApiCertificate>(response);
-
-    return normalizeCertificate(data);
-}
-
 export async function verifyCertificate(
     code: string,
     domain?: string,
@@ -1540,12 +1550,27 @@ function getAppBaseUrl() {
     return API_ORIGIN;
 }
 
-function getCertificateQrValue(certificateCode?: string) {
-    const code = certificateCode?.trim();
+function getCertificateQrValue(
+    certificateCode?: string,
+) {
+    const code =
+        certificateCode?.trim();
 
-    if (!code || code === "PENDIENTE") return "";
+    if (
+        !code ||
+        code === "PENDIENTE"
+    ) {
+        return "";
+    }
 
-    return `${getAppBaseUrl()}/certificates/verify/${encodeURIComponent(code)}`;
+    const verifyUrl =
+        `${getAppBaseUrl()}/certificates/verify/${encodeURIComponent(
+            code,
+        )}`;
+
+    return addDomainQueryParam(
+        verifyUrl,
+    );
 }
 
 async function drawCertificateQrInPdf(params: {

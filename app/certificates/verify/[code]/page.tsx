@@ -45,6 +45,108 @@ function normalizeApiBaseUrl(url: string) {
 const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL);
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, "");
 
+function cleanDomain(value: string) {
+    return value
+        .trim()
+        .replace(/^https?:\/\//i, "")
+        .replace(/\/+$/, "");
+}
+
+function getVerifyDomain() {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    const params =
+        new URLSearchParams(
+            window.location.search,
+        );
+
+    const queryDomain =
+        params.get("domain");
+
+    if (queryDomain?.trim()) {
+        return cleanDomain(queryDomain);
+    }
+
+    const hostname =
+        window.location.hostname;
+
+    if (hostname) {
+        return cleanDomain(hostname);
+    }
+
+    return "";
+}
+
+function addDomainToUrl(url: string) {
+    const domain =
+        getVerifyDomain();
+
+    if (!domain) {
+        return url;
+    }
+
+    const separator =
+        url.includes("?")
+            ? "&"
+            : "?";
+
+    return `${url}${separator}domain=${encodeURIComponent(domain)}`;
+}
+
+function getRequestDomain() {
+    if (typeof window !== "undefined") {
+        const searchParams =
+            new URLSearchParams(
+                window.location.search,
+            );
+
+        const queryDomain =
+            searchParams.get("domain");
+
+        if (queryDomain?.trim()) {
+            return cleanDomain(queryDomain);
+        }
+
+        const hostname =
+            window.location.hostname;
+
+        if (
+            hostname &&
+            hostname !== "localhost" &&
+            hostname !== "127.0.0.1"
+        ) {
+            return cleanDomain(hostname);
+        }
+    }
+
+    const envDomain =
+        process.env.NEXT_PUBLIC_DOMAIN ??
+        process.env.NEXT_PUBLIC_APP_DOMAIN ??
+        "";
+
+    return cleanDomain(envDomain);
+}
+
+function addDomainQueryParam(
+    url: string,
+) {
+    const domain =
+        getRequestDomain();
+
+    if (!domain) {
+        return url;
+    }
+
+    const separator =
+        url.includes("?")
+            ? "&"
+            : "?";
+
+    return `${url}${separator}domain=${encodeURIComponent(domain)}`;
+}
+
 type PersonResponse = {
     id?: number;
     firstname?: string | null;
@@ -461,15 +563,10 @@ export default function VerifyCertificatePage() {
                 setStudentEnrollment(null);
                 setTeacherName("");
 
-                /*
-                 * Esta consulta se realiza directamente porque el endpoint
-                 * de validación por código debe permanecer disponible para
-                 * cualquier persona que escanee el QR.
-                 */
                 const response = await fetch(
-                    `${API_BASE_URL}/certificates/code/${encodeURIComponent(
-                        code,
-                    )}`,
+                    addDomainToUrl(
+                        `${API_BASE_URL}/certificates/code/${encodeURIComponent(code)}`,
+                    ),
                     {
                         method: "GET",
                         headers: {
