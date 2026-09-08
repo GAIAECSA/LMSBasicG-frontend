@@ -118,7 +118,7 @@ export function TextBlock({
     }
 
     /* =====================================================
-       CONTENIDO
+       OBTENER HTML
     ===================================================== */
 
     const body =
@@ -142,9 +142,18 @@ export function TextBlock({
     /* =====================================================
        SANITIZAR HTML
 
-       IMPORTANTE:
-       iframe no está habilitado por defecto en DOMPurify.
-       Lo agregamos explícitamente.
+       Permitimos:
+       - style
+       - class
+       - id
+       - iframe
+       - img
+       - div
+       - span
+       - atributos iframe
+
+       DOMPurify continúa eliminando elementos peligrosos
+       como script.
     ===================================================== */
 
     const safeHtml = body
@@ -160,10 +169,20 @@ export function TextBlock({
                 ],
 
                 ADD_ATTR: [
+                    /* HTML general */
+                    "style",
+                    "class",
+                    "id",
+
+                    /* imagen */
                     "src",
+                    "alt",
+
+                    /* tamaño */
                     "width",
                     "height",
-                    "style",
+
+                    /* iframe */
                     "frameborder",
                     "loading",
                     "allow",
@@ -171,6 +190,15 @@ export function TextBlock({
                     "referrerpolicy",
                     "title",
                     "name",
+
+                    /* links */
+                    "href",
+                    "target",
+                    "rel",
+                ],
+
+                FORBID_TAGS: [
+                    "script",
                 ],
             },
         )
@@ -182,9 +210,9 @@ export function TextBlock({
 
     return (
         <div className="min-w-0 space-y-4">
-            {/* =========================================
-                CONTENIDO HTML
-            ========================================== */}
+            {/* =================================================
+                HTML DE LA LECCIÓN
+            ================================================= */}
 
             <div className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm sm:rounded-[22px] sm:p-6">
                 {safeHtml ? (
@@ -197,16 +225,16 @@ export function TextBlock({
                     />
                 ) : (
                     <p className="break-words text-sm text-slate-500">
-                        Este texto todavía
-                        no tiene información
+                        Este texto todavía no
+                        tiene información
                         cargada.
                     </p>
                 )}
             </div>
 
-            {/* =========================================
+            {/* =================================================
                 COMPLETAR
-            ========================================== */}
+            ================================================= */}
 
             <CompleteButton
                 blockId={
@@ -224,9 +252,16 @@ export function TextBlock({
                 }
             />
 
-            {/* =========================================
-                ESTILOS DEL HTML
-            ========================================== */}
+            {/* =================================================
+                ESTILOS POR DEFECTO
+
+                IMPORTANTE:
+                Estos son estilos por defecto.
+
+                Los style="" que vienen desde el HTML
+                tienen prioridad sobre estos estilos,
+                porque aquí NO usamos !important.
+            ================================================= */}
 
             <style jsx global>{`
                 .student-lesson-html {
@@ -243,7 +278,7 @@ export function TextBlock({
                 }
 
                 /* ==============================
-                   PRIMER Y ÚLTIMO ELEMENTO
+                   PRIMER / ÚLTIMO ELEMENTO
                 ============================== */
 
                 .student-lesson-html
@@ -254,6 +289,14 @@ export function TextBlock({
                 .student-lesson-html
                     > *:last-child {
                     margin-bottom: 0;
+                }
+
+                /* ==============================
+                   DIV
+                ============================== */
+
+                .student-lesson-html div {
+                    max-width: 100%;
                 }
 
                 /* ==============================
@@ -320,26 +363,28 @@ export function TextBlock({
                 }
 
                 /* ==============================
+                   SPAN
+                ============================== */
+
+                .student-lesson-html span {
+                    max-width: 100%;
+                }
+
+                /* ==============================
                    NEGRITA
                 ============================== */
 
-                .student-lesson-html
-                    strong,
-                .student-lesson-html
-                    b {
+                .student-lesson-html strong,
+                .student-lesson-html b {
                     font-weight: 800;
-
-                    color: #0f172a;
                 }
 
                 /* ==============================
                    CURSIVA
                 ============================== */
 
-                .student-lesson-html
-                    em,
-                .student-lesson-html
-                    i {
+                .student-lesson-html em,
+                .student-lesson-html i {
                     font-style: italic;
                 }
 
@@ -347,10 +392,8 @@ export function TextBlock({
                    SUBRAYADO
                 ============================== */
 
-                .student-lesson-html
-                    u {
-                    text-decoration:
-                        underline;
+                .student-lesson-html u {
+                    text-decoration: underline;
 
                     text-underline-offset:
                         3px;
@@ -360,8 +403,7 @@ export function TextBlock({
                    LISTAS
                 ============================== */
 
-                .student-lesson-html
-                    ul {
+                .student-lesson-html ul {
                     margin-top: 1rem;
                     margin-bottom: 1rem;
 
@@ -375,8 +417,7 @@ export function TextBlock({
                         outside;
                 }
 
-                .student-lesson-html
-                    ol {
+                .student-lesson-html ol {
                     margin-top: 1rem;
                     margin-bottom: 1rem;
 
@@ -390,8 +431,7 @@ export function TextBlock({
                         outside;
                 }
 
-                .student-lesson-html
-                    li {
+                .student-lesson-html li {
                     margin-top:
                         0.35rem;
 
@@ -401,14 +441,6 @@ export function TextBlock({
                     padding-left:
                         0.15rem;
                 }
-
-                /*
-                 * TipTap puede generar:
-                 *
-                 * <li>
-                 *   <p>Texto</p>
-                 * </li>
-                 */
 
                 .student-lesson-html
                     li
@@ -460,8 +492,7 @@ export function TextBlock({
                    LINKS
                 ============================== */
 
-                .student-lesson-html
-                    a {
+                .student-lesson-html a {
                     color:
                         var(--primary);
 
@@ -473,6 +504,9 @@ export function TextBlock({
 
                     text-underline-offset:
                         3px;
+
+                    overflow-wrap:
+                        anywhere;
                 }
 
                 .student-lesson-html
@@ -484,8 +518,7 @@ export function TextBlock({
                    IMÁGENES
                 ============================== */
 
-                .student-lesson-html
-                    img {
+                .student-lesson-html img {
                     display: block;
 
                     width: auto;
@@ -505,6 +538,13 @@ export function TextBlock({
 
                 /* ==============================
                    IFRAME
+
+                   No usamos !important.
+
+                   Así un style=""
+                   definido en el HTML
+                   puede sobrescribir estos
+                   valores.
                 ============================== */
 
                 .student-lesson-html
@@ -514,7 +554,6 @@ export function TextBlock({
                     width: 100%;
                     max-width: 100%;
 
-                    height: 600px;
                     min-height: 600px;
 
                     margin-top:
@@ -523,7 +562,7 @@ export function TextBlock({
                     margin-bottom:
                         1.5rem;
 
-                    border: none !important;
+                    border: none;
 
                     border-radius:
                         0.75rem;
@@ -534,21 +573,14 @@ export function TextBlock({
                     overflow: hidden;
                 }
 
-                /*
-                 * Si el iframe viene dentro:
-                 *
-                 * <p>
-                 *   <iframe />
-                 * </p>
-                 *
-                 * evitamos espacios extra.
-                 */
+                /* iframe dentro de p */
 
                 .student-lesson-html
                     p:has(iframe) {
-                    margin: 0;
-
                     width: 100%;
+
+                    margin-top: 0;
+                    margin-bottom: 0;
                 }
 
                 /* ==============================
@@ -583,22 +615,17 @@ export function TextBlock({
                 }
 
                 /* ==============================
-                   BLOQUE DE CÓDIGO
+                   BLOQUE CÓDIGO
                 ============================== */
 
                 .student-lesson-html
                     pre {
-                    margin-top:
-                        1rem;
+                    max-width: 100%;
 
-                    margin-bottom:
-                        1rem;
+                    margin-top: 1rem;
+                    margin-bottom: 1rem;
 
-                    max-width:
-                        100%;
-
-                    overflow-x:
-                        auto;
+                    overflow-x: auto;
 
                     border-radius:
                         0.75rem;
@@ -606,8 +633,7 @@ export function TextBlock({
                     background:
                         #0f172a;
 
-                    padding:
-                        1rem;
+                    padding: 1rem;
 
                     color:
                         #f8fafc;
@@ -621,16 +647,14 @@ export function TextBlock({
 
                     padding: 0;
 
-                    color:
-                        inherit;
+                    color: inherit;
                 }
 
                 /* ==============================
-                   SEPARADOR
+                   HR
                 ============================== */
 
-                .student-lesson-html
-                    hr {
+                .student-lesson-html hr {
                     margin-top:
                         1.5rem;
 
@@ -650,22 +674,22 @@ export function TextBlock({
 
                 .student-lesson-html
                     table {
+                    display: block;
+
                     width: 100%;
+                    max-width: 100%;
 
-                    margin-top:
-                        1rem;
-
-                    margin-bottom:
-                        1rem;
+                    margin-top: 1rem;
+                    margin-bottom: 1rem;
 
                     border-collapse:
                         collapse;
+
+                    overflow-x: auto;
                 }
 
-                .student-lesson-html
-                    th,
-                .student-lesson-html
-                    td {
+                .student-lesson-html th,
+                .student-lesson-html td {
                     border:
                         1px solid
                         #e2e8f0;
@@ -674,15 +698,13 @@ export function TextBlock({
                         0.65rem
                         0.75rem;
 
-                    text-align:
-                        left;
+                    text-align: left;
 
                     vertical-align:
                         top;
                 }
 
-                .student-lesson-html
-                    th {
+                .student-lesson-html th {
                     background:
                         #f8fafc;
 
@@ -691,21 +713,6 @@ export function TextBlock({
 
                     color:
                         #0f172a;
-                }
-
-                /* ==============================
-                   RESPONSIVE TABLE
-                ============================== */
-
-                .student-lesson-html
-                    table {
-                    display: block;
-
-                    max-width:
-                        100%;
-
-                    overflow-x:
-                        auto;
                 }
 
                 /* ==============================
@@ -752,9 +759,6 @@ export function TextBlock({
 
                     .student-lesson-html
                         iframe {
-                        height:
-                            480px;
-
                         min-height:
                             480px;
                     }
@@ -765,9 +769,6 @@ export function TextBlock({
                 ) {
                     .student-lesson-html
                         iframe {
-                        height:
-                            420px;
-
                         min-height:
                             420px;
                     }

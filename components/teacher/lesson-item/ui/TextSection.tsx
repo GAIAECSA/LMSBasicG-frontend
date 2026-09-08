@@ -8,6 +8,8 @@ import {
 } from "@tiptap/react";
 
 import {
+    Extension,
+    Mark,
     mergeAttributes,
     Node,
 } from "@tiptap/core";
@@ -34,6 +36,10 @@ import {
 
 import type { LessonItemState } from "../hook";
 
+/* =========================================================
+   TYPES
+========================================================= */
+
 type TextSectionProps = {
     item: LessonItemState;
 };
@@ -43,7 +49,7 @@ type EditorMode =
     | "html";
 
 /* =========================================================
-   EXTENSIÓN IFRAME
+   EXTENSION: IFRAME
 ========================================================= */
 
 const IframeExtension = Node.create({
@@ -61,35 +67,83 @@ const IframeExtension = Node.create({
         return {
             src: {
                 default: null,
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "src",
+                    ),
             },
 
             width: {
                 default: "100%",
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "width",
+                    ) || "100%",
             },
 
             height: {
                 default: "600",
-            },
 
-            style: {
-                default: "border: none;",
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "height",
+                    ) || "600",
             },
 
             frameborder: {
                 default: "0",
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "frameborder",
+                    ) || "0",
             },
 
             loading: {
                 default: "lazy",
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "loading",
+                    ) || "lazy",
             },
 
             allow: {
-                default:
-                    "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+                default: null,
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "allow",
+                    ),
             },
 
             allowfullscreen: {
-                default: "true",
+                default: null,
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "allowfullscreen",
+                    ),
+            },
+
+            referrerpolicy: {
+                default: null,
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "referrerpolicy",
+                    ),
+            },
+
+            title: {
+                default: null,
+
+                parseHTML: (element) =>
+                    element.getAttribute(
+                        "title",
+                    ),
             },
         };
     },
@@ -107,11 +161,13 @@ const IframeExtension = Node.create({
     }) {
         return [
             "iframe",
+
             mergeAttributes(
                 {
                     class:
                         "lesson-editor-iframe",
                 },
+
                 HTMLAttributes,
             ),
         ];
@@ -119,7 +175,302 @@ const IframeExtension = Node.create({
 });
 
 /* =========================================================
-   COMPONENTE
+   EXTENSION: DIV
+
+   Permite conservar:
+
+   <div style="" class="" id="">
+       ...
+   </div>
+========================================================= */
+
+const HtmlDivExtension = Node.create({
+    name: "htmlDiv",
+
+    group: "block",
+
+    content: "block+",
+
+    defining: true,
+
+    parseHTML() {
+        return [
+            {
+                tag: "div",
+            },
+        ];
+    },
+
+    renderHTML({
+        HTMLAttributes,
+    }) {
+        return [
+            "div",
+
+            mergeAttributes(
+                HTMLAttributes,
+            ),
+
+            0,
+        ];
+    },
+});
+
+/* =========================================================
+   EXTENSION GLOBAL HTML ATTRIBUTES
+
+   Conserva:
+
+   style=""
+   class=""
+   id=""
+
+   en los nodos principales de TipTap.
+========================================================= */
+
+const HtmlAttributesExtension =
+    Extension.create({
+        name: "htmlAttributes",
+
+        addGlobalAttributes() {
+            return [
+                {
+                    types: [
+                        "paragraph",
+                        "heading",
+                        "blockquote",
+                        "bulletList",
+                        "orderedList",
+                        "listItem",
+                        "codeBlock",
+                        "horizontalRule",
+
+                        "image",
+                        "iframe",
+                        "htmlDiv",
+
+                        "bold",
+                        "italic",
+                        "underline",
+                        "strike",
+                        "code",
+                    ],
+
+                    attributes: {
+                        style: {
+                            default: null,
+
+                            parseHTML: (
+                                element,
+                            ) =>
+                                element.getAttribute(
+                                    "style",
+                                ),
+
+                            renderHTML: (
+                                attributes,
+                            ) => {
+                                if (
+                                    !attributes.style
+                                ) {
+                                    return {};
+                                }
+
+                                return {
+                                    style:
+                                        attributes.style,
+                                };
+                            },
+                        },
+
+                        class: {
+                            default: null,
+
+                            parseHTML: (
+                                element,
+                            ) =>
+                                element.getAttribute(
+                                    "class",
+                                ),
+
+                            renderHTML: (
+                                attributes,
+                            ) => {
+                                if (
+                                    !attributes.class
+                                ) {
+                                    return {};
+                                }
+
+                                return {
+                                    class:
+                                        attributes.class,
+                                };
+                            },
+                        },
+
+                        id: {
+                            default: null,
+
+                            parseHTML: (
+                                element,
+                            ) =>
+                                element.getAttribute(
+                                    "id",
+                                ),
+
+                            renderHTML: (
+                                attributes,
+                            ) => {
+                                if (
+                                    !attributes.id
+                                ) {
+                                    return {};
+                                }
+
+                                return {
+                                    id:
+                                        attributes.id,
+                                };
+                            },
+                        },
+                    },
+                },
+            ];
+        },
+    });
+
+/* =========================================================
+   EXTENSION: SPAN CON STYLE
+
+   Permite:
+
+   <span style="color:red">
+       texto
+   </span>
+========================================================= */
+
+const StyledSpanExtension =
+    Mark.create({
+        name: "styledSpan",
+
+        inclusive: true,
+
+        addAttributes() {
+            return {
+                style: {
+                    default: null,
+
+                    parseHTML: (
+                        element,
+                    ) =>
+                        element.getAttribute(
+                            "style",
+                        ),
+
+                    renderHTML: (
+                        attributes,
+                    ) => {
+                        if (
+                            !attributes.style
+                        ) {
+                            return {};
+                        }
+
+                        return {
+                            style:
+                                attributes.style,
+                        };
+                    },
+                },
+
+                class: {
+                    default: null,
+
+                    parseHTML: (
+                        element,
+                    ) =>
+                        element.getAttribute(
+                            "class",
+                        ),
+
+                    renderHTML: (
+                        attributes,
+                    ) => {
+                        if (
+                            !attributes.class
+                        ) {
+                            return {};
+                        }
+
+                        return {
+                            class:
+                                attributes.class,
+                        };
+                    },
+                },
+
+                id: {
+                    default: null,
+
+                    parseHTML: (
+                        element,
+                    ) =>
+                        element.getAttribute(
+                            "id",
+                        ),
+
+                    renderHTML: (
+                        attributes,
+                    ) => {
+                        if (
+                            !attributes.id
+                        ) {
+                            return {};
+                        }
+
+                        return {
+                            id:
+                                attributes.id,
+                        };
+                    },
+                },
+            };
+        },
+
+        parseHTML() {
+            return [
+                {
+                    tag: "span[style]",
+                },
+
+                {
+                    tag: "span[class]",
+                },
+
+                {
+                    tag: "span[id]",
+                },
+            ];
+        },
+
+        renderHTML({
+            HTMLAttributes,
+        }) {
+            return [
+                "span",
+
+                mergeAttributes(
+                    HTMLAttributes,
+                ),
+
+                0,
+            ];
+        },
+    });
+
+/* =========================================================
+   COMPONENT
 ========================================================= */
 
 export function TextSection({
@@ -137,7 +488,7 @@ export function TextSection({
 }
 
 /* =========================================================
-   EDITOR
+   TEXT EDITOR
 ========================================================= */
 
 function TextEditor({
@@ -147,6 +498,10 @@ function TextEditor({
         useState<EditorMode>(
             "visual",
         );
+
+    /* =====================================================
+       TIPTAP
+    ===================================================== */
 
     const editor = useEditor({
         immediatelyRender: false,
@@ -159,8 +514,7 @@ function TextEditor({
             TiptapImage.configure({
                 inline: false,
 
-                allowBase64:
-                    false,
+                allowBase64: false,
 
                 HTMLAttributes: {
                     class:
@@ -169,6 +523,12 @@ function TextEditor({
             }),
 
             IframeExtension,
+
+            HtmlDivExtension,
+
+            HtmlAttributesExtension,
+
+            StyledSpanExtension,
         ],
 
         content:
@@ -198,6 +558,7 @@ function TextEditor({
 
                     return {
                         ...current,
+
                         text: html,
                     };
                 },
@@ -206,7 +567,7 @@ function TextEditor({
     });
 
     /* =====================================================
-       SINCRONIZACIÓN
+       SYNC
     ===================================================== */
 
     useEffect(() => {
@@ -215,10 +576,13 @@ function TextEditor({
         }
 
         /*
-         * Cuando estamos editando HTML,
-         * no sincronizamos TipTap en cada tecla.
+         * Cuando estamos editando el HTML
+         * manualmente no sincronizamos TipTap
+         * en cada tecla.
          */
-        if (mode === "html") {
+        if (
+            mode === "html"
+        ) {
             return;
         }
 
@@ -234,6 +598,7 @@ function TextEditor({
 
         editor.commands.setContent(
             html,
+
             {
                 emitUpdate:
                     false,
@@ -246,7 +611,7 @@ function TextEditor({
     ]);
 
     /* =====================================================
-       VISUAL
+       CHANGE TO VISUAL
     ===================================================== */
 
     function changeToVisual() {
@@ -255,22 +620,24 @@ function TextEditor({
         }
 
         /*
-         * Interpreta todo el HTML:
-         *
-         * h2
-         * p
-         * ul
-         * img
-         * iframe
+         * Aquí TipTap vuelve a interpretar
+         * el código HTML escrito manualmente.
          */
         editor.commands.setContent(
             item.form.text || "",
+
             {
                 emitUpdate:
                     false,
             },
         );
 
+        /*
+         * Obtenemos la versión normalizada.
+         *
+         * Con nuestras extensiones ya deben
+         * conservarse style, class e id.
+         */
         const normalizedHtml =
             editor.getHTML();
 
@@ -285,6 +652,7 @@ function TextEditor({
 
                 return {
                     ...current,
+
                     text:
                         normalizedHtml,
                 };
@@ -295,7 +663,7 @@ function TextEditor({
     }
 
     /* =====================================================
-       HTML
+       CHANGE TO HTML
     ===================================================== */
 
     function changeToHtml() {
@@ -317,6 +685,7 @@ function TextEditor({
 
                 return {
                     ...current,
+
                     text: html,
                 };
             },
@@ -324,6 +693,10 @@ function TextEditor({
 
         setMode("html");
     }
+
+    /* =====================================================
+       MANUAL HTML
+    ===================================================== */
 
     function handleHtmlChange(
         value: string,
@@ -339,6 +712,7 @@ function TextEditor({
 
                 return {
                     ...current,
+
                     text: value,
                 };
             },
@@ -346,7 +720,7 @@ function TextEditor({
     }
 
     /* =====================================================
-       INSERTAR IMAGEN
+       INSERT IMAGE
     ===================================================== */
 
     function insertImage() {
@@ -398,7 +772,7 @@ function TextEditor({
     }
 
     /* =====================================================
-       INSERTAR IFRAME
+       INSERT IFRAME
     ===================================================== */
 
     function insertIframe() {
@@ -408,7 +782,7 @@ function TextEditor({
 
         const value =
             window.prompt(
-                "Ingresa la URL del contenido que deseas insertar:",
+                "Ingresa la URL que deseas mostrar:",
                 "https://fotos.gaiaecsa.com/compras/1",
             );
 
@@ -438,10 +812,6 @@ function TextEditor({
             return;
         }
 
-        /*
-         * Insertamos directamente
-         * el nodo iframe.
-         */
         editor
             .chain()
             .focus()
@@ -457,24 +827,24 @@ function TextEditor({
                     height:
                         "600",
 
-                    style:
-                        "border: none;",
-
                     frameborder:
                         "0",
 
                     loading:
                         "lazy",
 
-                    allowfullscreen:
-                        "true",
+                    style:
+                        "border: none; width: 100%;",
+
+                    title:
+                        "Contenido de la lección",
                 },
             })
             .run();
     }
 
     /* =====================================================
-       CLASES
+       BUTTON CLASSES
     ===================================================== */
 
     function toolbarClass(
@@ -505,11 +875,15 @@ function TextEditor({
         ].join(" ");
     }
 
+    /* =====================================================
+       RENDER
+    ===================================================== */
+
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-6">
-            {/* =============================================
+            {/* =================================================
                 HEADER
-            ============================================== */}
+            ================================================= */}
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -526,7 +900,9 @@ function TextEditor({
                     </p>
                 </div>
 
-                {/* VISUAL / HTML */}
+                {/* =============================================
+                    VISUAL / HTML
+                ============================================= */}
 
                 <div className="flex self-start rounded-xl border border-slate-200 bg-slate-50 p-1">
                     <button
@@ -573,9 +949,9 @@ function TextEditor({
                 </div>
             </div>
 
-            {/* =============================================
+            {/* =================================================
                 EDITOR
-            ============================================== */}
+            ================================================= */}
 
             <div className="mt-5">
                 <div className="mb-2 flex items-center gap-2">
@@ -598,12 +974,12 @@ function TextEditor({
                     {mode ===
                         "visual" ? (
                         <>
-                            {/* =============================
+                            {/* =================================
                                 TOOLBAR
-                            ============================== */}
+                            ================================= */}
 
                             <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-slate-50 p-2">
-                                {/* TEXTO */}
+                                {/* TEXT */}
 
                                 <button
                                     type="button"
@@ -627,7 +1003,7 @@ function TextEditor({
                                     Texto
                                 </button>
 
-                                {/* TITULO */}
+                                {/* H2 */}
 
                                 <button
                                     type="button"
@@ -648,6 +1024,7 @@ function TextEditor({
                                     className={textButtonClass(
                                         editor?.isActive(
                                             "heading",
+
                                             {
                                                 level: 2,
                                             },
@@ -658,7 +1035,7 @@ function TextEditor({
                                     Título
                                 </button>
 
-                                {/* SUBTITULO */}
+                                {/* H3 */}
 
                                 <button
                                     type="button"
@@ -679,6 +1056,7 @@ function TextEditor({
                                     className={textButtonClass(
                                         editor?.isActive(
                                             "heading",
+
                                             {
                                                 level: 3,
                                             },
@@ -691,7 +1069,7 @@ function TextEditor({
 
                                 <div className="mx-1 h-6 w-px bg-slate-300" />
 
-                                {/* NEGRITA */}
+                                {/* BOLD */}
 
                                 <button
                                     type="button"
@@ -716,7 +1094,7 @@ function TextEditor({
                                     <Bold className="h-4 w-4" />
                                 </button>
 
-                                {/* CURSIVA */}
+                                {/* ITALIC */}
 
                                 <button
                                     type="button"
@@ -741,7 +1119,7 @@ function TextEditor({
                                     <Italic className="h-4 w-4" />
                                 </button>
 
-                                {/* SUBRAYADO */}
+                                {/* UNDERLINE */}
 
                                 <button
                                     type="button"
@@ -768,7 +1146,7 @@ function TextEditor({
 
                                 <div className="mx-1 h-6 w-px bg-slate-300" />
 
-                                {/* LISTA */}
+                                {/* BULLET LIST */}
 
                                 <button
                                     type="button"
@@ -793,7 +1171,7 @@ function TextEditor({
                                     <List className="h-4 w-4" />
                                 </button>
 
-                                {/* LISTA NUMERADA */}
+                                {/* ORDERED LIST */}
 
                                 <button
                                     type="button"
@@ -818,7 +1196,7 @@ function TextEditor({
                                     <ListOrdered className="h-4 w-4" />
                                 </button>
 
-                                {/* CITA */}
+                                {/* QUOTE */}
 
                                 <button
                                     type="button"
@@ -845,9 +1223,7 @@ function TextEditor({
 
                                 <div className="mx-1 h-6 w-px bg-slate-300" />
 
-                                {/* =============================
-                                    IMAGEN
-                                ============================== */}
+                                {/* IMAGE */}
 
                                 <button
                                     type="button"
@@ -863,9 +1239,7 @@ function TextEditor({
                                     <ImageIcon className="h-4 w-4" />
                                 </button>
 
-                                {/* =============================
-                                    IFRAME
-                                ============================== */}
+                                {/* IFRAME */}
 
                                 <button
                                     type="button"
@@ -883,7 +1257,7 @@ function TextEditor({
 
                                 <div className="mx-1 h-6 w-px bg-slate-300" />
 
-                                {/* DESHACER */}
+                                {/* UNDO */}
 
                                 <button
                                     type="button"
@@ -906,7 +1280,7 @@ function TextEditor({
                                     <Undo2 className="h-4 w-4" />
                                 </button>
 
-                                {/* REHACER */}
+                                {/* REDO */}
 
                                 <button
                                     type="button"
@@ -930,9 +1304,9 @@ function TextEditor({
                                 </button>
                             </div>
 
-                            {/* =============================
-                                TIPTAP
-                            ============================== */}
+                            {/* =================================
+                                VISUAL EDITOR
+                            ================================= */}
 
                             <EditorContent
                                 editor={
@@ -941,9 +1315,9 @@ function TextEditor({
                             />
                         </>
                     ) : (
-                        /* =============================
-                           HTML
-                        ============================== */
+                        /* =====================================
+                           HTML EDITOR
+                        ===================================== */
 
                         <textarea
                             value={
@@ -961,19 +1335,39 @@ function TextEditor({
                             spellCheck={
                                 false
                             }
-                            className="min-h-[470px] w-full resize-y bg-[#0f172a] p-5 font-mono text-sm leading-7 text-slate-100 outline-none"
-                            placeholder={`<h2>Compras Públicas</h2>
+                            className="min-h-[500px] w-full resize-y bg-[#0f172a] p-5 font-mono text-sm leading-7 text-slate-100 outline-none"
+                            placeholder={`<h2
+    style="
+        color: #172861;
+        text-align: center;
+        font-size: 32px;
+    "
+>
+    Compras Públicas
+</h2>
 
-<p>
-    En esta lección conoceremos los fundamentos de la contratación pública.
+<p
+    style="
+        font-size: 18px;
+        color: #475569;
+    "
+>
+    Contenido de la lección.
 </p>
+
+<span style="color:red;font-weight:bold;">
+    Texto especial
+</span>
 
 <iframe
     src="https://fotos.gaiaecsa.com/compras/1"
     width="100%"
     height="600"
-    style="border: none;">
-</iframe>`}
+    style="
+        border:none;
+        border-radius:20px;
+    "
+></iframe>`}
                         />
                     )}
                 </div>
@@ -982,18 +1376,20 @@ function TextEditor({
                     "html" && (
                         <p className="mt-2 text-xs leading-5 text-slate-500">
                             Puedes utilizar
-                            títulos, párrafos,
-                            listas, imágenes e
+                            HTML con style,
+                            class, id, span,
+                            div, imágenes e
                             iframe. Cambia a
                             Visual para
-                            interpretar el HTML.
+                            interpretar el
+                            resultado.
                         </p>
                     )}
             </div>
 
-            {/* =============================================
-                GUARDAR
-            ============================================== */}
+            {/* =================================================
+                SAVE
+            ================================================= */}
 
             <div className="mt-5 flex justify-end">
                 <button
@@ -1012,18 +1408,20 @@ function TextEditor({
                 </button>
             </div>
 
-            {/* =============================================
-                ESTILOS
-            ============================================== */}
+            {/* =================================================
+                EDITOR STYLES
+            ================================================= */}
 
             <style jsx global>{`
                 .ProseMirror {
                     min-height: 400px;
+
                     padding: 1.25rem;
 
                     color: #334155;
 
                     font-size: 0.875rem;
+
                     line-height: 1.75rem;
                 }
 
@@ -1031,71 +1429,97 @@ function TextEditor({
                     outline: none;
                 }
 
-                .ProseMirror > *:first-child {
+                .ProseMirror
+                    > *:first-child {
                     margin-top: 0;
                 }
 
-                .ProseMirror > *:last-child {
+                .ProseMirror
+                    > *:last-child {
                     margin-bottom: 0;
                 }
 
                 /* ============================
-                   PARRAFOS
+                   PARAGRAPH
                 ============================ */
 
                 .ProseMirror p {
-                    margin: 0.65rem 0;
+                    margin:
+                        0.65rem 0;
                 }
 
                 /* ============================
-                   TITULOS
+                   HEADINGS
                 ============================ */
 
                 .ProseMirror h1 {
-                    margin: 1.5rem 0 0.75rem;
+                    margin:
+                        1.5rem
+                        0
+                        0.75rem;
 
                     font-size: 2rem;
-                    line-height: 2.5rem;
 
-                    font-weight: 900;
+                    line-height:
+                        2.5rem;
 
-                    color: #0f172a;
+                    font-weight:
+                        900;
+
+                    color:
+                        #0f172a;
                 }
 
                 .ProseMirror h2 {
-                    margin: 1.5rem 0 0.75rem;
+                    margin:
+                        1.5rem
+                        0
+                        0.75rem;
 
-                    font-size: 1.5rem;
-                    line-height: 2rem;
+                    font-size:
+                        1.5rem;
 
-                    font-weight: 900;
+                    line-height:
+                        2rem;
 
-                    color: #0f172a;
+                    font-weight:
+                        900;
+
+                    color:
+                        #0f172a;
                 }
 
                 .ProseMirror h3 {
-                    margin: 1.25rem 0 0.6rem;
+                    margin:
+                        1.25rem
+                        0
+                        0.6rem;
 
-                    font-size: 1.25rem;
-                    line-height: 1.75rem;
+                    font-size:
+                        1.25rem;
 
-                    font-weight: 800;
+                    line-height:
+                        1.75rem;
 
-                    color: #0f172a;
+                    font-weight:
+                        800;
+
+                    color:
+                        #0f172a;
                 }
 
                 /* ============================
-                   FORMATO
+                   FORMATTING
                 ============================ */
 
                 .ProseMirror strong {
-                    font-weight: 800;
-
-                    color: #0f172a;
+                    font-weight:
+                        800;
                 }
 
                 .ProseMirror em {
-                    font-style: italic;
+                    font-style:
+                        italic;
                 }
 
                 .ProseMirror u {
@@ -1107,11 +1531,12 @@ function TextEditor({
                 }
 
                 /* ============================
-                   LISTAS
+                   LISTS
                 ============================ */
 
                 .ProseMirror ul {
-                    margin: 0.75rem 0;
+                    margin:
+                        0.75rem 0;
 
                     padding-left:
                         1.75rem;
@@ -1121,7 +1546,8 @@ function TextEditor({
                 }
 
                 .ProseMirror ol {
-                    margin: 0.75rem 0;
+                    margin:
+                        0.75rem 0;
 
                     padding-left:
                         1.75rem;
@@ -1141,32 +1567,48 @@ function TextEditor({
                 }
 
                 /* ============================
-                   CITA
+                   BLOCKQUOTE
                 ============================ */
 
                 .ProseMirror blockquote {
-                    margin: 1rem 0;
+                    margin:
+                        1rem 0;
 
                     border-left:
-                        4px solid #172861;
+                        4px solid
+                        #172861;
 
                     border-radius:
-                        0 0.5rem 0.5rem 0;
+                        0
+                        0.5rem
+                        0.5rem
+                        0;
 
                     background:
                         #f8fafc;
 
                     padding:
-                        0.75rem 1rem;
+                        0.75rem
+                        1rem;
 
-                    color: #475569;
+                    color:
+                        #475569;
 
                     font-style:
                         italic;
                 }
 
                 /* ============================
-                   IMAGEN
+                   DIV
+                ============================ */
+
+                .ProseMirror div {
+                    max-width:
+                        100%;
+                }
+
+                /* ============================
+                   IMAGE
                 ============================ */
 
                 .ProseMirror
@@ -1175,11 +1617,15 @@ function TextEditor({
                     display: block;
 
                     width: auto;
-                    max-width: 100%;
+
+                    max-width:
+                        100%;
+
                     height: auto;
 
                     margin:
-                        1.5rem auto;
+                        1.5rem
+                        auto;
 
                     border-radius:
                         0.75rem;
@@ -1191,7 +1637,8 @@ function TextEditor({
                 .ProseMirror
                     img.ProseMirror-selectednode {
                     outline:
-                        3px solid #3b82f6;
+                        3px solid
+                        #3b82f6;
 
                     outline-offset:
                         3px;
@@ -1207,9 +1654,12 @@ function TextEditor({
                     display: block;
 
                     width: 100%;
-                    max-width: 100%;
 
-                    min-height: 600px;
+                    max-width:
+                        100%;
+
+                    min-height:
+                        600px;
 
                     margin:
                         1.5rem 0;
@@ -1222,23 +1672,74 @@ function TextEditor({
                     background:
                         #f8fafc;
 
-                    overflow: hidden;
+                    overflow:
+                        hidden;
                 }
 
                 .ProseMirror
                     iframe.ProseMirror-selectednode {
                     outline:
-                        3px solid #3b82f6;
+                        3px solid
+                        #3b82f6;
 
                     outline-offset:
                         3px;
                 }
 
+                /* ============================
+                   CODE
+                ============================ */
+
+                .ProseMirror code {
+                    border-radius:
+                        0.35rem;
+
+                    background:
+                        #f1f5f9;
+
+                    padding:
+                        0.15rem
+                        0.35rem;
+
+                    font-family:
+                        ui-monospace,
+                        SFMono-Regular,
+                        Menlo,
+                        Monaco,
+                        Consolas,
+                        monospace;
+                }
+
+                .ProseMirror pre {
+                    max-width:
+                        100%;
+
+                    overflow-x:
+                        auto;
+
+                    margin:
+                        1rem 0;
+
+                    border-radius:
+                        0.75rem;
+
+                    background:
+                        #0f172a;
+
+                    padding:
+                        1rem;
+
+                    color:
+                        white;
+                }
+
+                /* ============================
+                   RESPONSIVE
+                ============================ */
+
                 @media (
                     max-width: 640px
                 ) {
-                    .ProseMirror
-                        .lesson-editor-iframe,
                     .ProseMirror
                         iframe {
                         min-height:
