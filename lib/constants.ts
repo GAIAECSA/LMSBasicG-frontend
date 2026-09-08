@@ -111,6 +111,10 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     businessModuleKey: "mdt",
                 },
                 {
+                    label: "Formularios",
+                    href: "/admin/forms",
+                },
+                {
                     label: "Políticas de privacidad",
                     href: "/admin/privacy",
                 },
