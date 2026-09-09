@@ -1,4 +1,4 @@
-"use client";
+
 
 import { usePathname } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
@@ -51,19 +51,50 @@ function createLikertSurveyQuestion(id: number): SurveyQuestion {
     };
 }
 
+function createTextSurveyQuestion(id: number): SurveyQuestion {
+    return {
+        id,
+        question: "",
+        type: "text",
+        options: [],
+        required: true,
+    };
+}
+
 function normalizeSurveyQuestionsForForm(value: unknown): SurveyQuestion[] {
     if (!Array.isArray(value)) return [];
 
     return value.map((item, index) => {
         const questionRecord = getContentRecord(item);
 
+        const rawType = getSafeText(
+            questionRecord.type,
+            "single",
+        )
+            .trim()
+            .toLowerCase();
+
+        const type: SurveyQuestion["type"] =
+            rawType === "text" ? "text" : "single";
+
+        const savedOptions = Array.isArray(questionRecord.options)
+            ? questionRecord.options
+                .map((option) => getSafeText(option).trim())
+                .filter(Boolean)
+            : [];
+
         return {
             id: Math.trunc(getSafeNumber(questionRecord.id, index + 1)),
             question: getSafeText(
                 questionRecord.question ?? questionRecord.text,
             ),
-            type: "single",
-            options: [...LIKERT_OPTIONS],
+            type,
+            options:
+                type === "single"
+                    ? savedOptions.length >= 2
+                        ? savedOptions
+                        : [...LIKERT_OPTIONS]
+                    : [],
             required:
                 questionRecord.required === undefined
                     ? true
@@ -73,14 +104,28 @@ function normalizeSurveyQuestionsForForm(value: unknown): SurveyQuestion[] {
 }
 
 function normalizeSurveyQuestionsForApi(questions: SurveyQuestion[]) {
-    return questions.map((question, index) => ({
-        id: Math.trunc(getSafeNumber(question.id, index + 1)),
-        question: getSafeText(question.question).trim(),
-        type: "single",
-        scale: "likert",
-        options: [...LIKERT_OPTIONS],
-        required: Boolean(question.required),
-    }));
+    return questions.map((question, index) => {
+        const baseQuestion = {
+            id: Math.trunc(getSafeNumber(question.id, index + 1)),
+            question: getSafeText(question.question).trim(),
+            required: Boolean(question.required),
+        };
+
+        if (question.type === "text") {
+            return {
+                ...baseQuestion,
+                type: "text",
+                options: [],
+            };
+        }
+
+        return {
+            ...baseQuestion,
+            type: "single",
+            scale: "likert",
+            options: [...LIKERT_OPTIONS],
+        };
+    });
 }
 
 function getContentRecord(value: unknown): Record<string, unknown> {
@@ -231,6 +276,21 @@ function buildSurveyContent(block: LessonBlock, form: FormState) {
         form.survey_questions,
     );
 
+    const hasTextQuestions = form.survey_questions.some(
+        (question) => question.type === "text",
+    );
+
+    const hasLikertQuestions = form.survey_questions.some(
+        (question) => question.type === "single",
+    );
+
+    const surveyType =
+        hasTextQuestions && hasLikertQuestions
+            ? "mixed"
+            : hasTextQuestions
+                ? "text"
+                : "likert";
+
     return {
         ...currentContent,
         type: "survey",
@@ -248,7 +308,7 @@ function buildSurveyContent(block: LessonBlock, form: FormState) {
             blockRecord.block_type_id ?? currentContent.block_type_id,
             7,
         ),
-        survey_type: "likert",
+        survey_type: surveyType,
         questions,
         survey_questions: questions,
     };
@@ -565,18 +625,27 @@ export function useLessonItem({
         }));
     }
 
-    function handleAddSurveyQuestion() {
+    function handleAddSurveyQuestion(
+        type: SurveyQuestion["type"] = "single",
+    ) {
         setForm((current) => {
             const lastId = current.survey_questions.reduce(
-                (maxId, question) => Math.max(maxId, question.id),
+                (maxId, question) => Math.max(maxId, Number(question.id)),
                 0,
             );
+
+            const nextId = lastId + 1;
+
+            const newQuestion =
+                type === "text"
+                    ? createTextSurveyQuestion(nextId)
+                    : createLikertSurveyQuestion(nextId);
 
             return {
                 ...current,
                 survey_questions: [
                     ...current.survey_questions,
-                    createLikertSurveyQuestion(lastId + 1),
+                    newQuestion,
                 ],
             };
         });
@@ -620,7 +689,7 @@ export function useLessonItem({
                             value === "single"
                                 ? question.options.length > 0
                                     ? question.options
-                                    : ["Sí", "No"]
+                                    : [...LIKERT_OPTIONS]
                                 : [],
                     }
                     : question,
