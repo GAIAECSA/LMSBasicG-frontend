@@ -203,9 +203,23 @@ export function useMdtRequiredFiles(
                 getBlockDescription(block),
             );
 
-            const lessonName = normalizeSearch(
-                getLessonName(lessons, block.lesson_id),
-            );
+            const blockLessonId =
+                block.lesson_id !== null &&
+                    block.lesson_id !== undefined
+                    ? Number(block.lesson_id)
+                    : null;
+
+            const lessonName =
+                blockLessonId !== null &&
+                    Number.isFinite(blockLessonId) &&
+                    blockLessonId > 0
+                    ? normalizeSearch(
+                        getLessonName(
+                            lessons,
+                            blockLessonId,
+                        ),
+                    )
+                    : "";
 
             const acceptedTypes = normalizeSearch(
                 getBlockAcceptedTypes(block),
