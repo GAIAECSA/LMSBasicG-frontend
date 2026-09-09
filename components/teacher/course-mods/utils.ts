@@ -555,33 +555,110 @@ export function toLessonBlockPayload(
     order: number,
     fallbackType: LessonItemType,
 ): LessonBlockPayloadWithOptionalFile {
-    const blockTypeId = DEFAULT_LESSON_BLOCK_TYPE_IDS[fallbackType];
-    const content = getContentRecord(block.content);
+    const blockTypeId =
+        DEFAULT_LESSON_BLOCK_TYPE_IDS[
+        fallbackType
+        ];
+
+    const content =
+        getContentRecord(
+            block.content,
+        );
+
+    /*
+     * Los bloques manejados desde course-mods
+     * deben pertenecer a una lección.
+     *
+     * Los bloques MDT default pueden tener
+     * lesson_id = null, pero no pasan por
+     * esta función.
+     */
+    const lessonId =
+        toNumericId(
+            block.lesson_id,
+        );
+
+    if (
+        lessonId === null ||
+        lessonId <= 0
+    ) {
+        throw new Error(
+            `El bloque #${block.id} no tiene una lección válida asociada.`,
+        );
+    }
 
     return {
-        lesson_id: block.lesson_id,
-        block_type_id: blockTypeId,
+        lesson_id:
+            lessonId,
+
+        block_type_id:
+            blockTypeId,
+
         completion_type:
-            normalizeCompletionType(block.completion_type) ||
-            DEFAULT_LESSON_COMPLETION_TYPE[fallbackType],
+            normalizeCompletionType(
+                block.completion_type,
+            ) ||
+            DEFAULT_LESSON_COMPLETION_TYPE[
+            fallbackType
+            ],
+
         completion_value:
             block.completion_value ??
-            DEFAULT_LESSON_COMPLETION_VALUE[fallbackType],
+            DEFAULT_LESSON_COMPLETION_VALUE[
+            fallbackType
+            ],
+
         order,
-        default: false,
-        counts_toward_grade: readBoolean(block.counts_toward_grade, false),
-        date_available: block.date_available ?? null,
-        is_active: readBoolean(block.is_active, true),
+
+        default:
+            false,
+
+        counts_toward_grade:
+            readBoolean(
+                block.counts_toward_grade,
+                false,
+            ),
+
+        date_available:
+            block.date_available ??
+            null,
+
+        is_active:
+            readBoolean(
+                block.is_active,
+                true,
+            ),
+
         content: {
             ...content,
-            block_type_id: blockTypeId,
-            type: fallbackType,
-            itemType: fallbackType,
-            default: false,
-            counts_toward_grade: readBoolean(block.counts_toward_grade, false),
-            is_active: readBoolean(block.is_active, true),
+
+            block_type_id:
+                blockTypeId,
+
+            type:
+                fallbackType,
+
+            itemType:
+                fallbackType,
+
+            default:
+                false,
+
+            counts_toward_grade:
+                readBoolean(
+                    block.counts_toward_grade,
+                    false,
+                ),
+
+            is_active:
+                readBoolean(
+                    block.is_active,
+                    true,
+                ),
         },
-        file: null,
+
+        file:
+            null,
     };
 }
 
