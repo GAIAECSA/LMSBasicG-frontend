@@ -11,6 +11,7 @@ export const fieldTypeOptions: {
 }[] = [
         { value: "student_name", label: "Nombre del estudiante" },
         { value: "course_name", label: "Nombre del curso" },
+        { value: "student_cedula", label: "Cedula del estudiante" },
         { value: "completion_date", label: "Fecha de finalización" },
         { value: "instructor_name", label: "Nombre del instructor" },
         { value: "certificate_code", label: "Código del certificado" },

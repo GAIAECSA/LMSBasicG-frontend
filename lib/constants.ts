@@ -61,7 +61,7 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 {
                     label: "Matriculación masiva",
                     href: "/admin/bulk-enrollment",
-                    
+
                 },
                 {
                     label: "Asistencia Estudiante",
@@ -96,6 +96,11 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     href: "/admin/mdt-certificados",
                     businessModuleKey: "mdt",
                 },
+                { 
+                    label: "Evidencia MDT",
+                    href: "/admin/mdt-evidence",
+                    businessModuleKey: "mdt",
+                }
             ],
         },
         /* {
@@ -333,6 +338,17 @@ export function getSidebarItemsByRoute(
                 {
                     label: "Asistencia Estudiante",
                     href: `/teacher/courses/${courseId}/attendance`,
+                    businessModuleKey: "mdt",
+                },
+                {
+                    label: "Archivos MDT",
+                    href: `/teacher/courses/${courseId}/mdt-required-files`,
+                    businessModuleKey: "mdt",
+                },
+
+                {
+                    label: "Evidencia MDT",
+                    href: `/teacher/courses/${courseId}/evidence`,
                     businessModuleKey: "mdt",
                 },
                 ...(isTeacherMdtCourse

@@ -48,7 +48,7 @@ export type LessonBlock = {
     completion_value: number;
     order: number;
     default: boolean;
-    lesson_id: number;
+    lesson_id: number | null;
     block_type_id: number;
     date_available?: string | null;
     is_active: boolean;
@@ -308,7 +308,27 @@ function buildLessonBlockSafeFormData(
 ): FormData {
     const formData = new FormData();
 
-    const lessonId = readNumber(payload.lesson_id, currentBlock.lesson_id);
+    /**
+     * IMPORTANTE:
+     * Los bloques "default" del curso pueden venir con lesson_id = null.
+     *
+     * No debemos convertir null a la cadena "null", porque FastAPI intenta
+     * parsearla como entero y responde con int_parsing.
+     *
+     * Si existe un lesson_id válido, se conserva y se envía.
+     * Si no existe, simplemente no se agrega al FormData.
+     */
+    const rawLessonId =
+        payload.lesson_id !== undefined
+            ? payload.lesson_id
+            : currentBlock.lesson_id;
+
+    const lessonId =
+        rawLessonId === null ||
+            rawLessonId === undefined ||
+            String(rawLessonId).trim() === ""
+            ? null
+            : Number(rawLessonId);
 
     const blockTypeId = readNumber(
         payload.block_type_id,
@@ -353,7 +373,14 @@ function buildLessonBlockSafeFormData(
         parseContentForFormData(currentBlock.content) ??
         {};
 
-    formData.append("lesson_id", String(lessonId));
+    if (
+        lessonId !== null &&
+        Number.isFinite(lessonId) &&
+        lessonId > 0
+    ) {
+        formData.append("lesson_id", String(lessonId));
+    }
+
     formData.append("block_type_id", String(blockTypeId));
     formData.append("completion_type", completionType);
     formData.append("completion_value", String(completionValue));

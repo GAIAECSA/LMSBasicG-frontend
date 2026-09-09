@@ -1,3 +1,5 @@
+import { getEnrollmentByUserAndCourse } from "@/services/enrollments.service";
+
 const RAW_API_URL =
     process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000";
 
@@ -100,6 +102,7 @@ const AUTH_FALLBACK_KEYS = [
 export type CertificateFieldType =
     | "student_name"
     | "course_name"
+    | "student_cedula"
     | "completion_date"
     | "instructor_name"
     | "certificate_code"
@@ -110,6 +113,7 @@ export type CertificateFieldType =
 
 export type CertificateVariableKey =
     | "student_name"
+    | "student_cedula"
     | "course_name"
     | "completion_date"
     | "instructor_name"
@@ -179,6 +183,7 @@ export type Certificate = {
 
 export type CertificatePdfValues = {
     studentName: string;
+    studentCedula?: string;
     courseName: string;
     completionDate: string;
     instructorName?: string;
@@ -223,6 +228,7 @@ export class CertificateServiceError extends Error {
 
 const certificateFieldTypes: CertificateFieldType[] = [
     "student_name",
+    "student_cedula",
     "course_name",
     "completion_date",
     "instructor_name",
@@ -560,6 +566,7 @@ function shouldUseEmptyTemplate(error: unknown) {
 export function getFieldLabel(type: CertificateFieldType) {
     const labels: Record<CertificateFieldType, string> = {
         student_name: "Nombre del estudiante",
+        student_cedula: "Cedula del estudiante",
         course_name: "Nombre del curso",
         completion_date: "Fecha de finalización",
         instructor_name: "Nombre del instructor",
@@ -577,6 +584,7 @@ export function getVariableKeyByFieldType(
     type: CertificateFieldType,
 ): CertificateVariableKey {
     if (type === "student_name") return "student_name";
+    if (type === "student_cedula") return "student_cedula";
     if (type === "course_name") return "course_name";
     if (type === "completion_date") return "completion_date";
     if (type === "instructor_name") return "instructor_name";
@@ -595,6 +603,7 @@ export function getCertificateVariableToken(variableKey: CertificateVariableKey)
 export function getCertificatePreviewValue(variableKey: CertificateVariableKey) {
     const values: Record<CertificateVariableKey, string> = {
         student_name: "Nombre del estudiante",
+        student_cedula: "Cedula del estudiante",
         course_name: "Nombre del curso",
         completion_date: "30/04/2026",
         instructor_name: "Nombre del instructor",
@@ -609,6 +618,7 @@ export function getCertificatePreviewValue(variableKey: CertificateVariableKey) 
 export function renderCertificateVariableText(value: string) {
     return value
         .replaceAll("{{student_name}}", "Nombre del estudiante")
+        .replaceAll("{{student_cedula}}", "Cedula del estudiante")
         .replaceAll("{{course_name}}", "Nombre del curso")
         .replaceAll("{{completion_date}}", "30/04/2026")
         .replaceAll("{{instructor_name}}", "Nombre del instructor")
@@ -637,6 +647,7 @@ export function getFieldDefaultValue(type: CertificateFieldType) {
 
     const values: Record<CertificateFieldType, string> = {
         student_name: "{{student_name}}",
+        student_cedula: "{{student_cedula}}",
         course_name: "{{course_name}}",
         completion_date: "{{completion_date}}",
         instructor_name: "{{instructor_name}}",
@@ -1094,6 +1105,7 @@ export function replaceCertificateVariables(
     value: string,
     data: {
         studentName?: string;
+        studentCedula?: string;
         courseName?: string;
         completionDate?: string;
         instructorName?: string;
@@ -1103,6 +1115,7 @@ export function replaceCertificateVariables(
 ) {
     return value
         .replaceAll("{{student_name}}", data.studentName ?? "")
+        .replaceAll("{{student_cedula}}", data.studentCedula ?? "")
         .replaceAll("{{course_name}}", data.courseName ?? "")
         .replaceAll("{{completion_date}}", data.completionDate ?? "")
         .replaceAll("{{instructor_name}}", data.instructorName ?? "")
@@ -1516,6 +1529,7 @@ function replaceCertificateTemplateVariables(
 ) {
     return replaceCertificateVariables(value, {
         studentName: values.studentName,
+        studentCedula: values.studentCedula ?? "",
         courseName: values.courseName,
         completionDate: values.completionDate,
         instructorName: values.instructorName ?? "",
@@ -1856,6 +1870,66 @@ export async function generateCertificatePdfFile(params: {
     });
 }
 
+async function resolveCertificateStudentValues(
+    userId: number,
+    courseId: number,
+    values: CertificatePdfValues,
+): Promise<CertificatePdfValues> {
+    try {
+        const enrollment = await getEnrollmentByUserAndCourse(
+            userId,
+            courseId,
+        );
+
+        if (!enrollment) {
+            return values;
+        }
+
+        const firstname = String(
+            enrollment.user?.firstname ?? "",
+        ).trim();
+
+        const lastname = String(
+            enrollment.user?.lastname ?? "",
+        ).trim();
+
+        const studentName = `${firstname} ${lastname}`.trim();
+
+        const studentCedula = String(
+            enrollment.user?.idnumber ??
+            enrollment.user?.id_number ??
+            "",
+        ).trim();
+
+        const courseName = String(
+            enrollment.course?.name ?? "",
+        ).trim();
+
+        return {
+            ...values,
+
+            studentName:
+                String(values.studentName ?? "").trim() ||
+                studentName,
+
+            studentCedula:
+                String(values.studentCedula ?? "").trim() ||
+                studentCedula,
+
+            courseName:
+                String(values.courseName ?? "").trim() ||
+                courseName,
+        };
+    } catch (error) {
+        console.error(
+            "No se pudieron obtener los datos del estudiante para el certificado:",
+            error,
+        );
+
+        return values;
+    }
+}
+
 export async function createCertificateFromTemplate(params: {
     userId: number;
     courseId: number;
@@ -1864,10 +1938,27 @@ export async function createCertificateFromTemplate(params: {
 }) {
     const templateId = params.template.id ?? null;
 
+    // Obtener nombre, cédula y curso directamente desde la matrícula
+    const resolvedValues =
+        await resolveCertificateStudentValues(
+            params.userId,
+            params.courseId,
+            params.values,
+        );
+
+    console.log("DATOS PARA CERTIFICADO:", {
+        userId: params.userId,
+        courseId: params.courseId,
+        studentName: resolvedValues.studentName,
+        studentCedula: resolvedValues.studentCedula,
+        courseName: resolvedValues.courseName,
+        finalGrade: resolvedValues.finalGrade,
+    });
+
     const temporaryPdf = await generateCertificatePdfFile({
         template: params.template,
         values: {
-            ...params.values,
+            ...resolvedValues,
             certificateCode: "PENDIENTE",
             fileUrl: "",
         },
@@ -1882,32 +1973,38 @@ export async function createCertificateFromTemplate(params: {
         filename: `certificado-${params.courseId}-${params.userId}.pdf`,
     });
 
-    const finalGradeFromCertificate = createdCertificate.final_grade?.trim()
-        ? createdCertificate.final_grade
-        : String(params.values.finalGrade ?? "");
+    const finalGradeFromCertificate =
+        createdCertificate.final_grade?.trim()
+            ? createdCertificate.final_grade
+            : String(resolvedValues.finalGrade ?? "");
 
     const finalPdf = await generateCertificatePdfFile({
         template: params.template,
         values: {
-            ...params.values,
+            ...resolvedValues,
             finalGrade: finalGradeFromCertificate,
-            certificateCode: createdCertificate.certificate_code,
-            fileUrl: createdCertificate.file_url,
+            certificateCode:
+                createdCertificate.certificate_code,
+            fileUrl:
+                createdCertificate.file_url,
         },
-        filename: `certificado-${createdCertificate.certificate_code}.pdf`,
+        filename:
+            `certificado-${createdCertificate.certificate_code}.pdf`,
     });
 
     const updatedCertificate = await updateCertificate({
         certificateId: createdCertificate.id,
         isValid: true,
         file: finalPdf,
-        filename: `certificado-${createdCertificate.certificate_code}.pdf`,
+        filename:
+            `certificado-${createdCertificate.certificate_code}.pdf`,
     });
 
     return {
         ...updatedCertificate,
         final_grade:
-            updatedCertificate.final_grade || finalGradeFromCertificate,
+            updatedCertificate.final_grade ||
+            finalGradeFromCertificate,
     };
 }
 
@@ -1918,35 +2015,50 @@ export async function reissueCertificateFromTemplate(params: {
     template: CertificateTemplate;
     values: CertificatePdfValues;
 }) {
-    const currentCertificate = await getCertificateById(params.certificateId);
+    const currentCertificate =
+        await getCertificateById(
+            params.certificateId,
+        );
 
-    const finalGradeFromCertificate = currentCertificate.final_grade?.trim()
-        ? currentCertificate.final_grade
-        : String(params.values.finalGrade ?? "");
+    const resolvedValues =
+        await resolveCertificateStudentValues(
+            params.userId,
+            params.courseId,
+            params.values,
+        );
+
+    const finalGradeFromCertificate =
+        currentCertificate.final_grade?.trim()
+            ? currentCertificate.final_grade
+            : String(resolvedValues.finalGrade ?? "");
 
     const finalPdf = await generateCertificatePdfFile({
         template: params.template,
         values: {
-            ...params.values,
+            ...resolvedValues,
             finalGrade: finalGradeFromCertificate,
             certificateCode:
-                params.values.certificateCode ||
+                resolvedValues.certificateCode ||
                 currentCertificate.certificate_code,
-            fileUrl: currentCertificate.file_url,
+            fileUrl:
+                currentCertificate.file_url,
         },
-        filename: `certificado-reemitido-${params.courseId}-${params.userId}.pdf`,
+        filename:
+            `certificado-reemitido-${params.courseId}-${params.userId}.pdf`,
     });
 
     const updatedCertificate = await updateCertificate({
         certificateId: params.certificateId,
         isValid: true,
         file: finalPdf,
-        filename: `certificado-reemitido-${params.courseId}-${params.userId}.pdf`,
+        filename:
+            `certificado-reemitido-${params.courseId}-${params.userId}.pdf`,
     });
 
     return {
         ...updatedCertificate,
         final_grade:
-            updatedCertificate.final_grade || finalGradeFromCertificate,
+            updatedCertificate.final_grade ||
+            finalGradeFromCertificate,
     };
 }
