@@ -1,60 +1,94 @@
 "use client";
 
 import type { ReactNode } from "react";
+
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+
+import {
+    useEffect,
+    useState,
+} from "react";
+
+import {
+    useParams,
+} from "next/navigation";
+
 import {
     CalendarDays,
     FileBadge2,
     GraduationCap,
     IdCard,
-    Info,
     LoaderCircle,
     ShieldAlert,
     ShieldCheck,
+    Star,
     Timer,
     UserRound,
-    UserRoundCheck,
 } from "lucide-react";
-import {
-    getCourseById,
-    type Course,
-} from "@/services/courses.service";
-import {
-    getEnrollmentsByCourseAndRole,
-    type Enrollment,
-} from "@/services/enrollments.service";
+
+/* =========================================================
+   API
+========================================================= */
 
 const RAW_API_URL =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://213.165.74.184:9000";
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://213.165.74.184:9000";
 
-const TEACHER_ROLE_ID = 3;
-const STUDENT_ROLE_ID = 4;
+function normalizeApiBaseUrl(
+    url: string,
+) {
+    const cleanUrl =
+        url
+            .trim()
+            .replace(
+                /\/+$/,
+                "",
+            );
 
-function normalizeApiBaseUrl(url: string) {
-    const cleanUrl = url.trim().replace(/\/+$/, "");
-
-    if (cleanUrl.endsWith("/api/v1")) {
+    if (
+        cleanUrl.endsWith(
+            "/api/v1",
+        )
+    ) {
         return cleanUrl;
     }
 
     return `${cleanUrl}/api/v1`;
 }
 
-const API_BASE_URL = normalizeApiBaseUrl(RAW_API_URL);
-const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1$/, "");
+const API_BASE_URL =
+    normalizeApiBaseUrl(
+        RAW_API_URL,
+    );
 
-function cleanDomain(value: string) {
+const API_ORIGIN =
+    API_BASE_URL.replace(
+        /\/api\/v1$/,
+        "",
+    );
+
+/* =========================================================
+   DOMINIO
+========================================================= */
+
+function cleanDomain(
+    value: string,
+) {
     return value
         .trim()
-        .replace(/^https?:\/\//i, "")
-        .replace(/\/+$/, "");
+        .replace(
+            /^https?:\/\//i,
+            "",
+        )
+        .replace(
+            /\/+$/,
+            "",
+        );
 }
 
 function getVerifyDomain() {
     if (typeof window === "undefined") {
-        return "";
+        return "lms.gaiaecsa.com";
     }
 
     const params =
@@ -66,20 +100,41 @@ function getVerifyDomain() {
         params.get("domain");
 
     if (queryDomain?.trim()) {
-        return cleanDomain(queryDomain);
+        return cleanDomain(
+            queryDomain,
+        );
     }
 
     const hostname =
         window.location.hostname;
 
-    if (hostname) {
-        return cleanDomain(hostname);
+    /*
+     * En producción usamos el dominio actual.
+     */
+    if (
+        hostname &&
+        hostname !== "localhost" &&
+        hostname !== "127.0.0.1"
+    ) {
+        return cleanDomain(
+            hostname,
+        );
     }
 
-    return "";
+    /*
+     * En desarrollo localhost debe enviar
+     * el dominio real del LMS.
+     */
+    return cleanDomain(
+        process.env.NEXT_PUBLIC_DOMAIN ??
+        process.env.NEXT_PUBLIC_APP_DOMAIN ??
+        "lms.gaiaecsa.com",
+    );
 }
 
-function addDomainToUrl(url: string) {
+function addDomainToUrl(
+    url: string,
+) {
     const domain =
         getVerifyDomain();
 
@@ -92,221 +147,251 @@ function addDomainToUrl(url: string) {
             ? "&"
             : "?";
 
-    return `${url}${separator}domain=${encodeURIComponent(domain)}`;
+    return `${url}${separator}domain=${encodeURIComponent(
+        domain,
+    )}`;
 }
 
-function getRequestDomain() {
-    if (typeof window !== "undefined") {
-        const searchParams =
-            new URLSearchParams(
-                window.location.search,
-            );
-
-        const queryDomain =
-            searchParams.get("domain");
-
-        if (queryDomain?.trim()) {
-            return cleanDomain(queryDomain);
-        }
-
-        const hostname =
-            window.location.hostname;
-
-        if (
-            hostname &&
-            hostname !== "localhost" &&
-            hostname !== "127.0.0.1"
-        ) {
-            return cleanDomain(hostname);
-        }
-    }
-
-    const envDomain =
-        process.env.NEXT_PUBLIC_DOMAIN ??
-        process.env.NEXT_PUBLIC_APP_DOMAIN ??
-        "";
-
-    return cleanDomain(envDomain);
-}
-
-function addDomainQueryParam(
-    url: string,
-) {
-    const domain =
-        getRequestDomain();
-
-    if (!domain) {
-        return url;
-    }
-
-    const separator =
-        url.includes("?")
-            ? "&"
-            : "?";
-
-    return `${url}${separator}domain=${encodeURIComponent(domain)}`;
-}
-
-type PersonResponse = {
-    id?: number;
-    firstname?: string | null;
-    lastname?: string | null;
-    name?: string | null;
-    full_name?: string | null;
-    fullname?: string | null;
-    id_number?: string | null;
-    idnumber?: string | null;
-    identification?: string | null;
-    identification_number?: string | null;
-};
+/* =========================================================
+   TIPOS
+========================================================= */
 
 type CertificateResponse = {
     id?: number;
-    user_id?: number | null;
-    course_id?: number | null;
 
-    certificate_code?: string | null;
-    code?: string | null;
+    user_id?:
+    | number
+    | null;
 
-    is_valid?: boolean | number | string | null;
-    valid?: boolean | number | string | null;
-    is_active?: boolean | number | string | null;
-    status?: string | null;
+    course_id?:
+    | number
+    | null;
 
-    file_url?: string | null;
-    pdf_url?: string | null;
-    certificate_url?: string | null;
-    url?: string | null;
-    path?: string | null;
+    student_name?:
+    | string
+    | null;
 
-    created_at?: string | null;
-    issued_at?: string | null;
-    generated_at?: string | null;
+    student_full_name?:
+    | string
+    | null;
 
-    start_date?: string | null;
-    end_date?: string | null;
+    course_name?:
+    | string
+    | null;
 
-    student_name?: string | null;
-    student_full_name?: string | null;
-    student_idnumber?: string | null;
-    student_id_number?: string | null;
+    final_grade?:
+    | number
+    | string
+    | null;
 
-    teacher_name?: string | null;
-    instructor_name?: string | null;
-    operator_name?: string | null;
+    idnumber?:
+    | string
+    | null;
 
-    course_name?: string | null;
-    course_description?: string | null;
-    duration_hours?: number | string | null;
+    student_idnumber?:
+    | string
+    | null;
 
-    student?: PersonResponse | null;
-    user?: PersonResponse | null;
-    teacher?: PersonResponse | null;
-    instructor?: PersonResponse | null;
+    student_id_number?:
+    | string
+    | null;
+
+    duration_hours?:
+    | number
+    | string
+    | null;
+
+    certificate_code?:
+    | string
+    | null;
+
+    code?:
+    | string
+    | null;
+
+    file_url?:
+    | string
+    | null;
+
+    pdf_url?:
+    | string
+    | null;
+
+    certificate_url?:
+    | string
+    | null;
+
+    url?:
+    | string
+    | null;
+
+    path?:
+    | string
+    | null;
+
+    is_valid?:
+    | boolean
+    | number
+    | string
+    | null;
+
+    valid?:
+    | boolean
+    | number
+    | string
+    | null;
+
+    is_active?:
+    | boolean
+    | number
+    | string
+    | null;
+
+    status?:
+    | string
+    | null;
+
+    created_at?:
+    | string
+    | null;
+
+    issued_at?:
+    | string
+    | null;
+
+    generated_at?:
+    | string
+    | null;
+
+    start_date?:
+    | string
+    | null;
+
+    end_date?:
+    | string
+    | null;
 };
 
-function buildFileUrl(url: string | null | undefined) {
-    if (!url) return "";
+/* =========================================================
+   HELPERS
+========================================================= */
 
-    const cleanUrl = url.trim();
+function buildFileUrl(
+    url:
+        | string
+        | null
+        | undefined,
+) {
+    if (!url) {
+        return "";
+    }
 
-    if (!cleanUrl) return "";
+    const cleanUrl =
+        url.trim();
+
+    if (!cleanUrl) {
+        return "";
+    }
 
     if (
-        cleanUrl.startsWith("http://") ||
-        cleanUrl.startsWith("https://") ||
-        cleanUrl.startsWith("data:")
+        cleanUrl.startsWith(
+            "http://",
+        ) ||
+        cleanUrl.startsWith(
+            "https://",
+        ) ||
+        cleanUrl.startsWith(
+            "data:",
+        ) ||
+        cleanUrl.startsWith(
+            "blob:",
+        )
     ) {
         return cleanUrl;
     }
 
-    if (cleanUrl.startsWith("/")) {
+    if (
+        cleanUrl.startsWith(
+            "/",
+        )
+    ) {
         return `${API_ORIGIN}${cleanUrl}`;
     }
 
     return `${API_ORIGIN}/${cleanUrl}`;
 }
 
-function getCertificateFileUrl(certificate: CertificateResponse) {
+function getCertificateFileUrl(
+    certificate: CertificateResponse,
+) {
     return buildFileUrl(
-        certificate.file_url ||
-        certificate.pdf_url ||
-        certificate.certificate_url ||
-        certificate.url ||
-        certificate.path ||
+        certificate.file_url ??
+        certificate.pdf_url ??
+        certificate.certificate_url ??
+        certificate.url ??
+        certificate.path ??
         "",
     );
 }
 
-function getFirstText(...values: unknown[]) {
-    for (const value of values) {
-        if (typeof value === "string" && value.trim()) {
+function getFirstText(
+    ...values: unknown[]
+) {
+    for (
+        const value
+        of values
+    ) {
+        if (
+            typeof value ===
+            "string" &&
+            value.trim()
+        ) {
             return value.trim();
         }
 
-        if (typeof value === "number" && Number.isFinite(value)) {
-            return String(value);
+        if (
+            typeof value ===
+            "number" &&
+            Number.isFinite(
+                value,
+            )
+        ) {
+            return String(
+                value,
+            );
         }
     }
 
     return "";
 }
 
-function getPersonFullName(person: PersonResponse | null | undefined) {
-    if (!person) return "";
-
-    const directName = getFirstText(
-        person.full_name,
-        person.fullname,
-        person.name,
-    );
-
-    if (directName) {
-        return directName;
-    }
-
-    return [person.firstname, person.lastname]
-        .filter((value): value is string => Boolean(value?.trim()))
-        .join(" ")
-        .trim();
-}
-
-function getEnrollmentUserFullName(
-    enrollment: Enrollment | null,
-) {
-    if (!enrollment?.user) return "";
-
-    return [
-        enrollment.user.firstname,
-        enrollment.user.lastname,
-    ]
-        .filter((value) => Boolean(value?.trim()))
-        .join(" ")
-        .trim();
-}
-
-function getEnrollmentTeacherName(
-    enrollment: Enrollment | undefined,
-) {
-    if (!enrollment?.user) return "";
-
-    return [enrollment.user.firstname, enrollment.user.lastname]
-        .filter((value) => Boolean(value?.trim()))
-        .join(" ")
-        .trim();
-}
-
-function parseBoolean(value: unknown): boolean | null {
-    if (typeof value === "boolean") {
+function parseBoolean(
+    value: unknown,
+):
+    | boolean
+    | null {
+    if (
+        typeof value ===
+        "boolean"
+    ) {
         return value;
     }
 
-    if (typeof value === "number") {
+    if (
+        typeof value ===
+        "number"
+    ) {
         return value === 1;
     }
 
-    if (typeof value === "string") {
-        const normalizedValue = value.trim().toLowerCase();
+    if (
+        typeof value ===
+        "string"
+    ) {
+        const normalizedValue =
+            value
+                .trim()
+                .toLowerCase();
 
         if (
             [
@@ -320,7 +405,9 @@ function parseBoolean(value: unknown): boolean | null {
                 "valido",
                 "válido",
                 "valid",
-            ].includes(normalizedValue)
+            ].includes(
+                normalizedValue,
+            )
         ) {
             return true;
         }
@@ -335,7 +422,9 @@ function parseBoolean(value: unknown): boolean | null {
                 "invalido",
                 "inválido",
                 "invalid",
-            ].includes(normalizedValue)
+            ].includes(
+                normalizedValue,
+            )
         ) {
             return false;
         }
@@ -344,81 +433,182 @@ function parseBoolean(value: unknown): boolean | null {
     return null;
 }
 
-function isCertificateValid(certificate: CertificateResponse) {
+function isCertificateValid(
+    certificate: CertificateResponse,
+) {
     const explicitValidity =
-        parseBoolean(certificate.is_valid) ??
-        parseBoolean(certificate.valid) ??
-        parseBoolean(certificate.is_active);
+        parseBoolean(
+            certificate.is_valid,
+        ) ??
+        parseBoolean(
+            certificate.valid,
+        ) ??
+        parseBoolean(
+            certificate.is_active,
+        );
 
-    if (explicitValidity !== null) {
+    if (
+        explicitValidity !==
+        null
+    ) {
         return explicitValidity;
     }
 
-    const status = certificate.status?.trim().toLowerCase() ?? "";
+    const status =
+        certificate.status
+            ?.trim()
+            .toLowerCase() ??
+        "";
 
-    const invalidStatuses = [
-        "invalid",
-        "invalido",
-        "inválido",
-        "revoked",
-        "revocado",
-        "cancelled",
-        "canceled",
-        "cancelado",
-        "anulado",
-        "expired",
-        "expirado",
-        "inactive",
-        "inactivo",
-    ];
+    const invalidStatuses =
+        [
+            "invalid",
+            "invalido",
+            "inválido",
+            "revoked",
+            "revocado",
+            "cancelled",
+            "canceled",
+            "cancelado",
+            "anulado",
+            "expired",
+            "expirado",
+            "inactive",
+            "inactivo",
+        ];
 
-    return !invalidStatuses.includes(status);
+    return !invalidStatuses.includes(
+        status,
+    );
 }
 
-function formatDate(value: string | null | undefined) {
-    if (!value) return "";
+function formatDate(
+    value:
+        | string
+        | null
+        | undefined,
+) {
+    if (!value) {
+        return "";
+    }
 
-    const date = new Date(value);
+    const date =
+        new Date(
+            value,
+        );
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime(),
+        )
+    ) {
         return value;
     }
 
-    return new Intl.DateTimeFormat("es-EC", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    }).format(date);
+    return new Intl.DateTimeFormat(
+        "es-EC",
+        {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+        },
+    ).format(
+        date,
+    );
 }
 
 function formatDateRange(
-    startDate: string | null | undefined,
-    endDate: string | null | undefined,
+    startDate:
+        | string
+        | null
+        | undefined,
+    endDate:
+        | string
+        | null
+        | undefined,
 ) {
-    const formattedStartDate = formatDate(startDate);
-    const formattedEndDate = formatDate(endDate);
+    const formattedStartDate =
+        formatDate(
+            startDate,
+        );
 
-    if (formattedStartDate && formattedEndDate) {
+    const formattedEndDate =
+        formatDate(
+            endDate,
+        );
+
+    if (
+        formattedStartDate &&
+        formattedEndDate
+    ) {
         return `${formattedStartDate} - ${formattedEndDate}`;
     }
 
-    return formattedStartDate || formattedEndDate || "";
+    return (
+        formattedStartDate ||
+        formattedEndDate ||
+        ""
+    );
 }
 
-function formatHours(value: string) {
-    if (!value) return "";
+function formatHours(
+    value: string,
+) {
+    if (!value) {
+        return "";
+    }
 
-    const normalizedValue = value.toLowerCase();
+    const normalizedValue =
+        value.toLowerCase();
 
     if (
-        normalizedValue.includes("hora") ||
-        normalizedValue.includes("hour")
+        normalizedValue.includes(
+            "hora",
+        ) ||
+        normalizedValue.includes(
+            "hour",
+        )
     ) {
         return value;
     }
 
     return `${value} horas`;
 }
+
+function formatGrade(
+    value:
+        | string
+        | number
+        | null
+        | undefined,
+) {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+        return "";
+    }
+
+    if (
+        typeof value ===
+        "number"
+    ) {
+        return Number.isInteger(
+            value,
+        )
+            ? String(value)
+            : value.toFixed(2);
+    }
+
+    return String(
+        value,
+    ).trim();
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
 
 function AthenaHeader() {
     return (
@@ -445,11 +635,17 @@ function AthenaHeader() {
     );
 }
 
+/* =========================================================
+   LAYOUT
+========================================================= */
+
 type ValidatorLayoutProps = {
     children: ReactNode;
 };
 
-function ValidatorLayout({ children }: ValidatorLayoutProps) {
+function ValidatorLayout({
+    children,
+}: ValidatorLayoutProps) {
     return (
         <main className="min-h-screen bg-[var(--background)]">
             <AthenaHeader />
@@ -475,35 +671,41 @@ function ValidatorLayout({ children }: ValidatorLayoutProps) {
     );
 }
 
+/* =========================================================
+   CARD
+========================================================= */
+
 type ValidatorCardProps = {
     children: ReactNode;
 };
 
-function ValidatorCard({ children }: ValidatorCardProps) {
+function ValidatorCard({
+    children,
+}: ValidatorCardProps) {
     return (
-        <section className="w-full max-w-md overflow-hidden rounded-md border border-[var(--border)] bg-[var(--muted)] shadow-md [@media(max-height:760px)]:max-h-[calc(100dvh-92px)] [@media(max-height:760px)]:overflow-y-auto">
-            <div className="sticky top-0 z-20 flex items-center justify-between bg-[var(--muted)] px-4 py-4 [@media(max-height:760px)]:py-2.5">
-                <p className="text-sm font-semibold text-[var(--foreground)]">
-                    Operador de Capacitación
-                </p>
-
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] [@media(max-height:760px)]:h-8 [@media(max-height:760px)]:w-8">
-                    <Info className="h-5 w-5 [@media(max-height:760px)]:h-4 [@media(max-height:760px)]:w-4" />
-                </div>
-            </div>
-
+        <section className="w-full max-w-md overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-lg [@media(max-height:760px)]:max-h-[calc(100dvh-92px)] [@media(max-height:760px)]:overflow-y-auto">
             {children}
         </section>
     );
 }
 
+/* =========================================================
+   DETAIL ROW
+========================================================= */
+
 type DetailRowProps = {
     icon: ReactNode;
+
     value: string;
+
     label: string;
 };
 
-function DetailRow({ icon, value, label }: DetailRowProps) {
+function DetailRow({
+    icon,
+    value,
+    label,
+}: DetailRowProps) {
     return (
         <div className="flex items-start gap-3 border-b border-[var(--border)] px-4 py-4 last:border-b-0 [@media(max-height:760px)]:gap-2.5 [@media(max-height:760px)]:py-2.5">
             <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[var(--primary)] [@media(max-height:760px)]:h-8 [@media(max-height:760px)]:w-8">
@@ -512,7 +714,8 @@ function DetailRow({ icon, value, label }: DetailRowProps) {
 
             <div className="min-w-0">
                 <p className="break-words text-sm font-extrabold uppercase leading-5 text-[var(--foreground)] [@media(max-height:760px)]:text-xs [@media(max-height:760px)]:leading-4">
-                    {value || "No disponible"}
+                    {value ||
+                        "No disponible"}
                 </p>
 
                 <p className="mt-1 text-sm text-[var(--muted-foreground)] [@media(max-height:760px)]:text-xs">
@@ -523,211 +726,213 @@ function DetailRow({ icon, value, label }: DetailRowProps) {
     );
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 export default function VerifyCertificatePage() {
-    const params = useParams<{ code: string }>();
+    const params =
+        useParams<{
+            code: string;
+        }>();
 
-    const [certificate, setCertificate] =
-        useState<CertificateResponse | null>(null);
+    const [
+        certificate,
+        setCertificate,
+    ] =
+        useState<CertificateResponse | null>(
+            null,
+        );
 
-    const [course, setCourse] = useState<Course | null>(null);
-    const [studentEnrollment, setStudentEnrollment] =
-        useState<Enrollment | null>(null);
-    const [teacherName, setTeacherName] = useState("");
+    const [
+        isLoading,
+        setIsLoading,
+    ] =
+        useState(
+            true,
+        );
 
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorMessage, setErrorMessage] = useState("");
-    const [hasUnavailableInformation, setHasUnavailableInformation] =
-        useState(false);
+    const [
+        errorMessage,
+        setErrorMessage,
+    ] =
+        useState(
+            "",
+        );
+
+    /* =====================================================
+       CARGAR CERTIFICADO
+    ===================================================== */
 
     useEffect(() => {
-        const abortController = new AbortController();
-        let isMounted = true;
+        const abortController =
+            new AbortController();
 
-        async function loadCertificateInformation() {
-            try {
-                const code = params.code;
+        let isMounted =
+            true;
 
-                if (!code) {
-                    setErrorMessage(
-                        "El código del certificado no es válido.",
-                    );
-                    setIsLoading(false);
-                    return;
-                }
+        const timeoutId =
+            window.setTimeout(
+                () => {
+                    async function loadCertificateInformation() {
+                        try {
+                            const code =
+                                params.code;
 
-                setIsLoading(true);
-                setErrorMessage("");
-                setHasUnavailableInformation(false);
-                setCertificate(null);
-                setCourse(null);
-                setStudentEnrollment(null);
-                setTeacherName("");
+                            if (
+                                !code
+                            ) {
+                                if (
+                                    !isMounted
+                                ) {
+                                    return;
+                                }
 
-                const response = await fetch(
-                    addDomainToUrl(
-                        `${API_BASE_URL}/certificates/code/${encodeURIComponent(code)}`,
-                    ),
-                    {
-                        method: "GET",
-                        headers: {
-                            Accept: "application/json",
-                        },
-                        cache: "no-store",
-                        signal: abortController.signal,
-                    },
-                );
+                                setErrorMessage(
+                                    "El código del certificado no es válido.",
+                                );
 
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        setErrorMessage(
-                            "No encontramos un certificado registrado con este código.",
-                        );
-                    } else {
-                        setErrorMessage(
-                            "No fue posible verificar el certificado en este momento.",
-                        );
-                    }
+                                setIsLoading(
+                                    false,
+                                );
 
-                    setIsLoading(false);
-                    return;
-                }
+                                return;
+                            }
 
-                const certificateData =
-                    (await response.json()) as CertificateResponse;
+                            /*
+                             * Endpoint público de verificación:
+                             *
+                             * GET
+                             * /api/v1/certificates/verify/{code}
+                             */
 
-                if (!isMounted) return;
+                            const response =
+                                await fetch(
+                                    addDomainToUrl(
+                                        `${API_BASE_URL}/certificates/verify/${encodeURIComponent(
+                                            code,
+                                        )}`,
+                                    ),
+                                    {
+                                        method: "GET",
+                                        headers: {
+                                            Accept: "application/json",
+                                        },
+                                        cache: "no-store",
+                                        signal:
+                                            abortController.signal,
+                                    },
+                                );
 
-                setCertificate(certificateData);
+                            if (
+                                !isMounted
+                            ) {
+                                return;
+                            }
 
-                async function loadCourseInformation() {
-                    if (!certificateData.course_id) {
-                        setHasUnavailableInformation(true);
-                        return;
-                    }
+                            if (
+                                !response.ok
+                            ) {
+                                if (
+                                    response.status ===
+                                    404
+                                ) {
+                                    setErrorMessage(
+                                        "No encontramos un certificado registrado con este código.",
+                                    );
+                                } else {
+                                    setErrorMessage(
+                                        "No fue posible verificar el certificado en este momento.",
+                                    );
+                                }
 
-                    try {
-                        const courseData = await getCourseById(
-                            certificateData.course_id,
-                        );
+                                setCertificate(
+                                    null,
+                                );
 
-                        if (!isMounted) return;
+                                setIsLoading(
+                                    false,
+                                );
 
-                        setCourse(courseData);
-                    } catch {
-                        if (!isMounted) return;
+                                return;
+                            }
 
-                        setHasUnavailableInformation(true);
-                    }
-                }
+                            const certificateData =
+                                (await response.json()) as CertificateResponse;
 
-                async function loadStudentInformation() {
-                    if (!certificateData.course_id || !certificateData.user_id) {
-                        setHasUnavailableInformation(true);
-                        return;
-                    }
+                            if (
+                                !isMounted
+                            ) {
+                                return;
+                            }
 
-                    try {
-                        const enrollments =
-                            await getEnrollmentsByCourseAndRole(
-                                certificateData.course_id,
-                                STUDENT_ROLE_ID,
+                            setCertificate(
+                                certificateData,
                             );
 
-                        if (!isMounted) return;
+                            setErrorMessage(
+                                "",
+                            );
 
-                        const matchingStudentEnrollment = enrollments.find(
-                            (enrollment) =>
-                                Number(enrollment.user?.id) ===
-                                Number(certificateData.user_id),
-                        );
+                            setIsLoading(
+                                false,
+                            );
+                        } catch (
+                        error
+                        ) {
+                            if (
+                                error instanceof
+                                Error &&
+                                error.name ===
+                                "AbortError"
+                            ) {
+                                return;
+                            }
 
-                        if (!matchingStudentEnrollment) {
-                            setHasUnavailableInformation(true);
-                            return;
+                            if (
+                                !isMounted
+                            ) {
+                                return;
+                            }
+
+                            setCertificate(
+                                null,
+                            );
+
+                            setErrorMessage(
+                                "Ocurrió un error al consultar la información del certificado.",
+                            );
+
+                            setIsLoading(
+                                false,
+                            );
                         }
-
-                        setStudentEnrollment(matchingStudentEnrollment);
-                    } catch {
-                        if (!isMounted) return;
-
-                        setHasUnavailableInformation(true);
-                    }
-                }
-
-                async function loadTeacherInformation() {
-                    if (!certificateData.course_id) {
-                        setHasUnavailableInformation(true);
-                        return;
                     }
 
-                    try {
-                        const enrollments =
-                            await getEnrollmentsByCourseAndRole(
-                                certificateData.course_id,
-                                TEACHER_ROLE_ID,
-                            );
-
-                        if (!isMounted) return;
-
-                        const teacherEnrollment =
-                            enrollments.find(
-                                (enrollment) =>
-                                    enrollment.accepted === true,
-                            ) ??
-                            enrollments.find(
-                                (enrollment) =>
-                                    enrollment.accepted !== false,
-                            ) ??
-                            enrollments[0];
-
-                        setTeacherName(
-                            getEnrollmentTeacherName(
-                                teacherEnrollment,
-                            ),
-                        );
-                    } catch {
-                        if (!isMounted) return;
-
-                        setHasUnavailableInformation(true);
-                    }
-                }
-
-                await Promise.all([
-                    loadCourseInformation(),
-                    loadStudentInformation(),
-                    loadTeacherInformation(),
-                ]);
-
-                if (!isMounted) return;
-
-                setIsLoading(false);
-            } catch (error) {
-                if (
-                    error instanceof Error &&
-                    error.name === "AbortError"
-                ) {
-                    return;
-                }
-
-                if (!isMounted) return;
-
-                setErrorMessage(
-                    "Ocurrió un error al consultar la información del certificado.",
-                );
-
-                setIsLoading(false);
-            }
-        }
-
-        void loadCertificateInformation();
+                    void loadCertificateInformation();
+                },
+                0,
+            );
 
         return () => {
-            isMounted = false;
+            isMounted =
+                false;
+
+            window.clearTimeout(
+                timeoutId,
+            );
+
             abortController.abort();
         };
     }, [params.code]);
 
-    if (isLoading) {
+    /* =====================================================
+       LOADING
+    ===================================================== */
+
+    if (
+        isLoading
+    ) {
         return (
             <ValidatorLayout>
                 <ValidatorCard>
@@ -743,7 +948,14 @@ export default function VerifyCertificatePage() {
         );
     }
 
-    if (!certificate || errorMessage) {
+    /* =====================================================
+       ERROR
+    ===================================================== */
+
+    if (
+        !certificate ||
+        errorMessage
+    ) {
         return (
             <ValidatorLayout>
                 <ValidatorCard>
@@ -758,7 +970,9 @@ export default function VerifyCertificatePage() {
                                     </p>
 
                                     <p className="mt-1 text-sm leading-5 text-[var(--danger)]">
-                                        {errorMessage}
+                                        {
+                                            errorMessage
+                                        }
                                     </p>
                                 </div>
                             </div>
@@ -770,7 +984,8 @@ export default function VerifyCertificatePage() {
                             </p>
 
                             <p className="mt-1 break-all text-sm font-extrabold text-[var(--foreground)]">
-                                {params.code || "No disponible"}
+                                {params.code ||
+                                    "No disponible"}
                             </p>
                         </div>
                     </div>
@@ -779,73 +994,81 @@ export default function VerifyCertificatePage() {
         );
     }
 
-    const validCertificate = isCertificateValid(certificate);
-    const fileUrl = getCertificateFileUrl(certificate);
+    /* =====================================================
+       DATOS
+    ===================================================== */
 
-    const operatorName = getFirstText(
-        certificate.operator_name,
-        certificate.instructor_name,
-        certificate.teacher_name,
-        getPersonFullName(certificate.teacher),
-        getPersonFullName(certificate.instructor),
-        teacherName,
-    );
+    const validCertificate =
+        isCertificateValid(
+            certificate,
+        );
 
-    const studentName = getFirstText(
-        certificate.student_name,
-        certificate.student_full_name,
-        getPersonFullName(certificate.student),
-        getPersonFullName(certificate.user),
-        getEnrollmentUserFullName(studentEnrollment),
-    );
+    const fileUrl =
+        getCertificateFileUrl(
+            certificate,
+        );
 
-    const studentIdNumber = getFirstText(
-        certificate.student_idnumber,
-        certificate.student_id_number,
-        certificate.student?.idnumber,
-        certificate.student?.id_number,
-        certificate.student?.identification,
-        certificate.student?.identification_number,
-        certificate.user?.idnumber,
-        certificate.user?.id_number,
-        certificate.user?.identification,
-        certificate.user?.identification_number,
-        studentEnrollment?.user?.idnumber,
-        studentEnrollment?.user?.id_number,
-    );
-
-    const courseName = getFirstText(
-        certificate.course_name,
-        course?.name,
-    );
-
-    const durationHours = formatHours(
+    const studentName =
         getFirstText(
-            certificate.duration_hours,
-            course?.duration_hours,
-        ),
-    );
+            certificate.student_name,
+            certificate.student_full_name,
+        );
 
-    const certificateCode = getFirstText(
-        certificate.certificate_code,
-        certificate.code,
-        params.code,
-    );
+    const studentIdNumber =
+        getFirstText(
+            certificate.idnumber,
+            certificate.student_idnumber,
+            certificate.student_id_number,
+        );
 
-    const dateRange = formatDateRange(
-        certificate.start_date,
-        certificate.end_date,
-    );
+    const courseName =
+        getFirstText(
+            certificate.course_name,
+        );
 
-    const issuedDate = formatDate(
-        certificate.issued_at ||
-        certificate.generated_at ||
-        certificate.created_at,
-    );
+    const durationHours =
+        formatHours(
+            getFirstText(
+                certificate.duration_hours,
+            ),
+        );
+
+    const finalGrade =
+        formatGrade(
+            certificate.final_grade,
+        );
+
+    const certificateCode =
+        getFirstText(
+            certificate.certificate_code,
+            certificate.code,
+            params.code,
+        );
+
+    const dateRange =
+        formatDateRange(
+            certificate.start_date,
+            certificate.end_date,
+        );
+
+    const issuedDate =
+        formatDate(
+            certificate.issued_at ??
+            certificate.generated_at ??
+            certificate.created_at,
+        );
+
+    /* =====================================================
+       VISTA
+    ===================================================== */
 
     return (
         <ValidatorLayout>
             <ValidatorCard>
+                {/* =========================================
+                    ESTADO DEL CERTIFICADO
+                ========================================== */}
+
                 <div className="border-b border-[var(--border)] bg-[var(--card)] px-4 py-4 [@media(max-height:760px)]:py-2.5">
                     <div
                         className={`flex items-start gap-3 rounded-md px-3 py-3 [@media(max-height:760px)]:py-2 ${validCertificate
@@ -875,46 +1098,81 @@ export default function VerifyCertificatePage() {
                     </div>
                 </div>
 
+                {/* =========================================
+                    INFORMACIÓN
+                ========================================== */}
+
                 <div className="bg-[var(--card)]">
                     <DetailRow
-                        icon={<UserRoundCheck className="h-7 w-7" />}
-                        value={operatorName}
-                        label="Operador de Capacitación"
-                    />
-
-                    <DetailRow
-                        icon={<UserRound className="h-7 w-7" />}
-                        value={studentName}
+                        icon={
+                            <UserRound className="h-7 w-7" />
+                        }
+                        value={
+                            studentName
+                        }
                         label="Nombres y Apellidos"
                     />
 
                     <DetailRow
-                        icon={<IdCard className="h-7 w-7" />}
-                        value={studentIdNumber}
+                        icon={
+                            <IdCard className="h-7 w-7" />
+                        }
+                        value={
+                            studentIdNumber
+                        }
                         label="Documento de Identidad"
                     />
 
                     <DetailRow
-                        icon={<GraduationCap className="h-7 w-7" />}
-                        value={courseName}
-                        label="Perfil del Curso"
+                        icon={
+                            <GraduationCap className="h-7 w-7" />
+                        }
+                        value={
+                            courseName
+                        }
+                        label="Curso"
                     />
 
                     <DetailRow
-                        icon={<Timer className="h-7 w-7" />}
-                        value={durationHours}
+                        icon={
+                            <Timer className="h-7 w-7" />
+                        }
+                        value={
+                            durationHours
+                        }
                         label="Horas de Capacitación"
                     />
 
+                    {finalGrade ? (
+                        <DetailRow
+                            icon={
+                                <Star className="h-7 w-7" />
+                            }
+                            value={
+                                finalGrade
+                            }
+                            label="Calificación Final"
+                        />
+                    ) : null}
+
                     <DetailRow
-                        icon={<FileBadge2 className="h-7 w-7" />}
-                        value={certificateCode}
+                        icon={
+                            <FileBadge2 className="h-7 w-7" />
+                        }
+                        value={
+                            certificateCode
+                        }
                         label="Número de Certificado"
                     />
 
                     <DetailRow
-                        icon={<CalendarDays className="h-7 w-7" />}
-                        value={dateRange || issuedDate}
+                        icon={
+                            <CalendarDays className="h-7 w-7" />
+                        }
+                        value={
+                            dateRange ||
+                            issuedDate
+                        }
                         label={
                             dateRange
                                 ? "Fecha Inicio - Fecha Fin"
@@ -923,19 +1181,16 @@ export default function VerifyCertificatePage() {
                     />
                 </div>
 
-                {hasUnavailableInformation ? (
-                    <div className="border-t border-[var(--border)] bg-[var(--warning-soft)] px-4 py-3">
-                        <p className="text-xs font-semibold leading-5 text-[var(--warning)]">
-                            Algunos datos complementarios no están disponibles
-                            para la consulta pública.
-                        </p>
-                    </div>
-                ) : null}
+                {/* =========================================
+                    PDF
+                ========================================== */}
 
                 {fileUrl ? (
                     <div className="border-t border-[var(--border)] bg-[var(--card)] px-4 py-4">
                         <a
-                            href={fileUrl}
+                            href={
+                                fileUrl
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex w-full items-center justify-center rounded-md bg-[var(--primary)] px-4 py-3 text-sm font-bold !text-white transition hover:opacity-95 active:scale-[0.99]"

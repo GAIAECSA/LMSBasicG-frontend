@@ -186,6 +186,12 @@ export function ItemRow({
 
     const itemIsActive = getItemIsActive(item);
 
+    const countsTowardGrade = readBoolean(
+        item.counts_toward_grade ??
+        item.raw?.counts_toward_grade,
+        false,
+    );
+
     const itemDragState: DragState = {
         type: "item",
         id: item.id,
@@ -208,8 +214,14 @@ export function ItemRow({
     const reviewHref =
         `${mods.itemEditorBasePath}/${item.id}/review`;
 
+    const answerHref =
+        `${mods.itemEditorBasePath}/${item.id}/answer`;
+
     const reviewable =
         isReviewableItem(item.type);
+
+    const canAnswerSurvey =
+        item.type === "survey";
 
     return (
         <div
@@ -262,10 +274,6 @@ export function ItemRow({
 
                     <div className="min-w-0">
                         <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                            {/*
-                              El nombre ahora es informativo.
-                              Ya no es necesario presionarlo para entrar.
-                            */}
                             <p
                                 title={item.title}
                                 className="max-w-full truncate text-xs font-black text-slate-950 sm:text-sm"
@@ -288,10 +296,23 @@ export function ItemRow({
                                     : "bg-amber-100 text-amber-800 ring-amber-200"
                                     }`}
                             >
-                                {itemIsActive
-                                    ? "Activo"
-                                    : "Inactivo"}
+                                {itemIsActive ? "Activo" : "Inactivo"}
                             </span>
+
+                            {countsTowardGrade ? (
+                                <span
+                                    className="
+                inline-flex rounded-full
+                bg-violet-50 px-2 py-0.5
+                text-[9px] font-black uppercase
+                tracking-[0.1em] text-violet-700
+                ring-1 ring-violet-200
+                sm:px-2.5 sm:py-1 sm:text-[10px]
+            "
+                                >
+                                    Para calificación
+                                </span>
+                            ) : null}
                         </div>
 
                         <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500 sm:text-xs">
@@ -301,9 +322,7 @@ export function ItemRow({
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end sm:gap-2">
-                    {/*
-                      Nuevo botón visible para ingresar a la actividad.
-                    */}
+                    {/* ENTRAR / EDITAR CONTENIDO */}
                     <Link
                         href={editorHref}
                         title="Entrar a la actividad"
@@ -316,24 +335,37 @@ export function ItemRow({
                         </span>
                     </Link>
 
-                    {reviewable ? (
+                    {/* RESPONDER ENCUESTA COMO DOCENTE */}
+                    {canAnswerSurvey ? (
                         <Link
-                            href={reviewHref}
-                            className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-[#172861] px-3 text-[10px] font-black !text-white shadow-sm transition hover:bg-[#0f1d48] active:scale-[0.97] sm:h-10 sm:px-4 sm:text-xs"
-                            title={getReviewLabel(
-                                item.type,
-                            )}
+                            href={answerHref}
+                            title="Responder encuesta"
+                            className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-[10px] font-black !text-blue-700 shadow-sm transition hover:bg-blue-100 active:scale-[0.97] sm:h-10 sm:px-4 sm:text-xs"
                         >
-                            <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-white sm:h-4 sm:w-4" />
+                            <ArrowRight className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
 
-                            <span className="truncate text-white">
-                                {getReviewLabel(
-                                    item.type,
-                                )}
+                            <span className="truncate">
+                                Responder
                             </span>
                         </Link>
                     ) : null}
 
+                    {/* REVISAR / RESPUESTAS */}
+                    {reviewable ? (
+                        <Link
+                            href={reviewHref}
+                            title={getReviewLabel(item.type)}
+                            className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[#172861] bg-[#172861] px-3 text-[10px] font-black !text-white shadow-sm transition hover:bg-[#0f1d48] active:scale-[0.97] sm:h-10 sm:px-4 sm:text-xs"
+                        >
+                            <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-white sm:h-4 sm:w-4" />
+
+                            <span className="truncate text-white">
+                                {getReviewLabel(item.type)}
+                            </span>
+                        </Link>
+                    ) : null}
+
+                    {/* EDITAR */}
                     <button
                         type="button"
                         onClick={() =>
@@ -349,6 +381,7 @@ export function ItemRow({
                         </span>
                     </button>
 
+                    {/* ELIMINAR */}
                     <button
                         type="button"
                         onClick={() =>

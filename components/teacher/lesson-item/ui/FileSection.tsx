@@ -2,17 +2,15 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
-
 import {
-    EditorContent,
-    useEditor,
-} from "@tiptap/react";
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TiptapImage from "@tiptap/extension-image";
+import type {
+    ChangeEvent,
+} from "react";
 
 import {
     Bold,
@@ -33,104 +31,166 @@ import {
     UploadCloud,
 } from "lucide-react";
 
-import type { LessonItemState } from "../hook";
+import type {
+    LessonItemState,
+} from "../hook";
 
 type FileSectionProps = {
     item: LessonItemState;
 };
 
-type DescriptionMode = "visual" | "html";
+type DescriptionMode =
+    | "visual"
+    | "html";
 
-function formatFileSize(size: number) {
+function formatFileSize(
+    size: number,
+) {
     if (size < 1024) {
         return `${size} B`;
     }
 
-    const kilobytes = size / 1024;
+    const kilobytes =
+        size / 1024;
 
     if (kilobytes < 1024) {
-        return `${kilobytes.toFixed(1)} KB`;
+        return `${kilobytes.toFixed(
+            1,
+        )} KB`;
     }
 
-    return `${(kilobytes / 1024).toFixed(2)} MB`;
+    return `${(
+        kilobytes / 1024
+    ).toFixed(2)} MB`;
 }
 
-function htmlToPlainText(html: string) {
+function htmlToPlainText(
+    html: string,
+) {
     return html
-        .replace(/<br\s*\/?>/gi, " ")
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/\s+/g, " ")
+        .replace(
+            /<br\s*\/?>/gi,
+            " ",
+        )
+        .replace(
+            /<[^>]*>/g,
+            " ",
+        )
+        .replace(
+            /&nbsp;/gi,
+            " ",
+        )
+        .replace(
+            /\s+/g,
+            " ",
+        )
         .trim();
+}
+
+/*
+ * Renderizamos HTML directamente en el editor visual.
+ *
+ * Esto evita que TipTap vuelva a serializar el contenido
+ * y elimine atributos style="", class="" o id="".
+ *
+ * Se eliminan solamente elementos/atributos peligrosos
+ * básicos; los estilos inline se conservan.
+ */
+function sanitizeVisualHtml(
+    html: string,
+) {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return html;
+    }
+
+    const parser =
+        new DOMParser();
+
+    const documentValue =
+        parser.parseFromString(
+            html,
+            "text/html",
+        );
+
+    documentValue
+        .querySelectorAll(
+            "script, object, embed",
+        )
+        .forEach(
+            (element) =>
+                element.remove(),
+        );
+
+    documentValue
+        .querySelectorAll("*")
+        .forEach(
+            (element) => {
+                Array.from(
+                    element.attributes,
+                ).forEach(
+                    (attribute) => {
+                        if (
+                            attribute.name
+                                .toLowerCase()
+                                .startsWith(
+                                    "on",
+                                )
+                        ) {
+                            element.removeAttribute(
+                                attribute.name,
+                            );
+                        }
+                    },
+                );
+            },
+        );
+
+    return documentValue.body.innerHTML;
 }
 
 export function FileSection({
     item,
 }: FileSectionProps) {
-    const [selectedPreviewUrl, setSelectedPreviewUrl] =
+    const [
+        selectedPreviewUrl,
+        setSelectedPreviewUrl,
+    ] =
         useState("");
 
-    const [descriptionMode, setDescriptionMode] =
-        useState<DescriptionMode>("visual");
+    const [
+        descriptionMode,
+        setDescriptionMode,
+    ] =
+        useState<DescriptionMode>(
+            "visual",
+        );
 
-    const selectedObjectUrlRef = useRef("");
+    const selectedObjectUrlRef =
+        useRef("");
+
     const fileInputRef =
-        useRef<HTMLInputElement | null>(null);
+        useRef<HTMLInputElement | null>(
+            null,
+        );
 
-    const isImage = item.itemType === "image";
-    const isPdf = item.itemType === "pdf";
+    const descriptionVisualRef =
+        useRef<HTMLDivElement | null>(
+            null,
+        );
 
-    /* =====================================================
-       EDITOR DE DESCRIPCIÓN
-    ===================================================== */
+    const isImage =
+        item.itemType ===
+        "image";
 
-    const descriptionEditor = useEditor({
-        immediatelyRender: false,
-
-        extensions: [
-            StarterKit,
-            Underline,
-
-            TiptapImage.configure({
-                inline: false,
-                allowBase64: false,
-
-                HTMLAttributes: {
-                    class:
-                        "file-description-editor-image",
-                },
-            }),
-        ],
-
-        content: item.form.description || "",
-
-        editorProps: {
-            attributes: {
-                class:
-                    "min-h-[180px] px-4 py-4 text-sm leading-7 text-slate-700 outline-none",
-            },
-        },
-
-        onUpdate: ({ editor }) => {
-            const html = editor.getHTML();
-
-            item.setForm((current) => {
-                if (
-                    current.description === html
-                ) {
-                    return current;
-                }
-
-                return {
-                    ...current,
-                    description: html,
-                };
-            });
-        },
-    });
+    const isPdf =
+        item.itemType ===
+        "pdf";
 
     /* =====================================================
-       ARCHIVO TEMPORAL
+       PREVIEW TEMPORAL
     ===================================================== */
 
     useEffect(() => {
@@ -160,43 +220,47 @@ export function FileSection({
     }, [item.selectedFile]);
 
     /* =====================================================
-       SINCRONIZAR DESCRIPCIÓN CON API
+       SINCRONIZAR HTML -> VISUAL
     ===================================================== */
 
     useEffect(() => {
-        if (!descriptionEditor) {
+        if (
+            descriptionMode !==
+            "visual"
+        ) {
             return;
         }
 
-        if (
-            descriptionMode === "html"
-        ) {
+        const element =
+            descriptionVisualRef.current;
+
+        if (!element) {
             return;
         }
 
         const html =
-            item.form.description || "";
+            sanitizeVisualHtml(
+                item.form
+                    .description ||
+                "",
+            );
 
         if (
-            descriptionEditor.getHTML() ===
+            element.innerHTML !==
             html
         ) {
-            return;
+            element.innerHTML =
+                html;
         }
-
-        descriptionEditor.commands.setContent(
-            html,
-            {
-                emitUpdate: false,
-            },
-        );
     }, [
-        descriptionEditor,
         descriptionMode,
         item.form.description,
     ]);
 
-    if (!isImage && !isPdf) {
+    if (
+        !isImage &&
+        !isPdf
+    ) {
         return null;
     }
 
@@ -206,106 +270,139 @@ export function FileSection({
             : item.fullExistingFileUrl;
 
     const hasPreview =
-        Boolean(previewUrl);
-
-    const hasSelectedFile =
-        Boolean(item.selectedFile);
-
-    const hasExistingFile =
-        Boolean(item.fullExistingFileUrl);
-
-    /* =====================================================
-       DESCRIPCIÓN VISUAL / HTML
-    ===================================================== */
-
-    function changeDescriptionToVisual() {
-        if (!descriptionEditor) {
-            return;
-        }
-
-        descriptionEditor.commands.setContent(
-            item.form.description || "",
-            {
-                emitUpdate: false,
-            },
+        Boolean(
+            previewUrl,
         );
 
-        const normalizedHtml =
-            descriptionEditor.getHTML();
+    const hasSelectedFile =
+        Boolean(
+            item.selectedFile,
+        );
 
-        item.setForm((current) => {
-            if (
-                current.description ===
-                normalizedHtml
-            ) {
-                return current;
-            }
+    const hasExistingFile =
+        Boolean(
+            item.fullExistingFileUrl,
+        );
 
-            return {
-                ...current,
-                description:
-                    normalizedHtml,
-            };
-        });
+    /* =====================================================
+       EDITOR VISUAL / HTML
+    ===================================================== */
 
-        setDescriptionMode("visual");
+    function syncVisualHtmlToForm() {
+        const html =
+            descriptionVisualRef.current
+                ?.innerHTML ??
+            "";
+
+        item.setForm(
+            (current) => {
+                if (
+                    current.description ===
+                    html
+                ) {
+                    return current;
+                }
+
+                return {
+                    ...current,
+                    description:
+                        html,
+                };
+            },
+        );
+    }
+
+    function changeDescriptionToVisual() {
+        setDescriptionMode(
+            "visual",
+        );
+
+        window.setTimeout(
+            () => {
+                const element =
+                    descriptionVisualRef.current;
+
+                if (!element) {
+                    return;
+                }
+
+                element.innerHTML =
+                    sanitizeVisualHtml(
+                        item.form
+                            .description ||
+                        "",
+                    );
+            },
+            0,
+        );
     }
 
     function changeDescriptionToHtml() {
-        if (!descriptionEditor) {
-            return;
-        }
+        syncVisualHtmlToForm();
 
-        const html =
-            descriptionEditor.getHTML();
-
-        item.setForm((current) => {
-            if (
-                current.description === html
-            ) {
-                return current;
-            }
-
-            return {
-                ...current,
-                description: html,
-            };
-        });
-
-        setDescriptionMode("html");
+        setDescriptionMode(
+            "html",
+        );
     }
 
     function handleDescriptionHtmlChange(
         value: string,
     ) {
-        item.setForm((current) => ({
-            ...current,
-            description: value,
-        }));
+        item.setForm(
+            (current) => ({
+                ...current,
+                description:
+                    value,
+            }),
+        );
     }
 
-    function insertDescriptionImage() {
-        if (!descriptionEditor) {
+    function executeVisualCommand(
+        command: string,
+        value?: string,
+    ) {
+        const element =
+            descriptionVisualRef.current;
+
+        if (!element) {
             return;
         }
 
-        const value = window.prompt(
-            "Ingresa la URL de la imagen:",
+        element.focus();
+
+        document.execCommand(
+            command,
+            false,
+            value,
         );
+
+        syncVisualHtmlToForm();
+    }
+
+    function insertDescriptionImage() {
+        const value =
+            window.prompt(
+                "Ingresa la URL de la imagen:",
+            );
 
         if (!value) {
             return;
         }
 
-        const url = value.trim();
+        const url =
+            value.trim();
 
         if (!url) {
             return;
         }
 
         if (
-            !url.startsWith("https://") &&
-            !url.startsWith("http://")
+            !url.startsWith(
+                "https://",
+            ) &&
+            !url.startsWith(
+                "http://",
+            )
         ) {
             window.alert(
                 "La URL debe comenzar con http:// o https://",
@@ -314,14 +411,10 @@ export function FileSection({
             return;
         }
 
-        descriptionEditor
-            .chain()
-            .focus()
-            .setImage({
-                src: url,
-                alt: "Imagen de la descripción",
-            })
-            .run();
+        executeVisualCommand(
+            "insertImage",
+            url,
+        );
     }
 
     /* =====================================================
@@ -340,7 +433,9 @@ export function FileSection({
                 "";
         }
 
-        setSelectedPreviewUrl("");
+        setSelectedPreviewUrl(
+            "",
+        );
     }
 
     function handleFileChange(
@@ -355,14 +450,19 @@ export function FileSection({
                 event,
             );
 
-        if (!file || !accepted) {
+        if (
+            !file ||
+            !accepted
+        ) {
             return;
         }
 
         releaseSelectedPreview();
 
         const objectUrl =
-            URL.createObjectURL(file);
+            URL.createObjectURL(
+                file,
+            );
 
         selectedObjectUrlRef.current =
             objectUrl;
@@ -375,51 +475,46 @@ export function FileSection({
     function handleRemoveSelectedFile() {
         releaseSelectedPreview();
 
-        item.setSelectedFile(null);
+        item.setSelectedFile(
+            null,
+        );
 
-        if (fileInputRef.current) {
+        if (
+            fileInputRef.current
+        ) {
             fileInputRef.current.value =
                 "";
         }
     }
 
     /* =====================================================
-       CLASES TOOLBAR
+       TOOLBAR
     ===================================================== */
 
-    function toolbarButtonClass(
-        active = false,
-    ) {
+    function toolbarButtonClass() {
         return [
-            "inline-flex h-9 w-9 items-center justify-center rounded-lg border transition",
-            active
-                ? "border-[#172861] bg-[#172861] text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
-            "disabled:cursor-not-allowed disabled:opacity-40",
+            "inline-flex h-9 w-9 items-center justify-center rounded-lg border",
+            "border-slate-200 bg-white text-slate-700",
+            "transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+            "active:scale-[0.97]",
         ].join(" ");
     }
 
-    function textButtonClass(
-        active = false,
-    ) {
+    function textButtonClass() {
         return [
-            "h-9 rounded-lg border px-3 text-xs font-bold transition",
-            active
-                ? "border-[#172861] bg-[#172861] text-white"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100",
-            "disabled:cursor-not-allowed disabled:opacity-40",
+            "h-9 rounded-lg border px-3 text-xs font-bold",
+            "border-slate-200 bg-white text-slate-700",
+            "transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
+            "active:scale-[0.97]",
         ].join(" ");
     }
 
     const imageAlt =
         htmlToPlainText(
-            item.form.description,
+            item.form
+                .description,
         ) ||
         "Vista previa de la imagen de la lección";
-
-    /* =====================================================
-       RENDER
-    ===================================================== */
 
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-[28px]">
@@ -460,9 +555,9 @@ export function FileSection({
             </div>
 
             <div className="space-y-5 p-4 sm:p-6">
-                {/* =================================================
-                    DESCRIPCIÓN HTML
-                ================================================= */}
+                {/* =============================================
+                    DESCRIPCIÓN
+                ============================================== */}
 
                 <div>
                     <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -487,7 +582,6 @@ export function FileSection({
                                 )}
                             >
                                 <FileText className="h-3.5 w-3.5" />
-
                                 Visual
                             </button>
 
@@ -507,95 +601,57 @@ export function FileSection({
                                 )}
                             >
                                 <Code2 className="h-3.5 w-3.5" />
-
                                 HTML
                             </button>
                         </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-100">
                         {descriptionMode ===
                             "visual" ? (
                             <>
-                                {/* TOOLBAR */}
-
                                 <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 bg-slate-50 p-2">
                                     <button
                                         type="button"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .setParagraph()
-                                                .run()
+                                            executeVisualCommand(
+                                                "formatBlock",
+                                                "p",
+                                            )
                                         }
-                                        className={textButtonClass(
-                                            descriptionEditor?.isActive(
-                                                "paragraph",
-                                            ) ??
-                                            false,
-                                        )}
+                                        className={
+                                            textButtonClass()
+                                        }
                                     >
                                         Texto
                                     </button>
 
                                     <button
                                         type="button"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleHeading(
-                                                    {
-                                                        level: 2,
-                                                    },
-                                                )
-                                                .run()
+                                            executeVisualCommand(
+                                                "formatBlock",
+                                                "h2",
+                                            )
                                         }
-                                        className={textButtonClass(
-                                            descriptionEditor?.isActive(
-                                                "heading",
-                                                {
-                                                    level: 2,
-                                                },
-                                            ) ??
-                                            false,
-                                        )}
+                                        className={
+                                            textButtonClass()
+                                        }
                                     >
                                         Título
                                     </button>
 
                                     <button
                                         type="button"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleHeading(
-                                                    {
-                                                        level: 3,
-                                                    },
-                                                )
-                                                .run()
+                                            executeVisualCommand(
+                                                "formatBlock",
+                                                "h3",
+                                            )
                                         }
-                                        className={textButtonClass(
-                                            descriptionEditor?.isActive(
-                                                "heading",
-                                                {
-                                                    level: 3,
-                                                },
-                                            ) ??
-                                            false,
-                                        )}
+                                        className={
+                                            textButtonClass()
+                                        }
                                     >
                                         Subtítulo
                                     </button>
@@ -605,22 +661,14 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Negrita"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleBold()
-                                                .run()
-                                        }
-                                        className={toolbarButtonClass(
-                                            descriptionEditor?.isActive(
+                                            executeVisualCommand(
                                                 "bold",
-                                            ) ??
-                                            false,
-                                        )}
+                                            )
+                                        }
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <Bold className="h-4 w-4" />
                                     </button>
@@ -628,22 +676,14 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Cursiva"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleItalic()
-                                                .run()
-                                        }
-                                        className={toolbarButtonClass(
-                                            descriptionEditor?.isActive(
+                                            executeVisualCommand(
                                                 "italic",
-                                            ) ??
-                                            false,
-                                        )}
+                                            )
+                                        }
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <Italic className="h-4 w-4" />
                                     </button>
@@ -651,22 +691,14 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Subrayado"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleUnderline()
-                                                .run()
-                                        }
-                                        className={toolbarButtonClass(
-                                            descriptionEditor?.isActive(
+                                            executeVisualCommand(
                                                 "underline",
-                                            ) ??
-                                            false,
-                                        )}
+                                            )
+                                        }
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <UnderlineIcon className="h-4 w-4" />
                                     </button>
@@ -676,22 +708,14 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Lista"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleBulletList()
-                                                .run()
+                                            executeVisualCommand(
+                                                "insertUnorderedList",
+                                            )
                                         }
-                                        className={toolbarButtonClass(
-                                            descriptionEditor?.isActive(
-                                                "bulletList",
-                                            ) ??
-                                            false,
-                                        )}
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <List className="h-4 w-4" />
                                     </button>
@@ -699,22 +723,14 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Lista numerada"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleOrderedList()
-                                                .run()
+                                            executeVisualCommand(
+                                                "insertOrderedList",
+                                            )
                                         }
-                                        className={toolbarButtonClass(
-                                            descriptionEditor?.isActive(
-                                                "orderedList",
-                                            ) ??
-                                            false,
-                                        )}
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <ListOrdered className="h-4 w-4" />
                                     </button>
@@ -722,22 +738,15 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Cita"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .toggleBlockquote()
-                                                .run()
-                                        }
-                                        className={toolbarButtonClass(
-                                            descriptionEditor?.isActive(
+                                            executeVisualCommand(
+                                                "formatBlock",
                                                 "blockquote",
-                                            ) ??
-                                            false,
-                                        )}
+                                            )
+                                        }
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <Quote className="h-4 w-4" />
                                     </button>
@@ -747,13 +756,12 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Insertar imagen desde URL"
-                                        disabled={
-                                            !descriptionEditor
-                                        }
                                         onClick={
                                             insertDescriptionImage
                                         }
-                                        className={toolbarButtonClass()}
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <ImageIcon className="h-4 w-4" />
                                     </button>
@@ -763,20 +771,14 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Deshacer"
-                                        disabled={
-                                            !descriptionEditor ||
-                                            !descriptionEditor
-                                                .can()
-                                                .undo()
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .undo()
-                                                .run()
+                                            executeVisualCommand(
+                                                "undo",
+                                            )
                                         }
-                                        className={toolbarButtonClass()}
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <Undo2 className="h-4 w-4" />
                                     </button>
@@ -784,29 +786,29 @@ export function FileSection({
                                     <button
                                         type="button"
                                         title="Rehacer"
-                                        disabled={
-                                            !descriptionEditor ||
-                                            !descriptionEditor
-                                                .can()
-                                                .redo()
-                                        }
                                         onClick={() =>
-                                            descriptionEditor
-                                                ?.chain()
-                                                .focus()
-                                                .redo()
-                                                .run()
+                                            executeVisualCommand(
+                                                "redo",
+                                            )
                                         }
-                                        className={toolbarButtonClass()}
+                                        className={
+                                            toolbarButtonClass()
+                                        }
                                     >
                                         <Redo2 className="h-4 w-4" />
                                     </button>
                                 </div>
 
-                                <EditorContent
-                                    editor={
-                                        descriptionEditor
+                                <div
+                                    ref={
+                                        descriptionVisualRef
                                     }
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onInput={
+                                        syncVisualHtmlToForm
+                                    }
+                                    className="file-description-visual min-h-[260px] px-5 py-5 text-sm leading-7 text-slate-700 outline-none"
                                 />
                             </>
                         ) : (
@@ -827,39 +829,70 @@ export function FileSection({
                                 spellCheck={
                                     false
                                 }
-                                placeholder={`<h2>Descripción</h2>
+                                placeholder={`<div
+    style="
+        padding: 24px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+    "
+>
+    <h2
+        style="
+            margin: 0 0 16px;
+            color: #172861;
+            font-size: 28px;
+        "
+    >
+        Título del contenido
+    </h2>
 
-<p>Contenido del material...</p>
+    <p
+        style="
+            color: #475569;
+            font-size: 16px;
+        "
+    >
+        Contenido del material.
+    </p>
 
-<ul>
-    <li>Punto uno</li>
-    <li>Punto dos</li>
-</ul>`}
-                                className="min-h-[260px] w-full resize-y bg-[#0f172a] p-5 font-mono text-sm leading-7 text-slate-100 outline-none"
-                            />
+    <span
+        style="
+            color: #2563eb;
+            font-weight: 800;
+        "
+    >
+        Texto con estilo
+    </span>
+</div>`}
+                                className="min-h-[400px] w-full resize-y bg-[#0f172a] p-5 font-mono text-sm leading-7 text-slate-100 outline-none lg:min-h-[450px]" />
                         )}
                     </div>
 
                     {descriptionMode ===
-                        "html" && (
-                            <p className="mt-2 text-xs text-slate-500">
-                                Puedes escribir
-                                HTML directamente y
-                                cambiar a Visual para
-                                ver el resultado
-                                formateado.
-                            </p>
-                        )}
+                        "html" ? (
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                            Los atributos{" "}
+                            <strong>
+                                style
+                            </strong>
+                            , class e id se
+                            conservan. Al cambiar
+                            a Visual se renderiza
+                            el HTML directamente,
+                            sin pasarlo por TipTap.
+                        </p>
+                    ) : null}
                 </div>
 
-                {/* =================================================
+                {/* =============================================
                     ARCHIVO + PREVIEW
-                ================================================= */}
+                ============================================== */}
 
                 <div
                     className={`grid gap-5 ${hasPreview
-                            ? "xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]"
-                            : ""
+                        ? "xl:grid-cols-[minmax(0,1fr)_280px] 2xl:grid-cols-[minmax(0,1fr)_320px]"
+                        : ""
                         }`}
                 >
                     {hasPreview ? (
@@ -868,8 +901,8 @@ export function FileSection({
                                 <div className="flex min-w-0 items-center gap-2">
                                     <span
                                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isImage
-                                                ? "bg-blue-50 text-blue-700"
-                                                : "bg-red-50 text-red-700"
+                                            ? "bg-blue-50 text-blue-700"
+                                            : "bg-red-50 text-red-700"
                                             }`}
                                     >
                                         {isImage ? (
@@ -886,9 +919,7 @@ export function FileSection({
 
                                         <p className="truncate text-sm font-bold text-slate-800">
                                             {item.selectedFile
-                                                ? item
-                                                    .selectedFile
-                                                    .name
+                                                ? item.selectedFile.name
                                                 : isImage
                                                     ? "Imagen guardada actualmente"
                                                     : "PDF guardado actualmente"}
@@ -939,10 +970,6 @@ export function FileSection({
                         </div>
                     ) : null}
 
-                    {/* =================================================
-                        SELECTOR ARCHIVO
-                    ================================================= */}
-
                     <div className="space-y-4">
                         <label className="group flex min-h-[145px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 px-4 py-4 text-center transition hover:border-blue-400 hover:bg-blue-50 sm:min-h-[170px] sm:rounded-3xl sm:px-5 sm:py-5">
                             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-blue-700 shadow-sm transition group-hover:-translate-y-1 sm:h-14 sm:w-14 sm:rounded-2xl">
@@ -991,30 +1018,25 @@ export function FileSection({
                         {item.selectedFile ? (
                             <div
                                 className={`rounded-2xl border px-4 py-3 ${isImage
-                                        ? "border-blue-200 bg-blue-50"
-                                        : "border-red-200 bg-red-50"
+                                    ? "border-blue-200 bg-blue-50"
+                                    : "border-red-200 bg-red-50"
                                     }`}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="text-[11px] font-black uppercase tracking-[0.12em]">
-                                            Nuevo archivo
-                                            seleccionado
+                                            Nuevo archivo seleccionado
                                         </p>
 
                                         <p className="mt-1 truncate text-sm font-black">
                                             {
-                                                item
-                                                    .selectedFile
-                                                    .name
+                                                item.selectedFile.name
                                             }
                                         </p>
 
                                         <p className="mt-1 text-xs font-bold">
                                             {formatFileSize(
-                                                item
-                                                    .selectedFile
-                                                    .size,
+                                                item.selectedFile.size,
                                             )}
                                         </p>
                                     </div>
@@ -1043,9 +1065,7 @@ export function FileSection({
                                         </p>
 
                                         <p className="mt-1 truncate text-sm font-black text-slate-900">
-                                            Material
-                                            disponible
-                                            actualmente
+                                            Material disponible actualmente
                                         </p>
                                     </div>
 
@@ -1058,7 +1078,6 @@ export function FileSection({
                                         className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-700 transition hover:bg-slate-200"
                                     >
                                         <ExternalLink className="h-4 w-4" />
-
                                         Abrir
                                     </a>
                                 </div>
@@ -1093,20 +1112,43 @@ export function FileSection({
                 </div>
             </div>
 
-            {/* =================================================
-                ESTILOS DESCRIPCIÓN
-            ================================================= */}
-
             <style jsx global>{`
-                .ProseMirror {
+                .file-description-visual {
+                    color: #334155;
+                    font-size: 0.875rem;
+                    line-height: 1.75rem;
+                }
+
+                .file-description-visual,
+                .file-description-visual * {
+                    box-sizing: border-box;
+                }
+
+                .file-description-visual:focus {
                     outline: none;
                 }
 
-                .ProseMirror p {
-                    margin: 0.6rem 0;
+                .file-description-visual > *:first-child {
+                    margin-top: 0;
                 }
 
-                .ProseMirror h2 {
+                .file-description-visual > *:last-child {
+                    margin-bottom: 0;
+                }
+
+                .file-description-visual p {
+                    margin: 0.65rem 0;
+                }
+
+                .file-description-visual h1 {
+                    margin: 1.5rem 0 0.75rem;
+                    font-size: 2rem;
+                    line-height: 2.5rem;
+                    font-weight: 900;
+                    color: #0f172a;
+                }
+
+                .file-description-visual h2 {
                     margin: 1.25rem 0 0.65rem;
                     font-size: 1.4rem;
                     line-height: 1.8rem;
@@ -1114,7 +1156,7 @@ export function FileSection({
                     color: #0f172a;
                 }
 
-                .ProseMirror h3 {
+                .file-description-visual h3 {
                     margin: 1rem 0 0.5rem;
                     font-size: 1.15rem;
                     line-height: 1.6rem;
@@ -1122,47 +1164,41 @@ export function FileSection({
                     color: #0f172a;
                 }
 
-                .ProseMirror strong {
+                .file-description-visual strong {
                     font-weight: 800;
-                    color: #0f172a;
                 }
 
-                .ProseMirror u {
+                .file-description-visual u {
                     text-decoration: underline;
                 }
 
-                .ProseMirror ul {
+                .file-description-visual ul {
                     margin: 0.75rem 0;
                     padding-left: 1.75rem;
                     list-style-type: disc;
                 }
 
-                .ProseMirror ol {
+                .file-description-visual ol {
                     margin: 0.75rem 0;
                     padding-left: 1.75rem;
                     list-style-type: decimal;
                 }
 
-                .ProseMirror li {
+                .file-description-visual li {
                     margin: 0.25rem 0;
                 }
 
-                .ProseMirror li p {
-                    margin: 0.1rem 0;
-                }
-
-                .ProseMirror blockquote {
+                .file-description-visual blockquote {
                     margin: 1rem 0;
                     border-left: 4px solid #172861;
+                    border-radius: 0 0.5rem 0.5rem 0;
                     background: #f8fafc;
                     padding: 0.75rem 1rem;
                     color: #475569;
                     font-style: italic;
                 }
 
-                .ProseMirror
-                    .file-description-editor-image,
-                .ProseMirror img {
+                .file-description-visual img {
                     display: block;
                     width: auto;
                     max-width: 100%;
@@ -1172,11 +1208,13 @@ export function FileSection({
                     object-fit: contain;
                 }
 
-                .ProseMirror
-                    img.ProseMirror-selectednode {
-                    outline: 3px solid #3b82f6;
-                    outline-offset: 3px;
-                }
+                /*
+                 * IMPORTANTE:
+                 * No usamos !important aquí.
+                 * De esta forma los style=""
+                 * escritos por el docente tienen
+                 * prioridad.
+                 */
             `}</style>
         </section>
     );
