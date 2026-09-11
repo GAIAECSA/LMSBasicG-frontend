@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type { TeacherCourseModulesPageProps } from "./types";
 import { useCourseMods } from "./hook";
 import {
@@ -16,6 +18,7 @@ import { EmptyState } from "./ui/EmptyState";
 import { ModulesList } from "./ui/ModulesList";
 import { FormModal } from "./ui/FormModal";
 import { DeleteModal } from "./ui/DeleteModal";
+import { CoursePreviewModal } from "./ui/CoursePreviewModal";
 
 const PAGE_CLASS =
     "min-h-screen w-full bg-slate-50 px-3 py-3 pb-8 sm:px-4 sm:py-4 lg:px-5 xl:px-6 [@media(max-height:760px)]:py-3";
@@ -28,6 +31,9 @@ export function TeacherCourseModulesPage({
     params,
 }: TeacherCourseModulesPageProps) {
     const mods = useCourseMods({ courseId, params });
+
+    const [previewOpen, setPreviewOpen] =
+        useState(false);
 
     if (mods.isLoading) {
         return (
@@ -65,6 +71,7 @@ export function TeacherCourseModulesPage({
                         numericCourseId={mods.numericCourseId}
                         onRefresh={mods.handleManualRefresh}
                         onCreateModule={mods.openCreateModuleModal}
+                        onPreview={() => setPreviewOpen(true)}
                     />
                 </div>
 
@@ -131,6 +138,13 @@ export function TeacherCourseModulesPage({
                     onConfirm={mods.handleConfirmDelete}
                 />
             ) : null}
+
+            <CoursePreviewModal
+                open={previewOpen}
+                courseName={mods.selectedCourseName}
+                modules={mods.modules}
+                onClose={() => setPreviewOpen(false)}
+            />
         </section>
     );
 }
