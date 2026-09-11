@@ -4,6 +4,10 @@ export interface Enrollment {
     reference_code: string | null;
     comment: string | null;
     voucher_url: string | null;
+
+    // FECHA REAL DE INSCRIPCIÓN
+    created_at?: string | null;
+
     user: {
         id: number;
         firstname: string;
@@ -12,16 +16,17 @@ export interface Enrollment {
         idnumber?: string | null;
         id_number?: string | null;
     };
+
     course: {
         id: number;
         name: string;
     };
+
     role: {
         id: number;
         name: string;
     };
 }
-
 export interface CreateEnrollmentPayload {
     accepted?: boolean | null;
     reference_code?: string | null;
@@ -320,13 +325,19 @@ export async function deleteEnrollment(enrollmentId: number): Promise<string> {
 export async function getEnrollmentById(
     enrollmentId: number,
 ): Promise<Enrollment> {
+    if (!Number.isFinite(enrollmentId) || enrollmentId <= 0) {
+        throw new Error("No se pudo identificar la matrícula.");
+    }
+
     const response = await fetch(`${ENROLLMENTS_ENDPOINT}/${enrollmentId}`, {
         method: "GET",
         headers: buildAuthHeaders(),
         cache: "no-store",
     });
 
-    if (!response.ok) await parseErrorResponse(response);
+    if (!response.ok) {
+        await parseErrorResponse(response);
+    }
 
     return (await response.json()) as Enrollment;
 }
@@ -396,22 +407,66 @@ export async function getEnrollmentByUserAndCourse(
     courseId: number,
 ): Promise<Enrollment | null> {
     if (!Number.isFinite(userId) || userId <= 0) {
-        throw new Error("No se pudo identificar al usuario.");
+        throw new Error(
+            "No se pudo identificar al usuario.",
+        );
     }
 
     if (!Number.isFinite(courseId) || courseId <= 0) {
-        throw new Error("No se pudo identificar el curso.");
+        throw new Error(
+            "No se pudo identificar el curso.",
+        );
     }
 
-    const enrollments = await getEnrollmentsByUser(userId);
+    /*
+     * 1. Buscamos las matrículas del usuario.
+     */
+    const enrollments =
+        await getEnrollmentsByUser(userId);
 
-    return (
+    /*
+     * 2. Encontramos la matrícula correspondiente
+     *    al curso.
+     */
+    const enrollment =
         enrollments.find(
-            (enrollment) =>
-                Number(enrollment.course?.id) === courseId &&
-                enrollment.accepted === true,
-        ) ?? null
-    );
+            (item) =>
+                Number(item.course?.id) ===
+                Number(courseId) &&
+                item.accepted === true,
+        ) ?? null;
+
+    if (!enrollment) {
+        return null;
+    }
+
+    /*
+     * 3. Consultamos el detalle completo de la matrícula:
+     *
+     * GET
+     * /api/v1/enrollments/enrollments/{enrollment_id}
+     *
+     * Aquí obtenemos created_at.
+     */
+    try {
+        const detail =
+            await getEnrollmentById(
+                enrollment.id,
+            );
+
+        return detail;
+    } catch (error) {
+        console.error(
+            "No se pudo obtener el detalle de la matrícula:",
+            error,
+        );
+
+        /*
+         * Si el endpoint de detalle falla,
+         * devolvemos al menos la matrícula encontrada.
+         */
+        return enrollment;
+    }
 }
 
 function normalizeText(value?: string | null): string {
@@ -492,15 +547,15 @@ export async function hasAcceptedTeacherEnrollmentByUserAndCourse(
                 const enrollmentWithCourseId =
                     enrollment as Enrollment & {
                         course_id?:
-                            | number
-                            | string
-                            | null;
+                        | number
+                        | string
+                        | null;
                     };
 
                 const enrollmentCourseId =
                     Number(
                         enrollment.course?.id ??
-                            enrollmentWithCourseId.course_id,
+                        enrollmentWithCourseId.course_id,
                     );
 
                 const enrollmentUserId =
@@ -514,14 +569,14 @@ export async function hasAcceptedTeacherEnrollmentByUserAndCourse(
                     ) ||
                     enrollmentUserId <= 0 ||
                     enrollmentUserId ===
-                        userId;
+                    userId;
 
                 return (
                     belongsToUser &&
                     enrollmentCourseId ===
-                        courseId &&
+                    courseId &&
                     enrollment.accepted ===
-                        true &&
+                    true &&
                     isTeacherEnrollment(
                         enrollment,
                     )

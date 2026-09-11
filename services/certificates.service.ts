@@ -192,7 +192,6 @@ export type CertificatePdfValues = {
     instructorName?: string;
     certificateCode?: string;
     finalGrade?: string | number;
-    fileUrl?: string;
 };
 
 type ApiCertificateTemplate = {
@@ -1946,16 +1945,9 @@ async function resolveCertificateStudentValues(
             enrollment.course?.name ?? "",
         ).trim();
 
-        const enrollmentCreatedAt = (
-            enrollment as {
-                created_at?: string | null;
-            }
-        ).created_at;
-
-        const enrollmentDate =
-            formatEnrollmentDate(
-                enrollmentCreatedAt,
-            );
+        const enrollmentDate = formatEnrollmentDate(
+            enrollment.created_at,
+        );
 
         return {
             ...values,
@@ -2002,22 +1994,11 @@ export async function createCertificateFromTemplate(params: {
             params.values,
         );
 
-    console.log("DATOS PARA CERTIFICADO:", {
-        userId: params.userId,
-        courseId: params.courseId,
-        studentName: resolvedValues.studentName,
-        studentCedula: resolvedValues.studentCedula,
-        courseName: resolvedValues.courseName,
-        enrollmentDate: resolvedValues.enrollmentDate,
-        finalGrade: resolvedValues.finalGrade,
-    });
-
     const temporaryPdf = await generateCertificatePdfFile({
         template: params.template,
         values: {
             ...resolvedValues,
             certificateCode: "PENDIENTE",
-            fileUrl: "",
         },
         filename: `certificado-${params.courseId}-${params.userId}.pdf`,
     });
@@ -2042,8 +2023,6 @@ export async function createCertificateFromTemplate(params: {
             finalGrade: finalGradeFromCertificate,
             certificateCode:
                 createdCertificate.certificate_code,
-            fileUrl:
-                createdCertificate.file_url,
         },
         filename:
             `certificado-${createdCertificate.certificate_code}.pdf`,
@@ -2097,8 +2076,6 @@ export async function reissueCertificateFromTemplate(params: {
             certificateCode:
                 resolvedValues.certificateCode ||
                 currentCertificate.certificate_code,
-            fileUrl:
-                currentCertificate.file_url,
         },
         filename:
             `certificado-reemitido-${params.courseId}-${params.userId}.pdf`,
