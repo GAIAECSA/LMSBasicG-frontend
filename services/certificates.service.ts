@@ -187,6 +187,7 @@ export type CertificatePdfValues = {
     studentName: string;
     studentCedula?: string;
     courseName: string;
+    enrollmentDate?: string;
     completionDate: string;
     instructorName?: string;
     certificateCode?: string;
@@ -250,6 +251,35 @@ function createId() {
     }
 
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function formatEnrollmentDate(value?: string | null): string {
+    if (!value) return "";
+
+    const cleanValue = String(value).trim();
+
+    // Si viene como YYYY-MM-DD o ISO
+    const match = cleanValue.match(
+        /^(\d{4})-(\d{2})-(\d{2})/,
+    );
+
+    if (match) {
+        const [, year, month, day] = match;
+
+        return `${day}/${month}/${year}`;
+    }
+
+    const date = new Date(cleanValue);
+
+    if (Number.isNaN(date.getTime())) {
+        return cleanValue;
+    }
+
+    return new Intl.DateTimeFormat("es-EC", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    }).format(date);
 }
 
 function clearAuthSession() {
@@ -1541,7 +1571,8 @@ function replaceCertificateTemplateVariables(
         studentName: values.studentName,
         studentCedula: values.studentCedula ?? "",
         courseName: values.courseName,
-        completionDate: values.completionDate,
+        enrollmentDate: values.enrollmentDate ?? "",
+        completionDate: values.completionDate ?? "",
         instructorName: values.instructorName ?? "",
         certificateCode: values.certificateCode ?? "",
         finalGrade: values.finalGrade ?? "",
@@ -1915,6 +1946,17 @@ async function resolveCertificateStudentValues(
             enrollment.course?.name ?? "",
         ).trim();
 
+        const enrollmentCreatedAt = (
+            enrollment as {
+                created_at?: string | null;
+            }
+        ).created_at;
+
+        const enrollmentDate =
+            formatEnrollmentDate(
+                enrollmentCreatedAt,
+            );
+
         return {
             ...values,
 
@@ -1929,6 +1971,10 @@ async function resolveCertificateStudentValues(
             courseName:
                 String(values.courseName ?? "").trim() ||
                 courseName,
+
+            enrollmentDate:
+                enrollmentDate ||
+                String(values.enrollmentDate ?? "").trim(),
         };
     } catch (error) {
         console.error(
@@ -1962,6 +2008,7 @@ export async function createCertificateFromTemplate(params: {
         studentName: resolvedValues.studentName,
         studentCedula: resolvedValues.studentCedula,
         courseName: resolvedValues.courseName,
+        enrollmentDate: resolvedValues.enrollmentDate,
         finalGrade: resolvedValues.finalGrade,
     });
 
