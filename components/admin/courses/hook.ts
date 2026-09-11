@@ -69,6 +69,8 @@ import {
     resolveImageUrl,
 } from "./utils";
 
+import { useRouter } from "next/navigation";
+
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 function getErrorMessage(
@@ -81,6 +83,8 @@ function getErrorMessage(
 }
 
 export function useCoursesAdminPanel() {
+    const router = useRouter();
+
     const [courses, setCourses] =
         useState<Course[]>([]);
 
@@ -618,6 +622,10 @@ export function useCoursesAdminPanel() {
                 showPersistentError,
             ],
         );
+
+    function handleViewAsTeacher(course: Course) {
+        router.push(`/admin/modules/${course.id}`);
+    }
 
     useEffect(() => {
         const timeoutId =
@@ -2182,6 +2190,8 @@ export function useCoursesAdminPanel() {
 
         stats,
         loadCoursesData,
+
+        handleViewAsTeacher,
     };
 }
 

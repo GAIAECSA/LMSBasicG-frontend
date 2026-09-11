@@ -149,6 +149,8 @@ export function CoursesAdminPanel() {
                     onDelete={
                         panel.openDeleteModal
                     }
+                    
+                    onViewAsTeacher={panel.handleViewAsTeacher}
                 />
             </section>
 

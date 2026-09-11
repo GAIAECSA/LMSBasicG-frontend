@@ -732,12 +732,18 @@ export default function DashboardLayout({
         effectiveMixedTeacherAccessStatus ===
         "allowed";
 
+    const isAdminUsingTeacherCourse =
+        userRole === "admin" &&
+        routeRole === "teacher" &&
+        teacherCourseId !== null;
+
     const hasDirectRoleAccess =
         !routeRole ||
         routeRole === userRole;
 
     const hasCorrectRole =
         hasDirectRoleAccess ||
+        isAdminUsingTeacherCourse ||
         hasMixedTeacherCourseAccess;
 
     useEffect(() => {

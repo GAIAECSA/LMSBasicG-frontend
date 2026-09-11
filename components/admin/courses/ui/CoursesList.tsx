@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import {
+    Eye,
     Pencil,
     Trash2,
     UserRoundPlus,
@@ -48,6 +49,7 @@ type CoursesListProps = {
     onEdit: (course: Course) => void;
     onAssignTeacher: (course: Course) => void;
     onDelete: (course: Course) => void;
+    onViewAsTeacher: (course: Course) => void;
 };
 
 function getCourseCategoryData(
@@ -94,8 +96,8 @@ function CourseBadges({
 
             <span
                 className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black sm:text-[11px] ${getCourseIsMdt(course)
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-slate-100 text-slate-700"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-slate-100 text-slate-700"
                     }`}
             >
                 {getCourseIsMdt(course)
@@ -124,6 +126,7 @@ export function CoursesList({
     onNext,
     onEdit,
     onAssignTeacher,
+    onViewAsTeacher,
     onDelete,
 }: CoursesListProps) {
     return (
@@ -227,7 +230,7 @@ export function CoursesList({
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2 border-t border-slate-100 bg-white p-3 sm:p-4">
+                                    <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-white p-3 sm:p-4">
                                         <CourseActionButton
                                             variant="edit"
                                             label="Editar"
@@ -240,6 +243,12 @@ export function CoursesList({
                                             onClick={() =>
                                                 onAssignTeacher(course)
                                             }
+                                        />
+
+                                        <CourseActionButton
+                                            variant="view"
+                                            label="Ver como docente"
+                                            onClick={() => onViewAsTeacher(course)}
                                         />
 
                                         <CourseActionButton
@@ -397,7 +406,7 @@ export function CoursesList({
                                             <div className="flex flex-nowrap justify-end gap-2">
                                                 <DesktopActionButton
                                                     variant="edit"
-                                                    label="Editar"
+                                                    label=""
                                                     onClick={() =>
                                                         onEdit(course)
                                                     }
@@ -405,15 +414,21 @@ export function CoursesList({
 
                                                 <DesktopActionButton
                                                     variant="teacher"
-                                                    label="Docente"
+                                                    label=""
                                                     onClick={() =>
                                                         onAssignTeacher(course)
                                                     }
                                                 />
 
+                                                <CourseActionButton
+                                                    variant="view"
+                                                    label=""
+                                                    onClick={() => onViewAsTeacher(course)}
+                                                />
+
                                                 <DesktopActionButton
                                                     variant="delete"
-                                                    label="Eliminar"
+                                                    label=""
                                                     onClick={() =>
                                                         onDelete(course)
                                                     }
@@ -491,14 +506,14 @@ function CourseActionButton({
     label,
     onClick,
 }: {
-    variant: "edit" | "teacher" | "delete";
+    variant: "edit" | "teacher" | "view" | "delete";
     label: string;
     onClick: () => void;
 }) {
     const styles = {
         edit: "border-blue-200 text-blue-700 hover:bg-blue-50",
-        teacher:
-            "border-orange-200 text-orange-700 hover:bg-orange-50",
+        teacher: "border-orange-200 text-orange-700 hover:bg-orange-50",
+        view: "border-emerald-200 text-emerald-700 hover:bg-emerald-50",
         delete: "border-red-200 text-red-600 hover:bg-red-50",
     }[variant];
 
@@ -507,7 +522,9 @@ function CourseActionButton({
             ? Pencil
             : variant === "teacher"
                 ? UserRoundPlus
-                : Trash2;
+                : variant === "view"
+                    ? Eye
+                    : Trash2;
 
     return (
         <button

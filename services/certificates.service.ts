@@ -103,6 +103,7 @@ export type CertificateFieldType =
     | "student_name"
     | "course_name"
     | "student_cedula"
+    | "enrollment_date"
     | "completion_date"
     | "instructor_name"
     | "certificate_code"
@@ -115,6 +116,7 @@ export type CertificateVariableKey =
     | "student_name"
     | "student_cedula"
     | "course_name"
+    | "enrollment_date"
     | "completion_date"
     | "instructor_name"
     | "certificate_code"
@@ -230,6 +232,7 @@ const certificateFieldTypes: CertificateFieldType[] = [
     "student_name",
     "student_cedula",
     "course_name",
+    "enrollment_date",
     "completion_date",
     "instructor_name",
     "certificate_code",
@@ -568,6 +571,7 @@ export function getFieldLabel(type: CertificateFieldType) {
         student_name: "Nombre del estudiante",
         student_cedula: "Cedula del estudiante",
         course_name: "Nombre del curso",
+        enrollment_date: "Fecha de inscripción",
         completion_date: "Fecha de finalización",
         instructor_name: "Nombre del instructor",
         certificate_code: "Código del certificado",
@@ -586,6 +590,7 @@ export function getVariableKeyByFieldType(
     if (type === "student_name") return "student_name";
     if (type === "student_cedula") return "student_cedula";
     if (type === "course_name") return "course_name";
+    if (type === "enrollment_date") return "enrollment_date";
     if (type === "completion_date") return "completion_date";
     if (type === "instructor_name") return "instructor_name";
     if (type === "certificate_code") return "certificate_code";
@@ -605,6 +610,7 @@ export function getCertificatePreviewValue(variableKey: CertificateVariableKey) 
         student_name: "Nombre del estudiante",
         student_cedula: "Cedula del estudiante",
         course_name: "Nombre del curso",
+        enrollment_date: "01/01/2026",
         completion_date: "30/04/2026",
         instructor_name: "Nombre del instructor",
         certificate_code: "CERT-000001",
@@ -620,6 +626,7 @@ export function renderCertificateVariableText(value: string) {
         .replaceAll("{{student_name}}", "Nombre del estudiante")
         .replaceAll("{{student_cedula}}", "Cedula del estudiante")
         .replaceAll("{{course_name}}", "Nombre del curso")
+        .replaceAll("{{enrollment_date}}", "01/01/2026")
         .replaceAll("{{completion_date}}", "30/04/2026")
         .replaceAll("{{instructor_name}}", "Nombre del instructor")
         .replaceAll("{{certificate_code}}", "CERT-000001")
@@ -649,6 +656,7 @@ export function getFieldDefaultValue(type: CertificateFieldType) {
         student_name: "{{student_name}}",
         student_cedula: "{{student_cedula}}",
         course_name: "{{course_name}}",
+        enrollment_date: "{{enrollment_date}}",
         completion_date: "{{completion_date}}",
         instructor_name: "{{instructor_name}}",
         certificate_code: "{{certificate_code}}",
@@ -1107,6 +1115,7 @@ export function replaceCertificateVariables(
         studentName?: string;
         studentCedula?: string;
         courseName?: string;
+        enrollmentDate?: string;
         completionDate?: string;
         instructorName?: string;
         certificateCode?: string;
@@ -1117,6 +1126,7 @@ export function replaceCertificateVariables(
         .replaceAll("{{student_name}}", data.studentName ?? "")
         .replaceAll("{{student_cedula}}", data.studentCedula ?? "")
         .replaceAll("{{course_name}}", data.courseName ?? "")
+        .replaceAll("{{enrollment_date}}", data.enrollmentDate ?? "")
         .replaceAll("{{completion_date}}", data.completionDate ?? "")
         .replaceAll("{{instructor_name}}", data.instructorName ?? "")
         .replaceAll("{{certificate_code}}", data.certificateCode ?? "")
