@@ -1922,6 +1922,7 @@ export function CoursePreviewModal({
                 </main>
             </div>
         </div>
+        
     );
 }
 
