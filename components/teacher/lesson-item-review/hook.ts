@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { notify } from "@/lib/notify";
 import { getAcceptedStudentEnrollmentsByCourse } from "@/services/enrollments.service";
-import { getForumResponsesByLessonBlock } from "@/services/forum-response.service";
 import {
+    createForumResponse,
+    getForumResponsesByLessonBlock,
+} from "@/services/forum-response.service";
+import {
+    createHomeworkResponse,
     getHomeworkResponsesByLessonBlock,
     gradeHomeworkResponse,
 } from "@/services/homework-response.service";
@@ -13,10 +17,14 @@ import {
     getLessonBlock,
 } from "@/services/lessons.service";
 import {
+    createQuizzResponse,
     getQuizzResponsesByLessonBlock,
     updateQuizzResponse,
 } from "@/services/quizz-response.service";
-import { getSurveyResponsesByLessonBlock } from "@/services/survey-response.service";
+import {
+    createSurveyResponse,
+    getSurveyResponsesByLessonBlock,
+} from "@/services/survey-response.service";
 import { BLOCK_TYPE_IDS } from "./constants";
 import type {
     GradeFormState,
@@ -236,6 +244,8 @@ export function useLessonItemReview({
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [savingGrade, setSavingGrade] = useState(false);
+    const [uploadingHomework, setUploadingHomework] = useState(false);
+    const [creatingTeacherResponse, setCreatingTeacherResponse] = useState(false);
     const [error, setError] = useState("");
 
     const loadingDataRef = useRef(false);
@@ -400,9 +410,9 @@ export function useLessonItemReview({
                 const surveyBlocksPromise =
                     currentItemType === "survey"
                         ? getDefaultLessonBlocksByCourseAndType(
-                              numericCourseId,
-                              BLOCK_TYPE_IDS.survey,
-                          ).catch(() => [])
+                            numericCourseId,
+                            BLOCK_TYPE_IDS.survey,
+                        ).catch(() => [])
                         : Promise.resolve([]);
 
                 const [
@@ -425,9 +435,9 @@ export function useLessonItemReview({
 
                 const safeSurveyBlocks = Array.isArray(currentSurveyBlocks)
                     ? currentSurveyBlocks.filter(
-                          (surveyBlock) =>
-                              getItemTypeFromBlock(surveyBlock) === "survey",
-                      )
+                        (surveyBlock) =>
+                            getItemTypeFromBlock(surveyBlock) === "survey",
+                    )
                     : [];
 
                 if (
@@ -447,15 +457,15 @@ export function useLessonItemReview({
                 const currentRows =
                     currentItemType === "forum"
                         ? buildForumStudentRows({
-                              itemType: currentItemType,
-                              enrollments: safeEnrollments as EnrollmentList,
-                              responses: safeResponses,
-                          })
+                            itemType: currentItemType,
+                            enrollments: safeEnrollments as EnrollmentList,
+                            responses: safeResponses,
+                        })
                         : getNormalRows({
-                              itemType: currentItemType,
-                              enrollments: safeEnrollments as EnrollmentList,
-                              responses: safeResponses,
-                          });
+                            itemType: currentItemType,
+                            enrollments: safeEnrollments as EnrollmentList,
+                            responses: safeResponses,
+                        });
 
                 const nextSelectedRow =
                     currentRows.find(
@@ -538,6 +548,523 @@ export function useLessonItemReview({
 
         setSelectedEnrollmentId(nextRow?.enrollmentId ?? null);
     }, [rows, selectedIndex, setSelectedEnrollmentId]);
+
+    const handleTeacherHomeworkUpload = useCallback(
+        async (
+            file: File,
+            comment: string,
+        ) => {
+
+            if (!selectedRow) {
+                notify.warning(
+                    "Selecciona un estudiante primero.",
+                );
+                return;
+            }
+
+            if (itemType !== "homework") {
+                notify.warning(
+                    "Solo las tareas permiten cargar entregas.",
+                );
+                return;
+            }
+
+
+            try {
+
+                setUploadingHomework(true);
+
+                const loadingToast =
+                    notify.loading(
+                        "Guardando entrega docente...",
+                    );
+
+
+                await createHomeworkResponse({
+                    enrollment_id:
+                        selectedRow.enrollmentId,
+
+                    lesson_block_id:
+                        numericItemId,
+
+                    comment,
+
+                    file,
+
+                    status: "ENTREGADO",
+                });
+
+
+                notify.dismiss(
+                    loadingToast,
+                );
+
+
+                await loadData();
+
+
+                notify.success(
+                    "Entrega cargada correctamente.",
+                );
+
+
+            } catch (error) {
+
+                const message =
+                    getErrorMessage(error);
+
+                notify.error(message);
+
+                setError(message);
+
+            } finally {
+
+                setUploadingHomework(false);
+
+            }
+
+        },
+        [
+            itemType,
+            loadData,
+            numericItemId,
+            selectedRow,
+        ],
+    );
+
+    const handleTeacherForumCreate = useCallback(
+        async (
+            comment: string,
+        ) => {
+
+            if (!selectedRow) {
+                notify.warning(
+                    "Selecciona un estudiante primero.",
+                );
+                return;
+            }
+
+
+            try {
+
+                setCreatingTeacherResponse(true);
+
+
+                await createForumResponse({
+
+                    enrollment_id:
+                        selectedRow.enrollmentId,
+
+                    lesson_block_id:
+                        numericItemId,
+
+                    comment,
+
+                    forum_response_id:
+                        null,
+
+                });
+
+
+                await loadData();
+
+
+                notify.success(
+                    "Participación creada correctamente.",
+                );
+
+
+            } catch (error) {
+
+                const message =
+                    getErrorMessage(error);
+
+                setError(message);
+
+                notify.error(message);
+
+
+            } finally {
+
+                setCreatingTeacherResponse(false);
+
+            }
+
+        },
+        [
+            loadData,
+            numericItemId,
+            selectedRow,
+        ],
+    );
+
+    const handleTeacherSurveyCreate = useCallback(
+        async (
+            answers: Record<
+                string,
+                string
+            >,
+        ) => {
+            if (!selectedRow) {
+                notify.warning(
+                    "Selecciona un estudiante primero.",
+                );
+                return;
+            }
+
+            if (
+                itemType !== "survey"
+            ) {
+                notify.warning(
+                    "Esta acción solo está disponible para encuestas.",
+                );
+                return;
+            }
+
+            const content = (() => {
+                if (
+                    block?.content &&
+                    typeof block.content ===
+                    "object" &&
+                    !Array.isArray(
+                        block.content,
+                    )
+                ) {
+                    return block.content as Record<
+                        string,
+                        unknown
+                    >;
+                }
+
+                if (
+                    typeof block?.content ===
+                    "string"
+                ) {
+                    try {
+                        const parsed =
+                            JSON.parse(
+                                block.content,
+                            );
+
+                        if (
+                            parsed &&
+                            typeof parsed ===
+                            "object" &&
+                            !Array.isArray(
+                                parsed,
+                            )
+                        ) {
+                            return parsed as Record<
+                                string,
+                                unknown
+                            >;
+                        }
+                    } catch {
+                        return {};
+                    }
+                }
+
+                return {};
+            })();
+
+            try {
+                setCreatingTeacherResponse(
+                    true,
+                );
+
+                const toastId =
+                    notify.loading(
+                        "Guardando encuesta...",
+                    );
+
+                await createSurveyResponse({
+                    enrollment_id:
+                        selectedRow.enrollmentId,
+
+                    lesson_block_id:
+                        numericItemId,
+
+                    survey: content,
+
+                    response: {
+                        answers,
+                        submitted_at:
+                            new Date().toISOString(),
+                        created_by:
+                            "teacher",
+                    },
+                });
+
+                notify.dismiss(toastId);
+
+                await loadData();
+
+                notify.success(
+                    "Encuesta registrada correctamente.",
+                );
+            } catch (error) {
+                const message =
+                    getErrorMessage(error);
+
+                setError(message);
+                notify.error(message);
+            } finally {
+                setCreatingTeacherResponse(
+                    false,
+                );
+            }
+        },
+        [
+            block,
+            itemType,
+            loadData,
+            numericItemId,
+            selectedRow,
+        ],
+    );
+
+    const handleTeacherQuizCreate = useCallback(
+        async (
+            answers: Record<
+                string,
+                string | number
+            >,
+        ) => {
+            if (!selectedRow) {
+                notify.warning(
+                    "Selecciona un estudiante primero.",
+                );
+                return;
+            }
+
+            if (itemType !== "quiz") {
+                notify.warning(
+                    "Esta acción solo está disponible para pruebas.",
+                );
+                return;
+            }
+
+            const content = (() => {
+                if (
+                    block?.content &&
+                    typeof block.content ===
+                    "object" &&
+                    !Array.isArray(
+                        block.content,
+                    )
+                ) {
+                    return block.content as Record<
+                        string,
+                        unknown
+                    >;
+                }
+
+                if (
+                    typeof block?.content ===
+                    "string"
+                ) {
+                    try {
+                        const parsed =
+                            JSON.parse(
+                                block.content,
+                            );
+
+                        if (
+                            parsed &&
+                            typeof parsed ===
+                            "object" &&
+                            !Array.isArray(
+                                parsed,
+                            )
+                        ) {
+                            return parsed as Record<
+                                string,
+                                unknown
+                            >;
+                        }
+                    } catch {
+                        return {};
+                    }
+                }
+
+                return {};
+            })();
+
+            const questions =
+                Array.isArray(
+                    content.questions,
+                )
+                    ? content.questions
+                    : [];
+
+            let score = 0;
+
+            questions.forEach(
+                (
+                    rawQuestion,
+                    index,
+                ) => {
+                    if (
+                        !rawQuestion ||
+                        typeof rawQuestion !==
+                        "object" ||
+                        Array.isArray(
+                            rawQuestion,
+                        )
+                    ) {
+                        return;
+                    }
+
+                    const question =
+                        rawQuestion as Record<
+                            string,
+                            unknown
+                        >;
+
+                    const id = String(
+                        question.id ??
+                        index + 1,
+                    );
+
+                    const correctAnswer =
+                        Number(
+                            question.correct_answer ??
+                            question.correctAnswer,
+                        );
+
+                    const selectedAnswer =
+                        Number(
+                            answers[id],
+                        );
+
+                    const points =
+                        Number(
+                            question.points ??
+                            1,
+                        );
+
+                    if (
+                        Number.isFinite(
+                            correctAnswer,
+                        ) &&
+                        Number.isFinite(
+                            selectedAnswer,
+                        ) &&
+                        correctAnswer ===
+                        selectedAnswer
+                    ) {
+                        score +=
+                            Number.isFinite(
+                                points,
+                            )
+                                ? points
+                                : 1;
+                    }
+                },
+            );
+
+            const minimumScore =
+                Number(
+                    block?.completion_value ??
+                    content.minimum_score ??
+                    0,
+                );
+
+            const isPassed =
+                minimumScore > 0
+                    ? score >= minimumScore
+                    : true;
+
+            const submittedAt =
+                new Date().toISOString();
+
+            const attemptRecord = {
+                attempt: 1,
+                answers,
+                score,
+                minimum_score:
+                    minimumScore,
+                is_passed: isPassed,
+                submitted_at:
+                    submittedAt,
+                created_by:
+                    "teacher",
+            };
+
+            const responsePayload = {
+                ...attemptRecord,
+
+                attempts: 1,
+
+                max_attempts: 1,
+
+                history: [
+                    attemptRecord,
+                ],
+            };
+
+            try {
+                setCreatingTeacherResponse(
+                    true,
+                );
+
+                const toastId =
+                    notify.loading(
+                        "Guardando evaluación...",
+                    );
+
+                await createQuizzResponse({
+                    enrollment_id:
+                        selectedRow.enrollmentId,
+
+                    lesson_block_id:
+                        numericItemId,
+
+                    quizz:
+                        JSON.stringify(
+                            content,
+                        ),
+
+                    response:
+                        JSON.stringify(
+                            responsePayload,
+                        ),
+
+                    score,
+
+                    is_passed:
+                        isPassed,
+                });
+
+                notify.dismiss(toastId);
+
+                await loadData();
+
+                notify.success(
+                    `Evaluación registrada. Nota: ${score}.`,
+                );
+            } catch (error) {
+                const message =
+                    getErrorMessage(error);
+
+                setError(message);
+
+                notify.error(message);
+            } finally {
+                setCreatingTeacherResponse(
+                    false,
+                );
+            }
+        },
+        [
+            block,
+            itemType,
+            loadData,
+            numericItemId,
+            selectedRow,
+        ],
+    );
+
 
     async function handleSaveGrade() {
         if (savingGradeRef.current) {
@@ -651,6 +1178,8 @@ export function useLessonItemReview({
         loading,
         refreshing,
         savingGrade,
+        uploadingHomework,
+        creatingTeacherResponse,
         error,
 
         block,
@@ -683,6 +1212,13 @@ export function useLessonItemReview({
         handleRefresh,
 
         handleSaveGrade,
+        handleTeacherHomeworkUpload,
+
+        handleTeacherForumCreate,
+
+        handleTeacherSurveyCreate,
+
+        handleTeacherQuizCreate,
         goToPreviousStudent,
         goToNextStudent,
         handlePreviousStudent: goToPreviousStudent,

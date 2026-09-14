@@ -45,7 +45,7 @@ export function GradePanel({
 
     const nextRow =
         selectedIndex >= 0 &&
-        selectedIndex < review.rows.length - 1
+            selectedIndex < review.rows.length - 1
             ? review.rows[selectedIndex + 1]
             : null;
 
@@ -210,8 +210,7 @@ export function GradePanel({
                             max="10"
                             step="0.01"
                             disabled={
-                                !review.selectedRow
-                                    ?.responseId
+                                !review.selectedRow?.responseId
                             }
                             value={
                                 review.gradeForm.score
