@@ -227,27 +227,23 @@ export function getStudentCourseIdFromPathname(
 export function getAdminCourseIdFromPathname(
     pathname: string,
 ): string | null {
-    /*
-     * /admin/courses/3
-     * /admin/courses/3/grades
-     * /admin/courses/3/certificates
-     * /admin/courses/3/attendance
-     */
+
     const courseMatch = pathname.match(
         /^\/admin\/courses\/(\d+)(?:\/.*)?$/,
     );
 
-    /*
-     * /admin/modules/3
-     * /admin/modules/3/items/...
-     */
     const modulesMatch = pathname.match(
         /^\/admin\/modules\/(\d+)(?:\/.*)?$/,
+    );
+
+    const attendanceMatch = pathname.match(
+        /^\/admin\/attendance\/teacher\/(\d+)(?:\/.*)?$/,
     );
 
     return (
         courseMatch?.[1] ??
         modulesMatch?.[1] ??
+        attendanceMatch?.[1] ??
         null
     );
 }
@@ -480,32 +476,32 @@ export function getSidebarItemsByRoute(
                             label: "Asistencia Docente",
                             href:
                                 `/teacher/courses/${courseId}/attendance/teacher`,
-                        businessModuleKey: "mdt",
-                    },
+                            businessModuleKey: "mdt",
+                        },
 
-        {
-            label: "Archivos MDT",
-            href:
-                `/teacher/courses/${courseId}/mdt-required-files`,
-            businessModuleKey: "mdt",
-        },
+                        {
+                            label: "Archivos MDT",
+                            href:
+                                `/teacher/courses/${courseId}/mdt-required-files`,
+                            businessModuleKey: "mdt",
+                        },
 
-        {
-            label: "Evidencia MDT",
-            href:
-                `/teacher/courses/${courseId}/evidence`,
-            businessModuleKey: "mdt",
-        },
+                        {
+                            label: "Evidencia MDT",
+                            href:
+                                `/teacher/courses/${courseId}/evidence`,
+                            businessModuleKey: "mdt",
+                        },
 
-        {
-            label: "Certificados MDT",
-            href:
-                `/teacher/courses/${courseId}/mdt-certificados`,
-            businessModuleKey: "mdt",
+                        {
+                            label: "Certificados MDT",
+                            href:
+                                `/teacher/courses/${courseId}/mdt-certificados`,
+                            businessModuleKey: "mdt",
+                        },
+                    ]
+                    : []),
+            ],
         },
-    ]
-                : []),
-        ],
-},
-];
+    ];
 }   

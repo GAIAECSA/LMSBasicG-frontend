@@ -1837,7 +1837,7 @@ export function Sidebar({
         }
 
         const attendanceHref =
-            `/admin/attendance/teacher/${courseId}`;
+    `/admin/modules/${courseId}/attendance/teacher`;
 
         let found = false;
 
