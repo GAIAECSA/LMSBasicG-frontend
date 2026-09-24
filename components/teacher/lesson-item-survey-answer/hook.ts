@@ -1341,7 +1341,7 @@ export function useTeacherSurveyAnswer({
     const editorHref =
         isAdminRoute
             ? `/admin/modules/${numericCourseId}/items/${numericItemId}`
-            : `/teacher/courses/${numericCourseId}/modules/items/${numericItemId}`;
+            : `/teacher/courses/${numericCourseId}/items/${numericItemId}`;
 
     /* =====================================================
        RETURN
