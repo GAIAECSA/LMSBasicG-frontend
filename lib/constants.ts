@@ -45,10 +45,6 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     label: "Subcategorías",
                     href: "/admin/courses/subcategories",
                 },
-               /*  {
-                    label: "Módulos",
-                    href: "/admin/modules",
-                }, */
             ],
         },
         {
@@ -78,38 +74,6 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 },
             ],
         },
-        /* {
-            label: "Certificados y MDT",
-            children: [
-                {
-                    label: "Certificados",
-                    href: "/admin/certificates",
-                },
-                {
-                    label: "Archivos MDT",
-                    href: "/admin/mdt-required-files",
-                    businessModuleKey: "mdt",
-                },
-                {
-                    label: "Certificados MDT",
-                    href: "/admin/mdt-certificados",
-                    businessModuleKey: "mdt",
-                },
-                {
-                    label: "Evidencia MDT",
-                    href: "/admin/mdt-evidence",
-                    businessModuleKey: "mdt",
-                },
-            ],
-        }, */
-
-        /*
-        {
-            label: "Clases en vivo",
-            href: "/admin/live-classes",
-        },
-        */
-
         {
             label: "Administración",
             children: [
@@ -118,10 +82,6 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                     href: "/admin/reports",
                     businessModuleKey: "mdt",
                 },
-                /* {
-                    label: "Formularios",
-                    href: "/admin/forms",
-                }, */
                 {
                     label: "Políticas de privacidad",
                     href: "/admin/privacy",
@@ -139,14 +99,6 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             label: "Mis cursos",
             href: "/student/courses",
         },
-
-        /*
-        {
-            label: "Clases en vivo",
-            href: "/teacher/live-classes",
-        },
-        */
-
         {
             label: "Evaluación",
             children: [
@@ -179,14 +131,6 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
             label: "Calendario",
             href: "/student/calendar",
         },
-
-        /*
-        {
-            label: "Clases en vivo",
-            href: "/student/live-classes",
-        },
-        */
-
         {
             label: "Certificados",
             href: "/student/certificates",
@@ -199,7 +143,6 @@ export const roleLabels: Record<UserRole, string> = {
     teacher: "Profesor",
     student: "Estudiante",
 };
-
 
 /* =====================================================
    ROL EFECTIVO SEGÚN RUTA
@@ -233,7 +176,6 @@ export function getEffectiveRoleByPathname(
     return userRole ?? "student";
 }
 
-
 /* =====================================================
    COURSE ID - DOCENTE
 ===================================================== */
@@ -241,15 +183,13 @@ export function getEffectiveRoleByPathname(
 export function getTeacherCourseIdFromPathname(
     pathname: string,
 ): string | null {
-    const courseMatch =
-        pathname.match(
-            /^\/teacher\/courses\/(\d+)(?:\/.*)?$/,
-        );
+    const courseMatch = pathname.match(
+        /^\/teacher\/courses\/(\d+)(?:\/.*)?$/,
+    );
 
-    const liveClassesMatch =
-        pathname.match(
-            /^\/teacher\/live-classes\/(\d+)(?:\/.*)?$/,
-        );
+    const liveClassesMatch = pathname.match(
+        /^\/teacher\/live-classes\/(\d+)(?:\/.*)?$/,
+    );
 
     return (
         courseMatch?.[1] ??
@@ -257,7 +197,6 @@ export function getTeacherCourseIdFromPathname(
         null
     );
 }
-
 
 /* =====================================================
    COURSE ID - ESTUDIANTE
@@ -266,15 +205,13 @@ export function getTeacherCourseIdFromPathname(
 export function getStudentCourseIdFromPathname(
     pathname: string,
 ): string | null {
-    const courseMatch =
-        pathname.match(
-            /^\/student\/courses\/(\d+)(?:\/.*)?$/,
-        );
+    const courseMatch = pathname.match(
+        /^\/student\/courses\/(\d+)(?:\/.*)?$/,
+    );
 
-    const liveClassesMatch =
-        pathname.match(
-            /^\/student\/live-classes\/(\d+)(?:\/.*)?$/,
-        );
+    const liveClassesMatch = pathname.match(
+        /^\/student\/live-classes\/(\d+)(?:\/.*)?$/,
+    );
 
     return (
         courseMatch?.[1] ??
@@ -282,7 +219,6 @@ export function getStudentCourseIdFromPathname(
         null
     );
 }
-
 
 /* =====================================================
    COURSE ID - ADMINISTRADOR
@@ -296,21 +232,18 @@ export function getAdminCourseIdFromPathname(
      * /admin/courses/3/grades
      * /admin/courses/3/certificates
      * /admin/courses/3/attendance
-     * etc.
      */
-    const courseMatch =
-        pathname.match(
-            /^\/admin\/courses\/(\d+)(?:\/.*)?$/,
-        );
+    const courseMatch = pathname.match(
+        /^\/admin\/courses\/(\d+)(?:\/.*)?$/,
+    );
 
     /*
      * /admin/modules/3
      * /admin/modules/3/items/...
      */
-    const modulesMatch =
-        pathname.match(
-            /^\/admin\/modules\/(\d+)(?:\/.*)?$/,
-        );
+    const modulesMatch = pathname.match(
+        /^\/admin\/modules\/(\d+)(?:\/.*)?$/,
+    );
 
     return (
         courseMatch?.[1] ??
@@ -318,7 +251,6 @@ export function getAdminCourseIdFromPathname(
         null
     );
 }
-
 
 /* =====================================================
    SIDEBAR SEGÚN RUTA
@@ -329,9 +261,13 @@ export function getSidebarItemsByRoute(
     pathname: string,
     isTeacherMdtCourse = false,
 ): SidebarItem[] {
+
     /*
-     * ADMIN dentro del editor de módulos.
+     * =================================================
+     * ADMIN DENTRO DE UN CURSO
+     * =================================================
      */
+
     if (userRole === "admin") {
         const adminCourseId =
             getAdminCourseIdFromPathname(pathname);
@@ -350,36 +286,64 @@ export function getSidebarItemsByRoute(
                             label: "Módulos",
                             href: `/admin/modules/${adminCourseId}`,
                         },
+
                         {
                             label: "Calificaciones",
                             href: `/teacher/courses/${adminCourseId}/grades`,
                         },
-                        {
-                            label: "Certificados",
-                            href: `/teacher/courses/${adminCourseId}/certificates`,
-                        },
-                        {
-                            label: "Mi Asistencia",
-                            href: `/teacher/courses/${adminCourseId}/my-attendance`,
-                            businessModuleKey: "mdt",
-                        },
-                        {
-                            label: "Asistencia Estudiante",
-                            href: `/teacher/courses/${adminCourseId}/attendance`,
-                            businessModuleKey: "mdt",
-                        },
-                        {
-                            label: "Archivos MDT",
-                            href: `/teacher/courses/${adminCourseId}/mdt-required-files`,
-                            businessModuleKey: "mdt",
-                        },
-                        {
-                            label: "Evidencia MDT",
-                            href: `/teacher/courses/${adminCourseId}/evidence`,
-                            businessModuleKey: "mdt",
-                        },
+
+                        /*
+                         * IMPORTANTE:
+                         *
+                         * Certificados normal se mantiene
+                         * solamente cuando NO es MDT.
+                         *
+                         * Si el curso es MDT, NO aparece.
+                         */
+                        ...(!isTeacherMdtCourse
+                            ? [
+                                {
+                                    label: "Certificados",
+                                    href: `/teacher/courses/${adminCourseId}/certificates`,
+                                },
+                            ]
+                            : []),
+
+                        /*
+                         * =================================================
+                         * OPCIONES MDT
+                         * SOLO APARECEN SI is_mdt = true
+                         * =================================================
+                         */
+
                         ...(isTeacherMdtCourse
                             ? [
+                                {
+                                    label: "Mi Asistencia",
+                                    href: `/teacher/courses/${adminCourseId}/my-attendance`,
+                                    businessModuleKey: "mdt",
+                                },
+                                {
+                                    label: "Asistencia Estudiante",
+                                    href: `/teacher/courses/${adminCourseId}/attendance`,
+                                    businessModuleKey: "mdt",
+                                },
+                                {
+                                    label: "Asistencia Docente",
+                                    href:
+                                        `/teacher/courses/${adminCourseId}/attendance/teacher`,
+                                    businessModuleKey: "mdt",
+                                },
+                                {
+                                    label: "Archivos MDT",
+                                    href: `/teacher/courses/${adminCourseId}/mdt-required-files`,
+                                    businessModuleKey: "mdt",
+                                },
+                                {
+                                    label: "Evidencia MDT",
+                                    href: `/teacher/courses/${adminCourseId}/evidence`,
+                                    businessModuleKey: "mdt",
+                                },
                                 {
                                     label: "Certificados MDT",
                                     href: `/teacher/courses/${adminCourseId}/mdt-certificados`,
@@ -392,6 +356,12 @@ export function getSidebarItemsByRoute(
             ];
         }
     }
+
+    /*
+     * =================================================
+     * ROL EFECTIVO
+     * =================================================
+     */
 
     const effectiveRole =
         getEffectiveRoleByPathname(
@@ -407,20 +377,24 @@ export function getSidebarItemsByRoute(
         return sidebarByRole.student;
     }
 
+    /*
+     * =================================================
+     * DOCENTE DENTRO DE UN CURSO
+     * =================================================
+     */
+
     const courseId =
-        getTeacherCourseIdFromPathname(
-            pathname,
-        );
+        getTeacherCourseIdFromPathname(pathname);
 
     if (!courseId) {
         return sidebarByRole.teacher;
     }
 
     /*
-     * Importante:
-     * aunque pathname sea /teacher/..., el usuario real
-     * puede seguir siendo ADMIN.
+     * El usuario real puede ser ADMIN,
+     * pero estar visualizando un curso como docente.
      */
+
     const isAdminViewingCourse =
         userRole === "admin";
 
@@ -437,6 +411,7 @@ export function getSidebarItemsByRoute(
 
         {
             label: "Curso actual",
+
             href: isAdminViewingCourse
                 ? `/admin/modules/${courseId}`
                 : `/teacher/courses/${courseId}`,
@@ -444,49 +419,93 @@ export function getSidebarItemsByRoute(
             children: [
                 {
                     label: "Módulos",
+
                     href: isAdminViewingCourse
                         ? `/admin/modules/${courseId}`
                         : `/teacher/courses/${courseId}/modules`,
                 },
+
                 {
                     label: "Calificaciones",
-                    href: `/teacher/courses/${courseId}/grades`,
+
+                    href:
+                        `/teacher/courses/${courseId}/grades`,
                 },
-                {
-                    label: "Certificados",
-                    href: `/teacher/courses/${courseId}/certificates`,
-                },
-                {
-                    label: "Mi Asistencia",
-                    href: `/teacher/courses/${courseId}/my-attendance`,
-                    businessModuleKey: "mdt",
-                },
-                {
-                    label: "Asistencia Estudiante",
-                    href: `/teacher/courses/${courseId}/attendance`,
-                    businessModuleKey: "mdt",
-                },
-                {
-                    label: "Archivos MDT",
-                    href: `/teacher/courses/${courseId}/mdt-required-files`,
-                    businessModuleKey: "mdt",
-                },
-                {
-                    label: "Evidencia MDT",
-                    href: `/teacher/courses/${courseId}/evidence`,
-                    businessModuleKey: "mdt",
-                },
+
+                /*
+                 * =================================================
+                 * CERTIFICADOS NORMALES
+                 *
+                 * NO aparecen dentro de cursos MDT.
+                 * =================================================
+                 */
+
+                ...(!isTeacherMdtCourse
+                    ? [
+                        {
+                            label: "Certificados",
+                            href:
+                                `/teacher/courses/${courseId}/certificates`,
+                        },
+                    ]
+                    : []),
+
+                /*
+                 * =================================================
+                 * OPCIONES MDT
+                 *
+                 * SOLO aparecen cuando:
+                 *
+                 * is_mdt === true
+                 * =================================================
+                 */
 
                 ...(isTeacherMdtCourse
                     ? [
                         {
-                            label: "Certificados MDT",
-                            href: `/teacher/courses/${courseId}/mdt-certificados`,
+                            label: "Mi Asistencia",
+                            href:
+                                `/teacher/courses/${courseId}/my-attendance`,
                             businessModuleKey: "mdt",
                         },
-                    ]
-                    : []),
-            ],
+
+                        {
+                            label: "Asistencia Estudiante",
+                            href:
+                                `/teacher/courses/${courseId}/attendance`,
+                            businessModuleKey: "mdt",
+                        },
+
+                        {
+                            label: "Asistencia Docente",
+                            href:
+                                `/teacher/courses/${courseId}/attendance/teacher`,
+                        businessModuleKey: "mdt",
+                    },
+
+        {
+            label: "Archivos MDT",
+            href:
+                `/teacher/courses/${courseId}/mdt-required-files`,
+            businessModuleKey: "mdt",
         },
-    ];
-}
+
+        {
+            label: "Evidencia MDT",
+            href:
+                `/teacher/courses/${courseId}/evidence`,
+            businessModuleKey: "mdt",
+        },
+
+        {
+            label: "Certificados MDT",
+            href:
+                `/teacher/courses/${courseId}/mdt-certificados`,
+            businessModuleKey: "mdt",
+        },
+    ]
+                : []),
+        ],
+},
+];
+}   

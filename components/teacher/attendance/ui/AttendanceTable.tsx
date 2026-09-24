@@ -293,12 +293,12 @@ function EmptyStudents() {
             <Users className="mx-auto h-8 w-8 text-slate-400 sm:h-10 sm:w-10" />
 
             <h3 className="mt-3 text-base font-black text-slate-950 sm:mt-4 sm:text-lg">
-                No hay estudiantes para mostrar
+                No hay docentes para mostrar
             </h3>
 
             <p className="mx-auto mt-2 max-w-lg text-xs font-semibold leading-5 text-slate-500 sm:text-sm sm:leading-6">
                 Si acabas de crear la sesión y no
-                aparecen estudiantes, verifica que
+                aparecen docentes, verifica que
                 existan matrículas aprobadas para este
                 curso.
             </p>

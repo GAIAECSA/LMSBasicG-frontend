@@ -35,6 +35,8 @@ import {
     X,
 } from "lucide-react";
 
+import { getCourses } from "@/services/courses.service";
+
 import {
     getSidebarItemsByRoute,
     type SidebarItem,
@@ -509,17 +511,131 @@ function isDashboardHomeItem(
     );
 }
 
+type CourseSidebarInfo = {
+    id: number;
+    is_mdt: boolean;
+};
+
+function normalizeMdtFlag(value: unknown): boolean {
+    if (value === true || value === 1) {
+        return true;
+    }
+
+    if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+
+        return [
+            "true",
+            "1",
+            "yes",
+            "si",
+            "sí",
+        ].includes(normalized);
+    }
+
+    return false;
+}
+
+function isMdtSidebarItem(item: SidebarItem): boolean {
+    const value = item as SidebarItem & {
+        is_mdt?: unknown;
+        isMdt?: unknown;
+        businessModuleKey?: string | null;
+    };
+
+    if (normalizeMdtFlag(value.is_mdt)) {
+        return true;
+    }
+
+    if (normalizeMdtFlag(value.isMdt)) {
+        return true;
+    }
+
+    const moduleKey =
+        typeof value.businessModuleKey === "string"
+            ? value.businessModuleKey.trim().toLowerCase()
+            : "";
+
+    if (moduleKey === "mdt") {
+        return true;
+    }
+
+    return value.label.trim().toLowerCase().includes("mdt");
+}
+
+function isNormalCertificateSidebarItem(item: SidebarItem): boolean {
+    const label =
+        typeof item.label === "string"
+            ? item.label.trim().toLowerCase()
+            : "";
+
+    return (
+        label === "certificado" ||
+        label === "certificados"
+    );
+}
+
+function filterSidebarItemsByCourseMdt(
+    items: SidebarItem[],
+    isMdtCourse: boolean,
+): SidebarItem[] {
+    return items.flatMap((item) => {
+        const itemIsMdt = isMdtSidebarItem(item);
+
+        /*
+         * En cursos MDT no se muestra el certificado normal.
+         * "Certificados MDT" sí debe permanecer visible.
+         */
+        if (
+            isMdtCourse &&
+            isNormalCertificateSidebarItem(item)
+        ) {
+            return [];
+        }
+
+        if (itemIsMdt && !isMdtCourse) {
+            return [];
+        }
+
+        if (!item.children?.length) {
+            return [item];
+        }
+
+        const children = filterSidebarItemsByCourseMdt(
+            item.children,
+            isMdtCourse,
+        );
+
+        if (children.length === 0 && !item.href) {
+            return [];
+        }
+
+        return [
+            {
+                ...item,
+                children,
+            },
+        ];
+    });
+}
+
 function filterSidebarItemsByBusinessPlan(
     items: SidebarItem[],
     plans:
         BusinessLmsPlan[] |
         null,
+    isMdtCourse = false,
 ): SidebarItem[] {
     return items.flatMap(
         (
             item,
         ) => {
+            const isCourseMdtItem =
+                isMdtCourse &&
+                item.businessModuleKey === "mdt";
+
             const isAllowed =
+                isCourseMdtItem ||
                 hasBusinessLmsModule(
                     plans,
                     item.businessModuleKey,
@@ -536,6 +652,7 @@ function filterSidebarItemsByBusinessPlan(
                     ? filterSidebarItemsByBusinessPlan(
                         item.children,
                         plans,
+                        isMdtCourse,
                     )
                     : undefined;
 
@@ -1490,6 +1607,8 @@ export function Sidebar({
     const pathname =
         usePathname();
 
+    const [courses, setCourses] = useState<CourseSidebarInfo[]>([]);
+
     const {
         user,
         signOut,
@@ -1530,6 +1649,46 @@ export function Sidebar({
     /*
      * Consulta los planes habilitados para la empresa autenticada.
      */
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        let ignoreResponse = false;
+
+        async function loadCourses() {
+            try {
+                const response = await getCourses();
+
+                if (ignoreResponse) {
+                    return;
+                }
+
+                const normalizedCourses = response.map((course) => ({
+                    id: Number(course.id),
+                    is_mdt: normalizeMdtFlag(course.is_mdt),
+                }));
+
+                setCourses(normalizedCourses);
+            } catch (error) {
+                if (!ignoreResponse) {
+                    console.error(
+                        "Error cargando cursos para determinar is_mdt",
+                        error,
+                    );
+                    setCourses([]);
+                }
+            }
+        }
+
+        void loadCourses();
+
+        return () => {
+            ignoreResponse = true;
+        };
+    }, [user]);
+
     useEffect(() => {
         if (
             !user
@@ -1591,32 +1750,179 @@ export function Sidebar({
         user,
     ]);
 
-    const items =
-        useMemo(
-            () => {
+    const currentCourse = useMemo(() => {
+
+        const match =
+            pathname.match(
+                /\/(?:admin\/modules|teacher\/courses|admin\/attendance\/teacher)\/(\d+)/
+            );
+
+
+        if (!match) {
+            return null;
+        }
+
+
+        const courseId =
+            Number(match[1]);
+
+
+        return (
+            courses.find(
+                (course) =>
+                    Number(course.id) === courseId
+            ) ?? null
+        );
+
+
+    }, [
+        pathname,
+        courses,
+    ]);
+
+    const isMdtCourse = currentCourse?.is_mdt === true;
+
+    const routeItems = useMemo(() => {
+        return getSidebarItemsByRoute(
+            user?.role,
+            pathname,
+            isMdtCourse,
+        );
+    }, [
+        user?.role,
+        pathname,
+        isMdtCourse,
+    ]);
+
+    /*
+     * Los módulos empresariales se aplican solamente cuando la respuesta
+     * ya fue cargada. Si falla el endpoint, no se eliminan los módulos
+     * normales por un problema de red.
+     */
+    const baseItems = useMemo(() => {
+        if (businessPlans === null) {
+            return routeItems;
+        }
+
+        return filterSidebarItemsByBusinessPlan(
+            routeItems,
+            businessPlans,
+            isMdtCourse,
+        );
+    }, [
+        businessPlans,
+        routeItems,
+        isMdtCourse,
+    ]);
+
+    const courseItems = useMemo(() => {
+        const courseId = currentCourse?.id;
+
+        if (!courseId) {
+            return baseItems;
+        }
+
+        /*
+         * Solo ajustamos la ruta de Asistencia docente
+         * cuando estamos dentro de una ruta ADMIN.
+         *
+         * En TEACHER la opción ya viene desde constants.ts
+         * y no debemos agregar otra.
+         */
+        const isAdminAttendanceRoute =
+            pathname.startsWith("/admin/");
+
+        if (!isAdminAttendanceRoute) {
+            return baseItems;
+        }
+
+        const attendanceHref =
+            `/admin/attendance/teacher/${courseId}`;
+
+        let found = false;
+
+        const updateAttendanceItems = (
+            sidebarItems: SidebarItem[],
+        ): SidebarItem[] => {
+            return sidebarItems.map((item) => {
+                const label =
+                    typeof item.label === "string"
+                        ? item.label.trim().toLowerCase()
+                        : "";
+
+                let nextItem = item;
+
                 if (
-                    !user
+                    label === "asistencia docente" ||
+                    label === "asistencia profesor"
                 ) {
-                    return [];
+                    found = true;
+
+                    nextItem = {
+                        ...item,
+                        href: attendanceHref,
+                        businessModuleKey:
+                            item.businessModuleKey ?? "mdt",
+                    };
                 }
 
-                const baseItems =
-                    getSidebarItemsByRoute(
-                        user.role,
-                        pathname,
-                    );
+                if (item.children?.length) {
+                    nextItem = {
+                        ...nextItem,
+                        children:
+                            updateAttendanceItems(
+                                item.children,
+                            ),
+                    };
+                }
 
-                return filterSidebarItemsByBusinessPlan(
-                    baseItems,
-                    businessPlans,
-                );
+                return nextItem;
+            });
+        };
+
+        const updatedItems =
+            updateAttendanceItems(baseItems);
+
+        /*
+         * Si constants.ts ya tiene Asistencia docente,
+         * únicamente actualizamos su href.
+         */
+        if (found) {
+            return updatedItems;
+        }
+
+        /*
+         * Si ADMIN no tiene todavía la opción,
+         * la agregamos una sola vez.
+         */
+        return [
+            ...baseItems,
+            {
+                label: "Asistencia docente",
+                href: attendanceHref,
+                businessModuleKey: "mdt",
             },
-            [
-                businessPlans,
-                pathname,
-                user,
-            ],
+        ];
+    }, [
+        baseItems,
+        currentCourse?.id,
+        pathname,
+    ]);
+
+    /*
+     * MDT depende del curso actual, no del nombre del curso.
+     * Únicamente se muestran opciones MDT cuando el API devuelve
+     * is_mdt=true para el curso que está abierto.
+     */
+    const items = useMemo(() => {
+        return filterSidebarItemsByCourseMdt(
+            courseItems,
+            isMdtCourse,
         );
+    }, [
+        courseItems,
+        isMdtCourse,
+    ]);
 
     const displayName =
         useMemo(
