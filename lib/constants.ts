@@ -80,7 +80,7 @@ export const sidebarByRole: Record<UserRole, SidebarItem[]> = {
                 {
                     label: "Reportes",
                     href: "/admin/reports",
-                    businessModuleKey: "mdt",
+                    businessModuleKey: "corporate_plan",
                 },
                 {
                     label: "Políticas de privacidad",
