@@ -1,7 +1,13 @@
+
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import {
+    useCallback,
+    useSyncExternalStore,
+} from "react";
+
 import type { LoginResponse } from "@/types/auth";
+
 import {
     AUTH_CHANGE_EVENT,
     AUTH_STORAGE_KEY,
@@ -9,15 +15,25 @@ import {
     saveAuthSession,
 } from "@/lib/auth";
 
+/* ============================================
+   CACHE DE AUTENTICACIÓN
+============================================ */
+
 let cachedRawSession: string | null = null;
 let cachedParsedSession: LoginResponse | null = null;
+
+/* ============================================
+   LEER SESIÓN DEL NAVEGADOR
+============================================ */
 
 function readAuthSnapshot(): LoginResponse | null {
     if (typeof window === "undefined") {
         return null;
     }
 
-    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = window.localStorage.getItem(
+        AUTH_STORAGE_KEY
+    );
 
     if (raw === cachedRawSession) {
         return cachedParsedSession;
@@ -31,27 +47,54 @@ function readAuthSnapshot(): LoginResponse | null {
     }
 
     try {
-        cachedParsedSession = JSON.parse(raw) as LoginResponse;
+        const parsed = JSON.parse(raw) as LoginResponse;
+
+        if (
+            !parsed ||
+            typeof parsed.accessToken !== "string" ||
+            !parsed.accessToken.trim() ||
+            !parsed.user
+        ) {
+            cachedParsedSession = null;
+            return null;
+        }
+
+        cachedParsedSession = parsed;
         return cachedParsedSession;
     } catch {
-        window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.localStorage.removeItem(
+            AUTH_STORAGE_KEY
+        );
+
         cachedRawSession = null;
         cachedParsedSession = null;
+
         return null;
     }
 }
+
+/* ============================================
+   SNAPSHOT DEL SERVIDOR
+============================================ */
 
 function getServerSnapshot(): LoginResponse | null {
     return null;
 }
 
-function subscribe(callback: () => void) {
+/* ============================================
+   SUSCRIPCIÓN A CAMBIOS DE SESIÓN
+============================================ */
+
+function subscribeAuth(callback: () => void) {
     if (typeof window === "undefined") {
-        return () => {};
+        return () => { };
     }
 
     const handleStorage = (event: StorageEvent) => {
-        if (event.key === AUTH_STORAGE_KEY) {
+        if (
+            event.key === AUTH_STORAGE_KEY ||
+            event.key === null
+        ) {
             callback();
         }
     };
@@ -60,40 +103,114 @@ function subscribe(callback: () => void) {
         callback();
     };
 
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+    window.addEventListener(
+        "storage",
+        handleStorage
+    );
+
+    window.addEventListener(
+        AUTH_CHANGE_EVENT,
+        handleAuthChange
+    );
 
     return () => {
-        window.removeEventListener("storage", handleStorage);
-        window.removeEventListener(AUTH_CHANGE_EVENT, handleAuthChange);
+        window.removeEventListener(
+            "storage",
+            handleStorage
+        );
+
+        window.removeEventListener(
+            AUTH_CHANGE_EVENT,
+            handleAuthChange
+        );
     };
 }
 
+/* ============================================
+   DETECTAR HIDRATACIÓN SIN useEffect
+============================================ */
+
+function subscribeHydration() {
+    return () => { };
+}
+
+function getClientHydrationSnapshot() {
+    return true;
+}
+
+function getServerHydrationSnapshot() {
+    return false;
+}
+
+/* ============================================
+   HOOK PRINCIPAL DE AUTENTICACIÓN
+============================================ */
+
 export function useAuth() {
+
+    // Durante SSR e hidratación inicial será false.
+    // Después de hidratar en el navegador será true.
+    const hydrated = useSyncExternalStore(
+        subscribeHydration,
+        getClientHydrationSnapshot,
+        getServerHydrationSnapshot
+    );
+
     const session = useSyncExternalStore(
-        subscribe,
+        subscribeAuth,
         readAuthSnapshot,
         getServerSnapshot
     );
 
-    const signIn = useCallback((nextSession: LoginResponse) => {
-        saveAuthSession(nextSession);
-    }, []);
+    /* INICIAR SESIÓN */
+
+    const signIn = useCallback(
+        (nextSession: LoginResponse) => {
+            saveAuthSession(nextSession);
+        },
+        []
+    );
+
+    /* CERRAR SESIÓN */
 
     const signOut = useCallback(() => {
         clearAuthSession();
     }, []);
 
+    /* ACTUALIZAR SESIÓN */
+
     const refresh = useCallback(() => {
-        if (typeof window === "undefined") return;
-        window.dispatchEvent(new Event(AUTH_CHANGE_EVENT));
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        window.dispatchEvent(
+            new Event(AUTH_CHANGE_EVENT)
+        );
     }, []);
 
+    /* DATOS DEL USUARIO */
+
     const user = session?.user ?? null;
-    const accessToken = session?.accessToken ?? null;
-    const refreshToken = session?.refreshToken ?? null;
-    const tokenType = session?.tokenType ?? null;
-    const isAuthenticated = Boolean(accessToken && user);
+
+    const accessToken =
+        session?.accessToken ?? null;
+
+    const refreshToken =
+        session?.refreshToken ?? null;
+
+    const tokenType =
+        session?.tokenType ?? null;
+
+    /* ESTADO DE AUTENTICACIÓN */
+
+    const loading = !hydrated;
+
+    const isAuthenticated = Boolean(
+        hydrated &&
+        accessToken &&
+        user
+    );
 
     return {
         user,
@@ -102,7 +219,7 @@ export function useAuth() {
         refreshToken,
         tokenType,
         session,
-        loading: false,
+        loading,
         isAuthenticated,
         signIn,
         signOut,
