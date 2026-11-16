@@ -1,12 +1,12 @@
 # Athena LMS — Frontend SaaS multi-tenant (fase 1)
 
-Un solo Next.js 16 para `academia1.com`, `academia2.com` y `campus.academia3.com`. Nginx preserva el hostname y FastAPI resuelve el `business`. Colores, nombre, logo y portada provienen de la tabla `businesses`, sin compilar ni instalar otro frontend.
+Portada **restaurada desde el JSX y los estilos del proyecto LMSBasicG original** (no rediseñada). Un solo Next.js 16 para `academia1.com`, `academia2.com` y `campus.academia3.com`. Nginx preserva el hostname y FastAPI resuelve el `business`. Colores, nombre, logo y portada provienen de la tabla `businesses`, sin compilar ni instalar otro frontend.
 
 ## Alcance incluido
 
-- Portada pública LMS adaptable a cada academia, sin «Sobre ATHENA», publicidad propia ni cifras inventadas.
+- **Portada original recuperada**: mismo encabezado, hero de dos columnas, carrusel destacado, tarjetas informativas y grilla de cursos, con responsive original. Sin «Sobre ATHENA», marca fija ni métricas inventadas.
 - Catálogo público del tenant (endpoint actualizado del backend refactorizado).
-- Branding mediante `name`, `logo_url` y `branding_config` con variables CSS y validación.
+- Branding mediante `name`, `logo_url` y `branding_config` con variables CSS y validación. **Las clases azul del diseño original se mapean con Tailwind v4** a los colores del tenant, sin recompilar la app.
 - Login real del nuevo backend vía BFF Next.js y cookie HttpOnly, con pantalla inicial de sesión `/campus`.
 - Dockerfile optimizado, Docker Compose, Nginx compartido, healthcheck, ejemplo TLS.
 - Bitácora de decisiones y contrato del backend en `docs/`.
@@ -35,6 +35,10 @@ curl -i http://127.0.0.1:8080/api/health
 ```
 
 El puerto de entrada está restringido a loopback. Exponer varios dominios mediante Nginx/Caddy TLS en el host, con proxy hacia `127.0.0.1:8080` y conservando `Host`.
+
+## Mantenimiento de la apariencia original
+
+El diseño restaurado vive en `components/public/home-client.tsx`, migrado desde `components/courses/public-courses-view.tsx` del ZIP original. Los breakpoints originales también están conservados. Los matices institucionales se configuran en `lib/tenant/branding.ts` y `app/globals.css`, no cambiando clases de cada academia. Consulta `docs/DISENO_Y_BRANDING.md` y la bitácora.
 
 ## Desarrollo y pruebas
 

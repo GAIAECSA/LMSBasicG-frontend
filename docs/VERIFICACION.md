@@ -1,34 +1,38 @@
-# Verificaciones de la fase 1
+# Verificaciones — Entrega corregida con diseño original
 
-Fecha: 2026-11-16.
+Fecha: 2026-11-16. Alcance: **solo frontend**; el backend del usuario no se modificó.
 
-## Verificado aquí
+## Resultados verificados en este entorno
 
-- **4 pruebas unitarias aprobadas** (`npm test`): normalización de hostname, aislamiento entre academias, fallbacks seguros de branding y ruta de logo limitada al tenant.
-- **22 archivos TypeScript/TSX** inspeccionados con `typescript.transpileModule`: sin errores sintácticos.
-- **Lockfile reconciliado** con `package.json` vía `npm install --package-lock-only --offline`.
-- **Docker Compose/Nginx** revisados estáticamente: Nginx preserva Host y X-Forwarded-Proto, API FastAPI en `/api/v1`, Next.js para páginas y BFF en `/api/auth`.
-- El proyecto no incluye `node_modules`, `.next`, el backend ni imágenes legadas de ATHENA.
+- `npm test` (Node 22 con `--experimental-strip-types`): **8 pruebas aprobadas**, incluyendo aislamiento del branding, hostname, URL de logo, placeholders, conservación de bloques del diseño, ausencia de branding fijo y correspondencia paquete/lockfile.
+- **22 archivos `.ts` / `.tsx`** inspeccionados con el parser TypeScript global: sin errores de sintaxis. Este control **no equivale** a una comprobación semántica completa (`tsc`).
+- Nginx de Docker: **`nginx -t` exitoso** tras renderizar `nginx/default.conf.template` con `BACKEND_UPSTREAM=127.0.0.1:9000` y reemplazar temporalmente `frontend:9001` por `127.0.0.1:9001`, únicamente para la verificación local de sintaxis. No se probaron upstreams reales.
+- El lockfile contiene Tailwind v4 y PostCSS con dependencias transitivas a partir del lock original. `npm ci` **no fue ejecutable** sin acceso al registro.
+- El ZIP excluye `node_modules`, `.next`, el backend y los recursos de ATHENA del frontend antiguo.
 
-## No verificado en este entorno (requiere infraestructura)
+## No comprobado aquí
 
-- No fue posible ejecutar `npm ci` / `npm run build` / `npm run typecheck`/`npm run lint` de extremo a extremo por falta de acceso DNS al registro npm; no se afirma una compilación exitosa. Ejecutar en entorno con red antes del despliegue.
-- No se pudo construir la imagen Docker ni ejecutar `nginx -t`: Docker y Nginx no están instalados en esta instancia de trabajo.
-- No se realizó una prueba de punta a punta contra PostgreSQL/FastAPI activos: los ZIP contienen el código, no una base de datos con tenants ni servidores de prueba.
+- **Compilación real Next.js:** `npm ci`, `npm run build`, `npm run typecheck` y `npm run lint` requieren obtener dependencias; registry.npmjs.org no resolvió por DNS y el cache npm no contiene todos los paquetes.
+- **Build Docker y prueba de inicio completo:** no hay comando Docker disponible.
+- **Integración real con FastAPI/PostgreSQL**, certificados TLS, DNS de academias, autenticación y verificación visual mediante navegador.
+- **Comparación pixel-perfect** entre captura y render: no puede afirmarse sin ejecutar la aplicación.
 
-## Procedimiento de aceptación obligatorio en VPS
+## Checklist obligatorio antes de desplegar
 
 ```bash
+cp .env.example .env
+# Actualizar variables, conexión a FastAPI y DNS/HTTPS de una academia.
 npm ci
 npm test
 npm run typecheck
 npm run lint
 npm run build
-
 docker compose config
 docker compose up -d --build
 docker compose ps
 curl -i http://127.0.0.1:8080/api/health
 ```
 
-Después, validar dos dominios y dos cuentas distintas según `docs/DESPLIEGUE.md`. Si alguno de esos pasos falla, corregir antes de poner en producción.
+Luego cargar dos academias reales bajo dos dominios distintos y comprobar que logo, colores, nombre, portada y cursos no se cruzan; verificar el login y el aislamiento de cookie.
+
+**No poner en producción** sin completar estos pasos y resolver cualquier fallo. El paquete está preparado para ejecutarlos, no certifica que hayan pasado en infraestructura real.
