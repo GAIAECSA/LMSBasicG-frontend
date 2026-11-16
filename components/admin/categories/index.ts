@@ -1,1 +1,0 @@
-export { CourseCategoriesPanel } from "./course-categories-panel";

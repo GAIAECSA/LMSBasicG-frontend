@@ -1,1 +1,0 @@
-export { StudentDashboardView } from "./view";

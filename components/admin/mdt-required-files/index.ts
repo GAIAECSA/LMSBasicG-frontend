@@ -1,1 +1,0 @@
-export { AdminMdtRequiredFilesLanding } from "./view";

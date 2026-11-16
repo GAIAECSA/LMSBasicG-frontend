@@ -1,1 +1,0 @@
-export { PrivacyAdminPanel } from "./view";

@@ -1,1 +1,0 @@
-export { AdminMdtCertificatesLanding } from "./view";

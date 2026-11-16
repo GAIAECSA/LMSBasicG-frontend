@@ -1,1 +1,0 @@
-export { ReportsAdminPanel } from "./view";
