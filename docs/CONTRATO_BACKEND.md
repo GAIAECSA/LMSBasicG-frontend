@@ -30,3 +30,15 @@ El frontend gestiona una cookie `httpOnly`, `host-only`, `SameSite=Lax`, con tok
 2. **Dominios personalizados:** validación de titularidad DNS, proceso de alta, certificado y desactivación deben tener workflow seguro en infraestructura/administración. El endpoint de resolución por sí solo no gestiona TLS.
 3. **Autorización del resto del campus:** los módulos administrativos/frontend antiguo NO se han migrado; al volver a habilitarlos, consumir los endpoints nuevos, enviar sesión mediante BFF y confirmar business_id en cada acción. No hacer acceso directo a datos privilegiados de otro tenant.
 4. **Storage y escalado horizontal:** el backend utiliza archivos locales. Para varias réplicas necesitará almacenamiento compartido/objeto, sin exponer archivos privados.
+
+
+## Fase 2 — autenticación, políticas y módulos (revisión de código exacto)
+
+- `POST /api/v1/auth/login`: devuelve `{access_token,token_type,expires_at,user}`. `user.role` tiene `id,code,name,scope`; `user.business_id` debe ser igual al business resuelto. FastAPI crea `AuthSession(session_id=jti, expires_at)` y valida su revocación en cada request.
+- `GET /api/v1/policies/pending`: devuelve `UserPolicyRead[]` (entre otros `version_id`, `title`, `content_format` = `HTML|PDF`, `mandatory`, `needs_acceptance`). Está exceptuado del gate `428`, igual que `GET /policies/versions/{id}/html|pdf`, `POST /versions/{id}/accept` y POST logout.
+- `GET /api/v1/users/me`: devuelve `UserResponse.role`, `role_id`, `business_id`; **solo disponible cuando ya no hay pendientes**.
+- `GET /api/v1/business-lms-config/me/modules`: lista `BusinessModuleResponse[]` con `id,code,name,description,config`, filtrado por negocio de la sesión y activo; proviene del join `business_lms_config` + `lms_configs`; no incluye `secret_config`. También bloqueado por `428`.
+- **No existen** endpoints para `/auth/refresh`, rotación de token ni cambio de vencimiento en una sesión activa. Por defecto el JWT vence a los 60 min configurables; actualizar `last_used_at` no extiende `expires_at`.
+- **Rol de seed:** `ADMIN` y `VISITOR` tienen `scope=PLATFORM`; `TEACHER`/`STUDENT` tienen `scope=COURSE`. `auth_service.login` y `resolve_user_session` solo admiten `PLATFORM`; falta diseñar acceso para otros roles si serán usuarios del campus.
+
+El frontend no modificó el backend. La ampliación necesaria para refresh y los alcances por rol están detallados en [Autenticación y políticas](AUTENTICACION_Y_POLITICAS.md).

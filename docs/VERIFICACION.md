@@ -36,3 +36,14 @@ curl -i http://127.0.0.1:8080/api/health
 Luego cargar dos academias reales bajo dos dominios distintos y comprobar que logo, colores, nombre, portada y cursos no se cruzan; verificar el login y el aislamiento de cookie.
 
 **No poner en producción** sin completar estos pasos y resolver cualquier fallo. El paquete está preparado para ejecutarlos, no certifica que hayan pasado en infraestructura real.
+
+
+## Verificación incremental — Fase 2 (2026-11-16)
+
+- `node --experimental-strip-types --test tests/*.test.mjs`: **13 pruebas aprobadas** (8 existentes de branding/diseño + 5 nuevas sobre política, módulos, rol, CSRF y contratos; son tests unitarios/estáticos, no E2E).
+- Inspección de sintaxis TS/TSX: se ejecuta con el parser TypeScript disponible. **No sustituye `npm run typecheck`.**
+- `npm ci --offline` falló porque el caché no tenía `zod-validation-error-4.0.2.tgz`; `npm ci` en línea también falló por una excepción del instalador npm. **No se afirma compilación satisfactoria ni Docker validado en este entorno.**
+- El equipo ya había compilado y levantado la Fase 1 con Docker; este parche agrega routes y componentes, pero requiere nuevo build y pruebas funcionales contra FastAPI activo.
+- Ensayo obligatorio: login sin policies → Llegaste; login con dos policies (HTML/PDF) → wizard; rechazo → logout; aceptación → siguiente; revocación → login; cierre de sesión; expiración; tenant equivocado; dos dominios distintos; flags de módulos; cookies HttpOnly/Secure.
+
+No se modificaron `compose.yaml`, `.env` ni Nginx. Se mantienen los valores que ya funcionan con `host.docker.internal` local. **Bloqueos backend pendientes: refresh/rotación; logins `TEACHER`/`STUDENT` con scope COURSE.**

@@ -70,3 +70,21 @@ La entrega previa cambió la estética pese a que el usuario quería solo refact
 | Se actualizó documentación de aceptación | `README.md`, `docs/DISENO_Y_BRANDING.md` y `docs/VERIFICACION.md`. | Mantener el contexto del porqué de cada decisión. |
 
 **Límite:** la verificación de estructura no es una prueba visual pixel-perfect en navegador. `npm ci` / `next build` y Docker completo siguen pendientes de ejecutarse en un entorno con dependencias descargables y backend en funcionamiento.
+
+
+## 2026-11-16 — Fase 2: login, verificación de sesión, configuración y políticas
+
+**Backend:** inspeccionado en modo lectura; ninguna modificación. Se entrega un parche incremental que no altera el diseño de la portada, Docker ni Nginx.
+
+| Qué se hizo | Cómo se hizo | Por qué se hizo |
+|---|---|---|
+| Se reforzó el login | `app/api/auth/login/route.ts` usa el tenant resuelto por hostname, valida usuario y rol del DTO FastAPI y consulta `policies/pending` antes de emitir cookie HttpOnly host-only. `components/auth/login-form.tsx` redirige según pendientes. | Evitar que el usuario o un atacante elijan el business por el formulario; prevenir acceso al campus sin comprobar cumplimiento. |
+| Se verificó el ciclo de sesión | `lib/auth/server.ts`, `lib/auth/backend.ts`, `lib/auth/types.ts`, `/api/auth/session` y `SessionMonitor` validan la sesión con FastAPI, el tenant, expiración, el rol y políticas al navegar y durante uso. | El JWT se revoca en BD; un JWT simplemente decodificado no equivale a autorización. |
+| Se cargaron rol y módulos para futuro dashboard | Tras completar las políticas, `authState` consulta `/users/me` y `/business-lms-config/me/modules`, valida `business_id`, y conserva el contrato tipado con `role.code`, `role.scope` y `config`. | Cumplir los gates de backend y preparar futura home por rol sin IDs mágicos ni reinventar capacidades. |
+| Se incorporó wizard obligatorio de políticas | `/policies`, `PolicyWizard` y BFF `/api/policies/*` leen HTML/PDF protegidos, aceptan una versión a la vez, vuelven a consultar pendientes y cierran sesión al rechazar. HTML aislado en iframe sandbox/CSP; PDFs proxificados sin exponer tokens. | No saltar el 428, respetar versiones obligatorias y evitar mostrar todas las políticas a la vez. |
+| Se reemplazó el campus placeholder | `/campus` resuelve sesión SSR y muestra únicamente una pantalla blanca con el texto `Llegaste` y botón de cierre. | El usuario pidió no implementar aún paneles por rol. |
+| Se incluyó aviso sobre cookies | `CookieNotice` solo en `/`, registra preferencia del aviso en localStorage y explica la cookie imprescindible de sesión; CSS añadido, sin modificar el diseño original debajo. | Transparencia sobre cookies sin construir un CMP ficticio ni habilitar tracking. |
+| Se registraron límites del backend | `docs/AUTENTICACION_Y_POLITICAS.md` y contrato incluyen la ausencia de refresh y restricción `scope=PLATFORM` que impide login para TEACHER/STUDENT COURSE. | Evitar aparentar funciones que FastAPI no proporciona y señalar cambios posteriores con su justificación. |
+| Se añadieron pruebas | `tests/auth-phase2.test.mjs` valida formas de DTO y presencia de gates/CSRF y mantiene tests de branding/diseño; ver `docs/VERIFICACION.md`. | Prevenir regresiones mientras continúa la refactorización. |
+
+**Renovación:** pendiente de endpoint real de backend con refresh token rotativo. `SessionMonitor` **NO** prolonga la sesión, únicamente detecta expiración/revocación y políticas nuevas.

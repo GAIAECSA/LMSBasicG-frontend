@@ -77,3 +77,24 @@ img { max-width: 100%; display: block; }
 
 /* Legibilidad de texto de botones incluso con colores corporativos claros. */
 .tenant-on-primary { color: var(--tenant-on-primary) !important; }
+
+/* Fase 2: el campus provisional es una pantalla blanca, sin alterar la portada pública. */
+.campus-blank {min-height:100vh; background:#fff; color:#101828; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:32px;}
+.campus-blank h1 {font-size:clamp(48px,8vw,110px);font-weight:850;letter-spacing:-.07em;margin:0;}
+.campus-exit {border:1px solid #d0d5dd;background:white;color:#344054;padding:10px 19px;border-radius:10px;font-size:13px;}
+.policy-page {min-height:100vh;background:var(--tenant-background);padding:35px 16px;}
+.policy-card {max-width:920px;margin:0 auto;background:var(--tenant-surface);border:1px solid #e3eaf3;border-radius:22px;padding:clamp(22px,4vw,42px);box-shadow:0 20px 70px #1c2b4314;}
+.policy-step {color:var(--tenant-primary);font-weight:800;font-size:13px;margin-top:28px;}
+.policy-card h1 {font-size:clamp(24px,4vw,37px);letter-spacing:-.03em;margin:8px 0;}
+.policy-subtitle {font-size:14px;color:#667085;line-height:1.55;margin-bottom:20px;}
+.policy-document {display:block;width:100%;height:min(53vh,540px);border:1px solid #d7dfea;border-radius:12px;background:#fff;}
+.policy-pdf-link {display:inline-block;margin:12px 0;color:var(--tenant-primary);font-weight:700;font-size:14px;text-decoration:underline;}
+.policy-check {display:flex;align-items:flex-start;gap:12px;font-size:15px;font-weight:650;margin:22px 0;cursor:pointer;}
+.policy-check input {width:19px;height:19px;accent-color:var(--tenant-primary);flex:none;}
+.policy-actions {display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;}
+.cookie-notice {position:fixed;bottom:20px;left:20px;right:20px;z-index:60;max-width:980px;margin:0 auto;background:#fff;border:1px solid #d9e2ee;border-radius:18px;box-shadow:0 15px 45px #11234135;padding:19px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;}
+.cookie-notice strong {font-size:15px;color:#101828;}
+.cookie-notice p {font-size:13px;color:#475467;line-height:1.5;margin:7px 0 0;}
+.cookie-actions {display:flex;gap:8px;flex:none;}
+.cookie-actions .button {font-size:12px;padding:10px 13px;}
+@media(max-width:650px){.cookie-notice{bottom:8px;left:8px;right:8px;flex-direction:column;align-items:stretch;padding:14px;}.cookie-actions{flex-wrap:wrap;}.policy-actions .button{width:100%;}}
