@@ -11,6 +11,15 @@ export type AuthUser = {
   role: Role;
 };
 
+/** Alcances explícitos del seed. La autoridad sigue siendo FastAPI, que revalida
+ * la sesión en cada llamada; este allowlist solo evita mostrar roles imprevistos.
+ * STUDENT/TEACHER requieren quitar la restricción PLATFORM del backend.
+ */
+export function allowedLmsRole(role: {code:string;scope:string}):boolean {
+  return (role.code==="ADMIN" || role.code==="VISITOR") && role.scope==="PLATFORM" ||
+    (role.code==="STUDENT" || role.code==="TEACHER") && role.scope==="COURSE";
+}
+
 export type TenantModule = {
   id: number;
   code: string;

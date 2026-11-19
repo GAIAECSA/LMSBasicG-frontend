@@ -47,3 +47,22 @@ Luego cargar dos academias reales bajo dos dominios distintos y comprobar que lo
 - Ensayo obligatorio: login sin policies → Llegaste; login con dos policies (HTML/PDF) → wizard; rechazo → logout; aceptación → siguiente; revocación → login; cierre de sesión; expiración; tenant equivocado; dos dominios distintos; flags de módulos; cookies HttpOnly/Secure.
 
 No se modificaron `compose.yaml`, `.env` ni Nginx. Se mantienen los valores que ya funcionan con `host.docker.internal` local. **Bloqueos backend pendientes: refresh/rotación; logins `TEACHER`/`STUDENT` con scope COURSE.**
+
+## Verificación incremental — Fase 3 (2026-11-18)
+
+- `node --experimental-strip-types --test tests/*.test.mjs`: **18 de 18 pruebas aprobadas** (13 anteriores + 5 nuevas sobre roles, vigencia temporal, DTOs, prohibición de métodos de edición/cancelación y acceso a documentos).
+- **45 archivos TypeScript/TSX** inspeccionados con el parser/transpilador TypeScript global: cero errores de sintaxis. **No equivale** a `npm run typecheck` con dependencias instaladas.
+- `npm ci --no-audit --no-fund --prefer-offline`: no pudo completarse por el entorno sin descarga confiable de paquetes (se agotó la espera). **No** hay build `next build` ni prueba Docker/E2E acreditados.
+- Revisión manual del contrato en `app/api/v1/policy_routes.py`, `app/schemas/policy.py`, `app/services/policy_service.py`, `app/services/policy_gate.py` y `app/storage/file_profiles.py` del ZIP FastAPI.
+- El ZIP incremental no incluye `.env`, configuración de Nginx, Docker, `node_modules`, `.next` ni código del backend.
+
+**En el equipo local con Docker:** `docker compose up -d --build`, entrar por hostname del business, login ADMIN, gestionar HTML y PDF, visualizar históricas, forzar 428 con nueva política obligatoria, verificar logout y tenant ajeno. Para STUDENT/COURSE, primero resolver el bloqueo de scope en el backend descrito en `MODULO_POLITICAS_FASE3.md`.
+
+## Verificación incremental — Fase 4 (2026-11-19)
+
+- Se reemplazó el componente provisional de `/campus` por una pantalla de Inicio con el `CampusShell` existente, enlaces reales a `/campus/policies` y al catálogo (`/`), detalles de sesión y configuración de módulos obtenidos de FastAPI.
+- Tests heredados + pruebas `tests/campus-phase4.test.mjs` sobre eliminación del placeholder, integridad de enlaces, roles/gates y lectura de módulos: **22/22 aprobadas** usando Node 22 (`node --experimental-strip-types --test tests/*.test.mjs`).
+- Se comprobó sintaxis de **46 archivos TS/TSX** con parser TypeScript global: **0 errores**. Esto no equivale a `npm run build` ni a pruebas E2E.
+- No fue posible instalar todas las dependencias de Next.js desde npm (`npm ci --offline` falló con `ENOTCACHED` para `zod-validation-error-4.0.2.tgz`), ni compilar con Docker. Debe ejecutarse en el entorno del usuario: `docker compose up -d --build`.
+- Pruebas manuales: login ADMIN → `/campus` con sidebar, Inicio → Políticas, crear versión y consultar histórico; logout → login; políticas pendientes → wizard antes de entrar; cambio de tenant → sin sesión cruzada; en STUDENT/COURSE, solo después de habilitar su login en FastAPI.
+- No se modificaron backend, `.env`, Nginx ni Docker.

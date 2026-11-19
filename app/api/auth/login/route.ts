@@ -3,7 +3,7 @@ import { resolveTenant } from "@/lib/tenant/resolve";
 import { backendBaseUrl } from "@/lib/backend/config";
 import { apiFetch } from "@/lib/auth/backend";
 import { sameOriginRequest, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth/server";
-import { parsePendingPolicies, validUser } from "@/lib/auth/types";
+import { allowedLmsRole, parsePendingPolicies, validUser } from "@/lib/auth/types";
 
 /** Credenciales siempre se procesan en el servidor y contra el tenant resuelto por Host. */
 export async function POST(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const login = await result.json();
     token = login?.access_token;
     if (typeof token !== "string" || !validUser(login?.user) ||
-        login.user.business_id !== tenant.id || login.user.role.scope !== "PLATFORM") {
+        login.user.business_id !== tenant.id || !allowedLmsRole(login.user.role)) {
       return NextResponse.json({message:"La sesión no corresponde a esta academia"},{status:403});
     }
     // No se debe permitir entrar al campus si no se puede verificar el bloqueo de policies.

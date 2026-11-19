@@ -8,7 +8,7 @@ export async function apiFetch(path: string, token: string, init: RequestInit = 
     ...init,
     headers,
     cache: "no-store",
-    signal: AbortSignal.timeout(10000),
+    signal: init.signal ?? AbortSignal.timeout(10000),
   });
 }
 

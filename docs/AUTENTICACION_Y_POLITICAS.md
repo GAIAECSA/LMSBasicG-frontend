@@ -83,3 +83,9 @@ El frontend ya tiene tipados rol y módulos para cuando se diseñe la home por r
 Extraer **en la raíz** del frontend original de la fase 1 (donde está `package.json`). Todos los archivos de este ZIP contienen el **contenido completo**, incluso los `.md` que se actualizaron. El ZIP no lleva `node_modules`, `dist`, `.next`, `.env`, backend ni imágenes originales. Archivos no incluidos permanecen intactos. **No borrar el código anterior por extensión**, ya que se conserva la apariencia visual aprobada.
 
 Después: `npm ci && npm test && npm run typecheck && npm run lint && npm run build` (o `docker compose up -d --build`). Ver `docs/VERIFICACION.md` para distinguir lo comprobado de lo pendiente.
+
+## Actualización 2026-11-18 — Preparación de roles `COURSE` en el BFF
+
+La sección anterior registra correctamente el comportamiento de la **Fase 2 original**. En el PATCH de **Fase 3**, `app/api/auth/login/route.ts`, `lib/auth/server.ts` y `lib/auth/types.ts` se ajustan para admitir exclusivamente las parejas de rol existentes en el seed: ADMIN/PLATFORM, VISITOR/PLATFORM, STUDENT/COURSE y TEACHER/COURSE **siempre que FastAPI ya haya validado ese rol, token y sesión**. Los endpoints de administración del frontend siguen exigiendo ADMIN/PLATFORM exacto.
+
+**La limitación real del backend sigue vigente.** `app/services/auth_service.py` y `app/utils/jwt.py` rechazan `scope=COURSE`; no basta con instalar este PATCH para iniciar sesión como estudiante/docente. Primero debe definirse y modificarse el modelo de acceso backend sin elevar permisos de los roles por curso. La UI de Información → Políticas queda preparada para el momento en que esos logins sean posibles.

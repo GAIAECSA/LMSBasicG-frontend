@@ -42,3 +42,16 @@ El frontend gestiona una cookie `httpOnly`, `host-only`, `SameSite=Lax`, con tok
 - **Rol de seed:** `ADMIN` y `VISITOR` tienen `scope=PLATFORM`; `TEACHER`/`STUDENT` tienen `scope=COURSE`. `auth_service.login` y `resolve_user_session` solo admiten `PLATFORM`; falta diseñar acceso para otros roles si serán usuarios del campus.
 
 El frontend no modificó el backend. La ampliación necesaria para refresh y los alcances por rol están detallados en [Autenticación y políticas](AUTENTICACION_Y_POLITICAS.md).
+
+## Contrato adicional: Fase 3 — Políticas del campus (2026-11-18)
+
+- Listado administrativo `GET /api/v1/policies/admin`: `[TenantPolicyRead]` = `{id,code,title,mandatory,is_active}`; **solo políticas CLIENT del business autenticado**.
+- Historial por tipo `GET /api/v1/policies/admin/{id}/versions`: `[PolicyVersionRead]` = `{id,policy_id,version,title,content_format,effective_at,published_at,content_sha256,is_published}`.
+- Alta de tipo `POST /api/v1/policies/admin`: `{code,title,mandatory}`; código único por tenant y no puede colisionar con uno GLOBAL ATHENA activo.
+- Publicar nueva versión HTML `POST /api/v1/policies/admin/{id}/versions/html`: `{version,html_content,effective_at:null}` (el backend sanitiza HTML).
+- Publicar PDF `POST /api/v1/policies/admin/{id}/versions/pdf`: `multipart/form-data` con `version` y `file`, `effective_at` omitido. Máximo 25 MiB, privado.
+- Listado de visibles `GET /api/v1/policies`: `[UserPolicyRead]` con `provider`, `mandatory`, `accepted`, `accepted_at`, `needs_acceptance`, `version_id`, `content_format`.
+- Historial individual `GET /api/v1/policies/acceptances/me`: `[AcceptanceHistoryRead]` sin `content_format`.
+- Lectura `GET /api/v1/policies/versions/{id}/html|pdf`: FastAPI permite vigente, aceptada histórica o ADMIN del tenant CLIENT. El BFF ya no limita a pendientes, pero no abre documentos de otros tenants.
+- La versión vigente **no** implica que otras tengan `is_published=false`. FastAPI selecciona la fecha de vigencia más reciente; las anteriores permanecen publicadas para histórico.
+- `POST /api/v1/policies/admin` y publicación de primera versión son operaciones **separadas, no atómicas**. Potencial mejora del backend documentada en `MODULO_POLITICAS_FASE3.md`.

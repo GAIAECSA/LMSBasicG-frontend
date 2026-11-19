@@ -1,4 +1,4 @@
-# Athena LMS — Frontend SaaS multi-tenant (fase 2: autenticación y políticas)
+# Athena LMS — Frontend SaaS multi-tenant (fase 4: inicio del campus)
 
 Portada **restaurada desde el JSX y los estilos del proyecto LMSBasicG original** (no rediseñada). Un solo Next.js 16 para `academia1.com`, `academia2.com` y `campus.academia3.com`. Nginx preserva el hostname y FastAPI resuelve el `business`. Colores, nombre, logo y portada provienen de la tabla `businesses`, sin compilar ni instalar otro frontend.
 
@@ -10,7 +10,7 @@ Portada **restaurada desde el JSX y los estilos del proyecto LMSBasicG original*
 - Login **sin registro público** por dominio, sesión JWT revocable en FastAPI y cookie HttpOnly host-only.
 - Rol `role.code`/`role.scope` y configuración `business_lms_config + lms_configs` recuperados del backend tras completar las políticas.
 - Políticas obligatorias en flujo secuencial (`/policies`), lectura HTML/PDF, aceptación individual o logout por rechazo.
-- Campus provisional `/campus` con pantalla blanca **«Llegaste»**; no se migran aún los dashboards.
+- **Inicio real de campus** `/campus`: shell lateral, datos de sesión y academia, acceso a Políticas y al catálogo. Los otros módulos todavía no se han migrado.
 - Aviso informativo de cookies necesarias en `/`; sin cookies opcionales ni analytics.
 - Dockerfile optimizado, Docker Compose, Nginx compartido, healthcheck, ejemplo TLS.
 - Bitácora de decisiones y contrato del backend en `docs/`.
@@ -69,10 +69,32 @@ Dominios de academias (mismo servidor)
           ├── Catálogo público (SSR, tenant_domain)
           ├── /api/auth/* (BFF; cookie host-only HttpOnly)
           ├── /api/policies/* (BFF HTML/PDF y aceptación)
-          └── /campus (solo Llegaste, datos/rol/módulos validados en SSR)
+          ├── /campus (inicio real con shell, cuenta y módulos provenientes del backend)
+          └── /campus/policies (gestión ADMIN o consulta de políticas por rol)
 ```
 
 Detalles: [Bitácora de arquitectura](docs/DECISIONES_Y_CAMBIOS.md) · [Despliegue](docs/DESPLIEGUE.md) · [Contrato del backend](docs/CONTRATO_BACKEND.md) · [Verificación](docs/VERIFICACION.md).
 
 
 **Pendiente en backend, sin cambios aquí:** endpoint de refresh/rotación de tokens y revisión de roles COURSE en login. Ver contrato y bitácora.
+
+## Fase 3 — Políticas del campus
+
+- `/campus` conserva «Llegaste» con barra lateral reutilizable y nombre/logo del tenant.
+- `/campus/policies`: **Administración → Políticas** para ADMIN/PLATFORM, con alta de políticas CLIENT, publicación HTML/PDF, versión vigente e historial de solo lectura. **Información → Políticas** para usuarios no ADMIN (vigentes obligatorias/informativas ATHENA y CLIENT, más últimas aceptaciones históricas).
+- Se mantiene el wizard obligatorio `/policies` de Fase 2; al publicar una nueva versión obligatoria, el usuario debe aceptarla antes de continuar.
+- Instrucciones, justificación por archivo y necesidades backend: [`docs/MODULO_POLITICAS_FASE3.md`](docs/MODULO_POLITICAS_FASE3.md). Inventario de sobrescritura: [`docs/INVENTARIO_PATCH_FASE3.md`](docs/INVENTARIO_PATCH_FASE3.md).
+
+## Fase 4 — Inicio operativo del campus (2026-11-19)
+
+Después de las credenciales y de completar el wizard obligatorio de políticas, la aplicación entra en `/campus`, **sin la tarjeta «Hola, Admin» ni el placeholder «Llegaste»**. Un único `CampusShell` permite navegar a Inicio y a **Administración → Políticas** (ADMIN/PLATFORM), o **Información → Políticas** (resto de roles autorizados). El botón de cuenta permite cerrar sesión.
+
+`CampusHome` presenta exclusivamente datos recuperados de FastAPI durante `authState()` y enlaces a funcionalidades que ya están disponibles; los demás botones del menú siguen deshabilitados hasta migrar esos módulos. Los colores del tenant aparecen como acentos sobre superficies neutras.
+
+**Instalación incremental:** superponer el ZIP de Fase 4 en la raíz del frontend actual (previamente actualizado con las Fases 2 y 3). Conservar `.env`, `compose.yaml`, `Dockerfile` y Nginx sin cambios. Ejecutar `docker compose up -d --build` y verificar `/campus` y `/campus/policies`.
+
+Detalle de cambios, justificación y pruebas: [Inicio del campus](docs/INICIO_CAMPUS_FASE4.md) · [Inventario del parche](docs/INVENTARIO_PATCH_FASE4.md) · [Bitácora](docs/DECISIONES_Y_CAMBIOS.md).
+
+
+### Parche de recuperación del Home (19/11/2026)
+Este ZIP consolida Fases 2, 3 y 4 para eliminar la tarjeta provisional de la Fase 1. Tras sobrescribir los archivos en la raíz del frontend, ejecuta `powershell -ExecutionPolicy Bypass -File .\VERIFICAR_Y_RECONSTRUIR.ps1`. Consulta `docs/RECUPERACION_HOME_FASE4.md`.

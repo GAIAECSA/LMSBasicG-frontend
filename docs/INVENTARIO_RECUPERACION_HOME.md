@@ -1,0 +1,55 @@
+# Inventario de recuperación del campus
+
+Extraer en la **raíz del frontend**, sin carpeta contenedora. Todos los archivos listados son completos y deben sobrescribirse si ya existen. No se incluyen archivos de backend, Nginx, compose, `.env` ni Dockerfile.
+
+- `README.md`
+- `VERIFICAR_Y_RECONSTRUIR.ps1`
+- `app/api/auth/login/route.ts`
+- `app/api/auth/logout/route.ts`
+- `app/api/auth/session/route.ts`
+- `app/api/policies/admin/[policyId]/versions/html/route.ts`
+- `app/api/policies/admin/[policyId]/versions/pdf/route.ts`
+- `app/api/policies/admin/catalog/route.ts`
+- `app/api/policies/admin/route.ts`
+- `app/api/policies/catalog/route.ts`
+- `app/api/policies/pending/route.ts`
+- `app/api/policies/versions/[versionId]/accept/route.ts`
+- `app/api/policies/versions/[versionId]/html/route.ts`
+- `app/api/policies/versions/[versionId]/pdf/route.ts`
+- `app/campus/page.tsx`
+- `app/campus/policies/page.tsx`
+- `app/globals.css`
+- `app/login/page.tsx`
+- `app/page.tsx`
+- `app/policies/page.tsx`
+- `components/auth/campus-client.tsx`
+- `components/auth/login-form.tsx`
+- `components/auth/policy-wizard.tsx`
+- `components/auth/session-monitor.tsx`
+- `components/campus/admin-policies.tsx`
+- `components/campus/campus-home.tsx`
+- `components/campus/campus-shell.tsx`
+- `components/campus/my-policies.tsx`
+- `components/campus/policy-viewer.tsx`
+- `components/public/cookie-notice.tsx`
+- `docs/AUTENTICACION_Y_POLITICAS.md`
+- `docs/CONTRATO_BACKEND.md`
+- `docs/DECISIONES_Y_CAMBIOS.md`
+- `docs/INICIO_CAMPUS_FASE4.md`
+- `docs/INVENTARIO_PATCH_FASE2.md`
+- `docs/INVENTARIO_PATCH_FASE3.md`
+- `docs/INVENTARIO_PATCH_FASE4.md`
+- `docs/MODULO_POLITICAS_FASE3.md`
+- `docs/RECUPERACION_HOME_FASE4.md`
+- `docs/VERIFICACION.md`
+- `lib/auth/backend.ts`
+- `lib/auth/server.ts`
+- `lib/auth/types.ts`
+- `lib/policies/backend.ts`
+- `lib/policies/route-guard.ts`
+- `lib/policies/types.ts`
+- `tests/auth-phase2.test.mjs`
+- `tests/campus-phase4.test.mjs`
+- `tests/campus-recuperacion.test.mjs`
+- `tests/policies-phase3.test.mjs`
+- `docs/INVENTARIO_RECUPERACION_HOME.md`

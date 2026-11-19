@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { apiFetch, jwtTenantAndExpiry } from "./backend";
-import { AuthState, parseModules, parsePendingPolicies, validUser } from "./types";
+import { AuthState, allowedLmsRole, parseModules, parsePendingPolicies, validUser } from "./types";
 import type { TenantPublic } from "@/lib/tenant/types";
 
 export const SESSION_COOKIE = "athena_lms_session";
@@ -44,7 +44,7 @@ export async function authState(tenant: TenantPublic, token?: string): Promise<A
     if (me.status === 428) return await policiesAfterRace(current,claims.expiresAt);
     if (!me.ok) return {status:"unavailable"};
     const user: unknown = await me.json();
-    if (!validUser(user) || user.business_id !== tenant.id || user.role.scope !== "PLATFORM") {
+    if (!validUser(user) || user.business_id !== tenant.id || !allowedLmsRole(user.role)) {
       return {status:"unauthenticated"};
     }
     const moduleResponse = await apiFetch("/api/v1/business-lms-config/me/modules",current);

@@ -88,3 +88,44 @@ La entrega previa cambió la estética pese a que el usuario quería solo refact
 | Se añadieron pruebas | `tests/auth-phase2.test.mjs` valida formas de DTO y presencia de gates/CSRF y mantiene tests de branding/diseño; ver `docs/VERIFICACION.md`. | Prevenir regresiones mientras continúa la refactorización. |
 
 **Renovación:** pendiente de endpoint real de backend con refresh token rotativo. `SessionMonitor` **NO** prolonga la sesión, únicamente detecta expiración/revocación y políticas nuevas.
+
+## 2026-11-18 — Fase 3: shell del campus + gestión y consulta de políticas
+
+**Qué se hizo, cómo y por qué:** la tabla pormenorizada y los endpoints verificados están en [`MODULO_POLITICAS_FASE3.md`](MODULO_POLITICAS_FASE3.md). Resumen de las decisiones duraderas:
+
+1. Se reemplazó la pantalla «Llegaste» aislada por el mismo mensaje dentro de `CampusShell`, cuya barra lateral usa el nombre/logo de `businesses`, rol del backend y un tema de acentos del tenant con superficies neutras. Motivo: preparar el LMS modular sin duplicar menús ni exponer ATHENA.
+2. Se agregó `/campus/policies`: administración exclusiva `ADMIN/PLATFORM` para políticas CLIENT y vista de consulta para los demás roles. Seguridad reforzada en SSR, BFF y FastAPI; no se concede privilegio por ocultar un botón.
+3. Se agregaron formularios solo para crear tipo + subir primera versión o publicar una nueva versión HTML/PDF del mismo tipo. Se prohibieron acciones de edición, eliminación y cancelación en la interfaz; las versiones se mantienen auditables.
+4. Se agruparon políticas por `code`. Una versión es vigente por `effective_at`, sin desactivar físicamente las históricas. Para estudiante, se listan obligatorias aceptadas e informativas de ATHENA y CLIENT, más su última aceptación histórica de tipos ya no visibles.
+5. Se ampliaron los lectores BFF HTML/PDF para que FastAPI autorice las versiones actuales y aceptadas, además de las pendientes, con aislamiento por cookie/tenant y almacenamiento privado.
+6. Se incorporaron pruebas de reglas de versión, esquema, permisos y enlaces seguros; se dejó constancia de los cambios recomendados de backend, no aplicados.
+
+**Backend:** no modificado. **Docker y Nginx:** sin cambios. **Portada y Fase 2:** preservadas. Instalación e inventario en [`INVENTARIO_PATCH_FASE3.md`](INVENTARIO_PATCH_FASE3.md).
+
+7. Se preparó el BFF de login y verificación de sesión para permitir únicamente las parejas `ADMIN/PLATFORM`, `VISITOR/PLATFORM`, `TEACHER/COURSE` y `STUDENT/COURSE` del seed una vez que FastAPI permita autenticar roles COURSE. El backend sigue bloqueándolos hoy; no se elevan permisos administrativos.
+
+## 2026-11-19 — Fase 4: retirar confirmación de login y abrir el campus
+
+| Qué se hizo | Cómo se hizo | Por qué |
+|---|---|---|
+| Se eliminó la pantalla provisional «Llegaste» / tarjeta de bienvenida de autenticación | Se sustituyó `CampusClient` por `CampusShell` + `CampusHome`, y se eliminaron los estilos `lms-arrived`. | El login ya fue probado y debe dar acceso al sistema, no a una pantalla de confirmación. |
+| Se hizo operativo el Inicio | `CampusHome` muestra acceso a `/campus/policies` y `/`, usuario y `role.name`, `tenant.name`, y módulos entregados por `/business-lms-config/me/modules`. | Ofrecer acciones reales, sin métricas inventadas ni funcionalidades simuladas. |
+| Se conservó el shell y las políticas de Fase 3 | El menú `CampusShell` y `/campus/policies` no cambian; ADMIN/PLATFORM mantiene Administración → Políticas y demás roles autorizados Información → Políticas. | No duplicar navegación ni alterar los permisos entre roles. |
+| Se conservó la seguridad por servidor | `app/campus/page.tsx` conserva `resolveTenant()`, `authState()`, redirección a `/login` o `/policies`; el frontend no toma decisiones de autorización basadas solo en botones. | Evitar acceso sin sesión, sin tenant o con políticas obligatorias pendientes. |
+| Se diseñó una interfaz legible con cualquier branding | `app/globals.css` usa superficies neutras y el acento CSS `--tenant-primary`; no se aplica el color corporativo sobre todo el fondo. | Permitir colores institucionales llamativos sin deteriorar contraste ni legibilidad. |
+| Se documentaron las limitaciones reales | `INICIO_CAMPUS_FASE4.md`, `INVENTARIO_PATCH_FASE4.md`, `VERIFICACION.md`, `README.md` y tests. | Conservar contexto, alcance y puntos pendientes de backend para futuras fases. |
+
+**Sin cambios en FastAPI, Nginx, Docker ni `.env`.** Continúa pendiente en FastAPI la renovación de JWT y habilitar el login COURSE (STUDENT/TEACHER) si ese bloqueo no se ha resuelto desde la Fase 3. Los módulos Gestión de usuarios, Cursos y contenidos, Matrículas y notas siguen en desarrollo; no se deben presentar como funcionales.
+
+
+## Recuperación de acceso al Home — 19/11/2026
+
+**Qué se hizo:** se consolidaron las Fases 2, 3 y 4 en un parche único para sustituir cualquier archivo provisional de la Fase 1, principalmente `components/auth/campus-client.tsx`. Incluye el Home real, el layout de navegación por rol, el módulo Políticas y la seguridad de sesión implementada en las fases anteriores.
+
+**Cómo se hizo:** el paquete se construyó a partir del estado final ya integrado, en vez de encadenar parches parcialmente aplicados. Se agregó `VERIFICAR_Y_RECONSTRUIR.ps1` para detectar instalaciones en una carpeta equivocada y recompilar Docker sin caché; se agregó una prueba de regresión para el flujo con cero políticas pendientes.
+
+**Por qué:** se observó el aviso «La portada y autenticación multi-tenant ya están listas», que existe en el frontend de Fase 1, pero no en la Fase 4. Esto apunta a código fuente o imagen de Docker sin actualizar, no a un requisito de crear políticas.
+
+**Flujo conservado:** login por dominio → `GET /policies/pending` → con lista vacía, `/campus`; con lista no vacía, `/policies` hasta aceptar → `/campus`. No se requiere ningún documento publicado previamente. El backend no fue modificado.
+
+**Limitaciones:** solo funcionan los módulos ya implementados (Inicio y Políticas); otros elementos del menú continúan deshabilitados. No se han ejecutado aquí pruebas de integración con Docker y el backend del usuario.
