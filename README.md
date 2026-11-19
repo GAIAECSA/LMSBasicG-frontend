@@ -98,3 +98,9 @@ Detalle de cambios, justificación y pruebas: [Inicio del campus](docs/INICIO_CA
 
 ### Parche de recuperación del Home (19/11/2026)
 Este ZIP consolida Fases 2, 3 y 4 para eliminar la tarjeta provisional de la Fase 1. Tras sobrescribir los archivos en la raíz del frontend, ejecuta `powershell -ExecutionPolicy Bypass -File .\VERIFICAR_Y_RECONSTRUIR.ps1`. Consulta `docs/RECUPERACION_HOME_FASE4.md`.
+
+## Fase 6 — Cursos
+
+La gestión administrativa de **Categorías, Subcategorías y Cursos** y el detalle `/campus/courses/{id}` están documentados en `docs/MODULO_CURSOS_FASE6.md`.
+
+Antes de crear cursos, comprueba la correspondencia exacta entre `lms_configs.code` y `ATHENA_LMS_MOOC_CODE` / `ATHENA_LMS_MDT_CODE`. **FastAPI necesita aplicar también la validación de licencia en creación y transición**; el BFF no sustituye ese control.

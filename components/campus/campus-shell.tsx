@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BookOpen, ChevronDown, ChevronLeft, CircleHelp, GraduationCap,
-  House, Info, LayoutGrid, LogOut, Menu, ShieldCheck, UsersRound, X } from "lucide-react";
+  House, Info, LogOut, Menu, ShieldCheck, UsersRound, X } from "lucide-react";
 import type { TenantPublic } from "@/lib/tenant/types";
 import type { AuthUser } from "@/lib/auth/types";
 import { isTenantAdmin } from "@/lib/policies/types";
@@ -21,8 +21,10 @@ export function CampusShell({tenant,user,expiresAt,children}: {
   const admin=isTenantAdmin(user.role);
   const inPolicies=pathname==="/campus/policies";
   const inUsers=pathname==="/campus/users";
+  const inCourses=pathname.startsWith("/campus/courses")||pathname==="/campus/categories"||pathname==="/campus/subcategories";
   const [expanded,setExpanded]=useState(inPolicies);
   const [usersExpanded,setUsersExpanded]=useState(inUsers);
+  const [coursesExpanded,setCoursesExpanded]=useState(inCourses);
   const [mobile,setMobile]=useState(false);
   const [closing,setClosing]=useState(false);
   const policyHeading=admin?"Administración":"Información";
@@ -64,12 +66,20 @@ export function CampusShell({tenant,user,expiresAt,children}: {
               aria-current={inUsers ? "page" : undefined}>Usuarios</Link>
           </div>}
         </>}
-        <button type="button" className="lms-nav-item lms-nav-disabled" disabled title="Módulo pendiente de implementar">
-          <BookOpen size={20}/><span>Cursos y contenidos</span><ChevronDown size={17}/>
-        </button>
-        <button type="button" className="lms-nav-item lms-nav-disabled" disabled title="Módulo pendiente de implementar">
-          <LayoutGrid size={20}/><span>Matrículas y notas</span><ChevronDown size={17}/>
-        </button>
+        {admin && <>
+          <button type="button" className={`lms-nav-item ${coursesExpanded || inCourses ? "lms-nav-selected" : ""}`}
+            aria-expanded={coursesExpanded} aria-controls="lms-courses-submenu"
+            onClick={() => setCoursesExpanded(value => !value)}>
+            <BookOpen size={20}/><span>Cursos</span><ChevronDown size={17} className={coursesExpanded ? "lms-chevron-open" : ""}/>
+          </button>
+          {coursesExpanded && <div id="lms-courses-submenu" className="lms-submenu">
+            {([['/campus/categories','Categorías'],['/campus/subcategories','Subcategorías'],['/campus/courses','Cursos']] as const).map(([href,label])=>{
+              const active=href==='/campus/courses'?pathname.startsWith(href):pathname===href;
+              return <Link key={href} href={href} onClick={closeMobile} className={active?'lms-submenu-active':''}
+                aria-current={active?'page':undefined}>{label}</Link>;
+            })}
+          </div>}
+        </>}
         <button type="button" className={`lms-nav-item ${expanded?"lms-nav-selected":""}`} aria-expanded={expanded}
           aria-controls="lms-policies-submenu" onClick={()=>setExpanded(v=>!v)}>
           <PersonIcon size={20}/><span>{policyHeading}</span><ChevronDown size={17} className={expanded?"lms-chevron-open":""}/>

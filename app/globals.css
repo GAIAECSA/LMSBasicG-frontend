@@ -314,3 +314,60 @@ img { max-width: 100%; display: block; }
 .lms-rotate{animation:lms-rotate 1s linear infinite}
 @media(max-width:1000px){.lms-users-filters{grid-template-columns:1fr 1fr}.lms-users-search{grid-column:1/-1}}
 @media(max-width:700px){.lms-users-heading{flex-direction:column}.lms-users-stats{grid-template-columns:1fr}.lms-users-stats>div{padding:14px 19px}.lms-users-panel-header{flex-direction:column}.lms-users-filters{grid-template-columns:1fr}.lms-users-search{grid-column:auto}.lms-users-editor .lms-form-row{grid-template-columns:1fr}.lms-users-page{gap:16px}.lms-users-editor{padding:18px}}
+
+/* ATHENA fase 6 — Cursos y taxonomía. Respeta tokens dinámicos de tenant. */
+.lms-academic .lms-users-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.lms-academic-filters{grid-template-columns:minmax(0,1fr) minmax(170px,250px)}
+.lms-academic-course-filters{grid-template-columns:minmax(200px,1fr) repeat(3,minmax(135px,190px))}
+.lms-academic-name{display:flex;align-items:center;gap:12px}
+.lms-academic-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:var(--tenant-primary-soft);color:var(--tenant-primary)}
+.lms-academic-empty{text-align:center;color:#64748b;padding:30px;font-size:13px}
+.lms-academic-note{border:1px solid var(--tenant-primary-border);background:var(--tenant-primary-tint);color:#475569;border-radius:12px;padding:12px 16px;font-size:13px;line-height:1.65}
+.lms-academic-table td{font-size:13px}
+.lms-academic-table .lms-users-actions .lms-icon-button{min-width:38px}
+.lms-academic-courses-table{min-width:1100px}
+.lms-academic-course-name{display:flex;align-items:center;gap:12px;min-width:210px;max-width:320px}
+.lms-academic-course-name img,.lms-academic-course-placeholder{width:58px;height:58px;flex:none;border-radius:10px;object-fit:cover;background:var(--tenant-primary-soft);color:var(--tenant-primary);display:grid;place-items:center}
+.lms-academic-course-name strong{color:#142236;line-height:1.45;font-size:13px;overflow-wrap:anywhere}
+.lms-academic-hierarchy{display:flex;flex-direction:column;gap:5px;min-width:150px}.lms-academic-hierarchy strong{color:#253a55}.lms-academic-hierarchy small{color:#64748b}
+.lms-academic-course-modal{width:min(100%,860px)}
+.lms-academic-course-modal .lms-editor-form textarea{font-family:inherit}
+.lms-academic-four-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.lms-academic-flags{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lms-academic-flags .lms-switch-label{display:flex;align-items:center;gap:9px;flex-direction:row;border:1px solid #e2e8f0;background:#f8fafc;padding:13px;border-radius:11px}
+.lms-academic-flags input{width:17px;height:17px;accent-color:var(--tenant-primary)}
+.lms-academic-image-preview{max-width:280px;max-height:150px;border-radius:12px;object-fit:cover}
+.lms-academic-back a{display:inline-flex;gap:8px;align-items:center;color:var(--tenant-primary);font-size:13px;font-weight:700}
+.lms-academic-overview-image{width:210px;min-height:180px;flex:none;background:var(--tenant-primary-soft);color:var(--tenant-primary);display:grid;place-items:center}
+.lms-academic-overview-image img{width:100%;height:100%;min-height:180px;object-fit:cover}
+.lms-academic-course-overview{display:flex;gap:0;min-height:180px}
+.lms-academic-overview-info{padding:24px;min-width:0;flex:1}
+.lms-academic-overview-info>p{font-size:13px;line-height:1.65;color:#53647a;margin:16px 0}
+.lms-academic-tags{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lms-academic-overview-facts{display:flex;gap:22px;flex-wrap:wrap}
+.lms-academic-overview-facts span{display:flex;flex-direction:column;gap:5px;font-size:13px;color:#23344c}
+.lms-academic-overview-facts strong{font-size:11px;color:#64748b}
+.lms-academic-overview-info .lms-academic-help{font-size:11px;color:#64748b;margin-bottom:0}
+.lms-academic-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.lms-academic-setting{padding:23px}
+.lms-academic-setting h2,.lms-academic-transition h2{font-size:18px;color:#182b43;margin:0 0 12px;display:flex;align-items:center;gap:9px}
+.lms-academic-setting p,.lms-academic-transition>p{color:#63738a;font-size:13px;line-height:1.65;margin:0 0 16px}
+.lms-academic-grade-options{display:flex;flex-direction:column;gap:10px;margin-bottom:17px}
+.lms-academic-grade-options label{display:flex;align-items:flex-start;gap:11px;border:1px solid #e2e8f0;border-radius:11px;padding:13px;cursor:pointer}
+.lms-academic-grade-options input{accent-color:var(--tenant-primary);margin-top:3px}
+.lms-academic-grade-options span{display:flex;flex-direction:column;gap:5px}
+.lms-academic-grade-options strong{font-size:13px;color:#1c324b}
+.lms-academic-grade-options small{font-size:12px;color:#64748b;line-height:1.5}
+.lms-academic-select-label{display:flex;flex-direction:column;gap:7px;color:#26364b;font-size:13px;font-weight:750;margin-bottom:14px}
+.lms-academic-select-label select{min-height:42px;border:1px solid #d7e0eb;background:white;border-radius:9px;color:#26364b;padding:10px}
+.lms-academic-transition{padding:23px}
+.lms-academic-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:18px 0}
+.lms-academic-preview-group{border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:12px}
+.lms-academic-preview-group>strong{color:#1e293b;font-size:13px}
+.lms-academic-preview-group ul{padding-left:20px;color:#52637b;font-size:12px;line-height:1.6}
+.lms-academic-upcoming{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.lms-academic-upcoming>div{display:flex;flex-wrap:wrap;align-items:center;gap:9px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:11px;padding:13px;color:#8090a5}
+.lms-academic-upcoming span{font-size:13px;font-weight:750}
+.lms-academic-upcoming small{font-size:11px;width:100%}
+@media(max-width:1100px){.lms-academic-course-filters{grid-template-columns:1fr 1fr}.lms-academic-course-filters .lms-users-search{grid-column:1/-1}}
+@media(max-width:700px){.lms-academic-course-filters,.lms-academic-filters,.lms-academic-four-fields,.lms-academic-flags,.lms-academic-settings-grid,.lms-academic-preview-grid{grid-template-columns:1fr}.lms-academic-course-filters .lms-users-search{grid-column:auto}.lms-academic-course-overview{flex-direction:column}.lms-academic-overview-image{width:100%;height:180px}.lms-academic .lms-users-stats{grid-template-columns:1fr}}

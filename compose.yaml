@@ -7,6 +7,8 @@ services:
     environment:
       BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:?Define BACKEND_INTERNAL_URL en .env}
       NODE_ENV: production
+      ATHENA_LMS_MOOC_CODE: ${ATHENA_LMS_MOOC_CODE:-MOOC}
+      ATHENA_LMS_MDT_CODE: ${ATHENA_LMS_MDT_CODE:-MDT}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     expose:
