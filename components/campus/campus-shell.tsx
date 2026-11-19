@@ -20,7 +20,9 @@ export function CampusShell({tenant,user,expiresAt,children}: {
   const router=useRouter(),pathname=usePathname();
   const admin=isTenantAdmin(user.role);
   const inPolicies=pathname==="/campus/policies";
+  const inUsers=pathname==="/campus/users";
   const [expanded,setExpanded]=useState(inPolicies);
+  const [usersExpanded,setUsersExpanded]=useState(inUsers);
   const [mobile,setMobile]=useState(false);
   const [closing,setClosing]=useState(false);
   const policyHeading=admin?"Administración":"Información";
@@ -51,9 +53,17 @@ export function CampusShell({tenant,user,expiresAt,children}: {
         <Link href="/campus" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus"?"lms-nav-selected":""}`}>
           <House size={20}/> <span>Inicio</span>
         </Link>
-        <button type="button" className="lms-nav-item lms-nav-disabled" disabled title="Módulo pendiente de implementar">
-          <UsersRound size={20}/><span>Gestión de usuarios</span><ChevronDown size={17}/>
-        </button>
+        {admin && <>
+          <button type="button" className={`lms-nav-item ${usersExpanded || inUsers ? "lms-nav-selected" : ""}`}
+            aria-expanded={usersExpanded} aria-controls="lms-users-submenu"
+            onClick={() => setUsersExpanded(value => !value)}>
+            <UsersRound size={20}/><span>Gestión de usuarios</span><ChevronDown size={17} className={usersExpanded ? "lms-chevron-open" : ""}/>
+          </button>
+          {usersExpanded && <div id="lms-users-submenu" className="lms-submenu">
+            <Link href="/campus/users" onClick={closeMobile} className={inUsers ? "lms-submenu-active" : ""}
+              aria-current={inUsers ? "page" : undefined}>Usuarios</Link>
+          </div>}
+        </>}
         <button type="button" className="lms-nav-item lms-nav-disabled" disabled title="Módulo pendiente de implementar">
           <BookOpen size={20}/><span>Cursos y contenidos</span><ChevronDown size={17}/>
         </button>

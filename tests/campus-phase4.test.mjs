@@ -18,7 +18,8 @@ test("el inicio del campus no muestra la tarjeta provisional ni Llegaste", () =>
 test("la portada del campus tiene únicamente accesos a rutas existentes", () => {
   const home = read("components/campus/campus-home.tsx");
   const links = [...home.matchAll(/<Link\s+href="([^"]+)"/g)].map(v=>v[1]);
-  assert.deepEqual(links, ["/campus/policies", "/"]);
+  assert.deepEqual(links, ["/campus/users", "/campus/policies", "/"]);
+  assert.match(read("app/campus/users/page.tsx"), /isTenantAdmin\(state\.user\.role\)/);
   assert.match(read("app/campus/policies/page.tsx"), /authState\(tenant\)/);
 });
 

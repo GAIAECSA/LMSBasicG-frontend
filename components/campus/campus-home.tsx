@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, CircleCheck, FileText, GraduationCap,
-  Layers3, ShieldCheck, UserRound } from "lucide-react";
+  Layers3, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import type { TenantPublic } from "@/lib/tenant/types";
 import type { AuthUser, TenantModule } from "@/lib/auth/types";
 import { isTenantAdmin } from "@/lib/policies/types";
@@ -53,6 +53,13 @@ export function CampusHome({ tenant, user, modules }: Props) {
           <p>Se muestran únicamente funciones que ya tienen una pantalla operativa.</p>
         </div>
         <div className="lms-home-actions">
+          {admin && <Link href="/campus/users" className="lms-home-action">
+            <span className="lms-home-action-icon"><UsersRound size={23} aria-hidden="true"/></span>
+            <span className="lms-home-action-copy"><small>ADMINISTRACIÓN</small><strong>Usuarios</strong>
+              <span>Crear, consultar, editar, desactivar y eliminar cuentas de acceso al campus.</span>
+              <span className="lms-home-action-link">Gestionar usuarios <ArrowRight size={16} aria-hidden="true"/></span>
+            </span>
+          </Link>}
           <Link href="/campus/policies" className="lms-home-action">
             <span className="lms-home-action-icon"><ShieldCheck size={23} aria-hidden="true"/></span>
             <span className="lms-home-action-copy">
