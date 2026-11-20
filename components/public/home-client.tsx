@@ -5,18 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import type { PublicCourse } from "@/lib/courses";
+import { courseCoverSrc } from "@/lib/academic/course-cover-url";
 import type { TenantPublic } from "@/lib/tenant/types";
 
 const EMPTY_IMAGE = "/course-placeholder.svg";
 
-/** No permitir recursos javascript:/data: ni rutas internas arbitrarias en portadas. */
-function resolveImageUrl(path?: string | null): string {
-    if (!path) return EMPTY_IMAGE;
-    if (path.startsWith("/uploads/") || path.startsWith("/api/v1/")) return path;
-    try {
-        const url = new URL(path);
-        return url.protocol === "https:" ? url.href : EMPTY_IMAGE;
-    } catch { return EMPTY_IMAGE; }
+/** Las imágenes de cursos son públicas, pero NUNCA otros archivos de /uploads. */
+function resolveImageUrl(course: PublicCourse): string {
+    return courseCoverSrc(course.id, course.image_url) ?? EMPTY_IMAGE;
 }
 
 /** No se muestra ningún logo de ATHENA como fallback de otro tenant. */
@@ -28,7 +24,6 @@ function TenantLogo({ name, url }: { name: string; url: string | null }) {
 
 const getCourseName = (course: PublicCourse) => course.name;
 const getCourseDescription = (course: PublicCourse) => course.description ?? "";
-const getCourseImageUrl = (course: PublicCourse) => course.image_url;
 const getCourseLevel = (course: PublicCourse) => course.level ?? "GENERAL";
 const getCoursePrice = (course: PublicCourse) => Number(course.price) || 0;
 const getCourseCurrency = (course: PublicCourse) => course.currency || "USD";
@@ -526,11 +521,7 @@ export function HomeClient({ tenant, courses, coursesStatus }: {
                                 {featuredCourse ? (
                                     <div className="athena-feature-image relative h-[290px] overflow-hidden rounded-[18px] bg-slate-100 sm:h-[350px] sm:rounded-[22px] lg:h-[360px] 2xl:h-[390px] 2xl:rounded-[25px]">
                                         <img
-                                            src={resolveImageUrl(
-                                                getCourseImageUrl(
-                                                    featuredCourse,
-                                                ),
-                                            )}
+                                            src={resolveImageUrl(featuredCourse)}
                                             alt={getCourseName(
                                                 featuredCourse,
                                             )}
@@ -811,11 +802,7 @@ export function HomeClient({ tenant, courses, coursesStatus }: {
                                         >
                                             <div className="relative h-[145px] overflow-hidden rounded-[16px] bg-slate-100 sm:h-[160px]">
                                                 <img
-                                                    src={resolveImageUrl(
-                                                        getCourseImageUrl(
-                                                            course,
-                                                        ),
-                                                    )}
+                                                    src={resolveImageUrl(course)}
                                                     alt={getCourseName(
                                                         course,
                                                     )}

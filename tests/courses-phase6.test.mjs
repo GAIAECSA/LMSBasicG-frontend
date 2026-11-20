@@ -4,6 +4,7 @@ import {readFileSync,existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {dirname,resolve} from 'node:path';
 import {enabledCourseCodes,parseCategory,parseSubcategory,parseCourse,parseList,parseTransition} from '../lib/academic/types.ts';
+import {courseCoverSrc,parseCourseCoverPath} from '../lib/academic/course-cover-url.ts';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const file=(p)=>readFileSync(resolve(root,p),'utf8');
@@ -76,11 +77,64 @@ test('cambio de tipo usa preview y confirmación, nota solo endpoint especial',(
  const change=file('app/api/academic/courses/[id]/type-change/route.ts');
  assert.match(change,/payload.confirm!==true/);
 });
-test('el proxy solo acepta imagen pública y reconocida del tenant',()=>{
+test('el proxy de portadas es público, acotado por tenant y por formato de archivo',()=>{
  const route=file('app/api/academic/courses/[id]/image/route.ts');
- assert.match(route,/ctx.tenantId/);
- assert.match(route,/course.is_published/);
- assert.match(route,/image\/png/);
+ assert.match(route,/resolveTenant\(\)/);
+ assert.match(route,/tenant.id !== cover.tenantId/);
+ assert.match(route,/parseCourseCoverPath\(request.nextUrl.searchParams.get\('path'\)\)/);
+ assert.match(route,/backendBaseUrl\(\)/);
+ assert.match(route,/MAX_IMAGE_BYTES/);
+ assert.match(route,/ALLOWED_MIME/);
+ assert.doesNotMatch(route,/authorize\(/);
+ assert.doesNotMatch(route,/request\.cookies|apiFetch\(|if\s*\(\s*course\.is_published/);
+ assert.doesNotMatch(route,/fetch\(request.nextUrl/);
+});
+
+test('solo se aceptan rutas de portadas de tenant, nunca URLs arbitrarias ni archivos privados',()=>{
+ const ok='/uploads/tenant_10/courses/images/155c24f3c3114732a27c04e575c870de.png';
+ assert.deepEqual(parseCourseCoverPath(ok),{path:ok,tenantId:10});
+ assert.equal(courseCoverSrc(12,ok),`/api/academic/courses/12/image?path=${encodeURIComponent(ok)}`);
+ for(const invalid of [
+  'http://127.0.0.1:9000/uploads/tenant_10/courses/images/155c24f3c3114732a27c04e575c870de.png',
+  '/uploads/tenant_10/private/155c24f3c3114732a27c04e575c870de.pdf',
+  '/uploads/tenant_10/courses/images/../../private/secret.png',
+  '/uploads/tenant_10/courses/images/not-uuid.png',
+  '/uploads/tenant_0/courses/images/155c24f3c3114732a27c04e575c870de.png',
+  '//evil.example/cover.png',
+  '/uploads/tenant_10/courses/images/155c24f3c3114732a27c04e575c870de.svg',
+  '/uploads/tenant_10/courses/images/155c24f3c3114732a27c04e575c870de.png?foo=bar',
+  '', null,
+ ]) {
+  assert.equal(parseCourseCoverPath(invalid),null,String(invalid));
+  assert.equal(courseCoverSrc(12,invalid),null,String(invalid));
+ }
+ assert.equal(courseCoverSrc(0,ok),null);
+});
+
+test('catálogo crea únicamente borradores, permite ver y eliminar pero no editar',()=>{
+ const source=file('components/campus/admin-courses.tsx');
+ assert.match(source,/method: 'POST'/);
+ assert.match(source,/is_published: 'false'/);
+ assert.match(source,/setCreating\(true\)/);
+ assert.match(source,/Vista previa en tiempo real/i);
+ assert.match(source,/URL.createObjectURL\(form.image\)/);
+ assert.match(source,/\/campus\/courses\/\$\{course.id\}/);
+ assert.doesNotMatch(source,/openEdit|Editar curso|method: 'PATCH'/);
+ assert.match(source,/Eliminar curso/);
+});
+
+test('portadas de borradores y publicados usan la misma ruta pública, con fallback',()=>{
+ const component=file('components/campus/course-cover.tsx');
+ assert.match(component,/courseCoverSrc\(courseId, imageUrl\)/);
+ assert.match(component,/onError=\{\(\) => setFailed\(true\)\}/);
+ assert.match(component,/Portada no disponible/);
+ assert.doesNotMatch(component,/if\s*\([^)]*is_published/);
+ const detail=file('components/campus/admin-course-detail.tsx');
+ assert.match(detail,/CourseCover/);
+ assert.doesNotMatch(detail,/course.is_published&&course.image_url/);
+ const home=file('components/public/home-client.tsx');
+ assert.match(home,/courseCoverSrc\(course.id, course.image_url\)/);
+ assert.doesNotMatch(home,/path.startsWith\("\/uploads\/"\)/);
 });
 test('archivos críticos están presentes',()=>{
  for(const name of ['app/api/academic/categories/[id]/route.ts','app/api/academic/subcategories/[id]/route.ts',

@@ -1,8 +1,9 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- Las portadas se cargan desde el proxy same-origin autenticado. */
+/* eslint-disable @next/next/no-img-element -- Las portadas se cargan desde el proxy público same-origin. */
 import Link from 'next/link';
 import { useCallback,useEffect,useState } from 'react';
 import { ArrowLeft, Award, BookOpen, CalendarCheck, ClipboardCheck, GraduationCap, Info, RefreshCw, Settings2, UsersRound, AlertTriangle } from 'lucide-react';
+import { CourseCover } from './course-cover';
 import { apiErrorMessage,requestJson } from '@/lib/academic/client';
 import { parseCourse,parseCourseType,parseTransition,parseList,
  type ManagedCourse,type CourseTransition,type CourseCode,type CourseType,type GradeMethod } from '@/lib/academic/types';
@@ -68,8 +69,8 @@ export function AdminCourseDetail({courseId}:{courseId:number}){
     <h1>{course.name}</h1><p>Configuración general, método de evaluación y transición segura entre MOOC y MDT.</p></div>
     <button className="lms-outline-button" disabled={busy||loading} onClick={()=>void refresh()}><RefreshCw size={16}/> Recargar</button></div>
    <section className="lms-users-panel lms-academic-course-overview">
-    <div className="lms-academic-overview-image">{course.is_published&&course.image_url?
-     <img alt="Portada del curso" src={`/api/academic/courses/${course.id}/image`}/>:<BookOpen size={54} aria-hidden="true"/>}</div>
+    <div className="lms-academic-overview-image">
+     <CourseCover courseId={course.id} imageUrl={course.image_url} alt={`Portada de ${course.name}`} size={54}/></div>
     <div className="lms-academic-overview-info"><div className="lms-academic-tags"><span className="lms-users-role lms-users-role-admin">{course.course_type.code}</span>
      <span className={`lms-users-state ${course.is_published?'lms-users-state-on':'lms-users-state-off'}`}>{course.is_published?'Publicado':'Borrador'}</span>
      <span className="lms-users-role">{course.open_enrollment?'Matrícula abierta':'Matrícula cerrada'}</span></div>
@@ -77,7 +78,7 @@ export function AdminCourseDetail({courseId}:{courseId:number}){
       <span><strong>Duración</strong>{course.duration_hours} h</span><span><strong>Nivel</strong>{course.level}</span>
       <span><strong>Precio</strong>{course.is_free?'Gratis':`${course.price} ${course.currency}`}</span>
       <span><strong>Estudiantes</strong>{course.total_students}</span></div>
-     <p className="lms-academic-help">Las opciones generales (nombre, portada, publicación, matrícula y fechas) se editan desde el listado de cursos.</p></div>
+     <p className="lms-academic-help">La edición general del curso se incorporará en la navegación interna en el siguiente paso. Desde el listado solo puedes crear, ver o eliminar.</p></div>
    </section>
    <div className="lms-academic-settings-grid">
     <section className="lms-users-panel lms-academic-setting"><h2><ClipboardCheck size={20}/> Método de calificación</h2>
