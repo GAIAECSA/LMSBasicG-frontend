@@ -1,11 +1,12 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Logo validado y publicado por el endpoint de tenant; evita optimización remota. */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Award, BookOpen, ChevronDown, ChevronLeft, CircleHelp, GraduationCap,
-  House, Info, LogOut, Menu, ShieldCheck, UsersRound, X } from "lucide-react";
+import { ArrowLeft, Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, CircleHelp, ClipboardCheck, FileText, FolderOpen, GraduationCap, House, Info, LogOut, Menu, Settings2, ShieldCheck, UsersRound, X } from "lucide-react";
+import { workspaceItems, type CourseSection, type WorkspaceRole } from "@/lib/course-workspace/navigation";
+import type { CourseCode } from "@/lib/academic/types";
 import type { TenantPublic } from "@/lib/tenant/types";
 import type { AuthUser } from "@/lib/auth/types";
 import { isTenantAdmin } from "@/lib/policies/types";
@@ -14,15 +15,23 @@ import { SessionMonitor } from "@/components/auth/session-monitor";
 /** Shell compartido de todos los roles. No concede permisos: todas las páginas y BFF
  * revalidan sesión, tenant, políticas y rol en el servidor. No se imprime ATHENA.
  */
-export function CampusShell({tenant,user,expiresAt,children}: {
+type CourseWorkspaceNav = { id:number; name:string; code:CourseCode; role:WorkspaceRole };
+const courseIcon: Record<CourseSection,typeof BookOpen> = {
+  modules:BookOpen, attendance:CalendarDays, 'mdt-files':FolderOpen,
+  'mdt-evidence':FileText, grades:ClipboardCheck, enrollments:UsersRound,
+  certificates:Award, reports:BarChart3, settings:Settings2,
+};
+export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
   tenant:TenantPublic;user:AuthUser;expiresAt:string|null;children:ReactNode;
+  courseWorkspace?:CourseWorkspaceNav;
 }) {
   const router=useRouter(),pathname=usePathname();
+  const menuRef=useRef<HTMLElement|null>(null);
   const admin=isTenantAdmin(user.role);
   const visitor=user.role.code==="VISITOR" && user.role.scope==="PLATFORM";
   const inPolicies=pathname==="/campus/policies";
   const inUsers=pathname==="/campus/users";
-  const inCourses=pathname.startsWith("/campus/courses")||pathname==="/campus/categories"||pathname==="/campus/subcategories";
+  const inCourses=pathname==="/campus/courses"||pathname==="/campus/categories"||pathname==="/campus/subcategories";
   const [expanded,setExpanded]=useState(inPolicies);
   const [usersExpanded,setUsersExpanded]=useState(inUsers);
   const [coursesExpanded,setCoursesExpanded]=useState(inCourses);
@@ -40,11 +49,23 @@ export function CampusShell({tenant,user,expiresAt,children}: {
     finally {router.replace("/login");router.refresh();}
   }
   function closeMobile() {setMobile(false);}
+  // Si un enlace del curso se abre por URL directa o desde otra sección,
+  // asegura que el elemento seleccionado sea visible dentro del menú desplazable.
+  // Se ajusta SOLO scrollTop del menú; nunca se desplaza la página principal.
+  useEffect(()=>{
+    if(!courseWorkspace)return;
+    const menu=menuRef.current;
+    const current=menu?.querySelector<HTMLElement>('[aria-current="page"]');
+    if(!menu||!current)return;
+    const panel=menu.getBoundingClientRect(),item=current.getBoundingClientRect();
+    if(item.bottom>panel.bottom)menu.scrollTop+=item.bottom-panel.bottom+8;
+    else if(item.top<panel.top)menu.scrollTop-=panel.top-item.top+8;
+  },[pathname,courseWorkspace?.id,courseWorkspace?.code,mobile]);
   return <div className="lms-shell">
     <SessionMonitor expiresAt={expiresAt}/>
     <button type="button" className="lms-mobile-open" aria-label="Abrir menú" onClick={()=>setMobile(true)}><Menu size={22}/></button>
     {mobile&&<button aria-label="Cerrar menú" type="button" className="lms-sidebar-backdrop" onClick={closeMobile}/>}
-    <aside className={`lms-sidebar ${mobile?"lms-sidebar-open":""}`} aria-label="Menú del campus">
+    <aside className={`lms-sidebar ${courseWorkspace?"lms-sidebar-course ":""}${mobile?"lms-sidebar-open":""}`} aria-label="Menú del campus">
       <div className="lms-brand">
         <span className="lms-brand-mark">
           {tenant.logoUrl?<img alt="" src={tenant.logoUrl}/>:<GraduationCap size={26} aria-hidden="true"/>}
@@ -52,7 +73,27 @@ export function CampusShell({tenant,user,expiresAt,children}: {
         <div className="lms-brand-copy"><strong title={tenant.name}>{tenant.name}</strong><small>CAMPUS VIRTUAL</small></div>
         <button type="button" aria-label="Cerrar menú" className="lms-menu-close" onClick={closeMobile}><ChevronLeft size={21}/></button>
       </div>
-      <nav className="lms-menu" aria-label="Módulos">
+      <nav className="lms-menu" ref={menuRef} tabIndex={courseWorkspace?0:undefined} aria-label={courseWorkspace?"Secciones del curso":"Módulos"}>
+        {courseWorkspace ? <>
+          <Link href={courseWorkspace.role==='ADMIN'?'/campus/courses':'/campus/my-courses'}
+            className="lms-nav-item lms-course-back" onClick={closeMobile}>
+            <ArrowLeft size={20}/><span>{courseWorkspace.role==='ADMIN'?'Volver a administración':'Volver a mis cursos'}</span>
+          </Link>
+          <div className="lms-course-nav-heading" title={courseWorkspace.name}>
+            <span className="lms-course-nav-label">CURSO {courseWorkspace.code}</span>
+            <strong>{courseWorkspace.name}</strong>
+          </div>
+          {workspaceItems(courseWorkspace.code,courseWorkspace.role).map(item=>{
+            const href=`/campus/courses/${courseWorkspace.id}/${item.section}`;
+            const active=pathname===href;
+            const Icon=courseIcon[item.section];
+            return <Link key={item.section} href={href} onClick={closeMobile}
+              className={`lms-nav-item ${active?'lms-nav-selected':''}`}
+              aria-current={active?'page':undefined}>
+              <Icon size={20}/><span>{item.label}</span>
+            </Link>;
+          })}
+        </> : <>
         {!visitor && <Link href="/campus" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus"?"lms-nav-selected":""}`}>
           <House size={20}/> <span>Inicio</span>
         </Link>}
@@ -96,6 +137,7 @@ export function CampusShell({tenant,user,expiresAt,children}: {
         {expanded&&<div id="lms-policies-submenu" className="lms-submenu">
           <Link href="/campus/policies" onClick={closeMobile} className={inPolicies?"lms-submenu-active":""} aria-current={inPolicies?"page":undefined}>Políticas</Link>
         </div>}
+        </>}
       </nav>
       <div className="lms-sidebar-bottom">
         <div className="lms-support" title="El módulo de soporte se implementará posteriormente"><CircleHelp size={19}/> Ayuda y soporte <span className="sr-only">(próximamente)</span></div>

@@ -52,7 +52,10 @@ test('las páginas y API validan admin y pendientes',()=>{
   assert.match(page,/state.status==='pending'/);
  }
  const detail=file('app/campus/courses/[id]/page.tsx');
- assert.match(detail,/isTenantAdmin/);
+ const access=file('lib/course-workspace/server.ts');
+ assert.match(detail,/\/modules/);
+ assert.match(access,/isTenantAdmin/);
+ assert.match(access,/status==='ACEPTADO'/);
  const auth=file('lib/academic/bff.ts');
  assert.match(auth,/authState\(await resolveTenant\(\),token\)/);
  assert.match(auth,/sameOriginRequest/);
@@ -65,11 +68,12 @@ test('crear curso impone borrador, tipo permitido y no asigna docente',()=>{
  assert.match(route,/ctx.allowed.includes\(type.code\)/);
  assert.doesNotMatch(file('components/campus/admin-courses.tsx'),/Asignar docente/);
 });
-test('cambio de tipo usa preview y confirmación, nota solo endpoint especial',()=>{
+test('configuración ya no hace transiciones de tipo implícitas; calificación usa endpoint separado',()=>{
  const d=file('components/campus/admin-course-detail.tsx');
- assert.match(d,/type-preview/);
- assert.match(d,/type-change/);
+ const editor=file('lib/course-workspace/editor.ts');
+ assert.doesNotMatch(d,/type-preview|type-change/);
  assert.match(d,/grade-method/);
+ assert.doesNotMatch(editor.split('export function courseUpdateForm')[1].split('// course_type_id')[0],/course_type_id/); // no enviarlo al PATCH general
  const route=file('app/api/academic/courses/[id]/grade-method/route.ts');
  assert.match(route,/quiz\/courses\/\$\{id\}\/grade-method/);
  const preview=file('app/api/academic/courses/[id]/type-preview/route.ts');

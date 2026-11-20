@@ -166,3 +166,22 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
 | Se actualizaron tests y documentación | `tests/visitor-phase7.test.mjs` y `docs/VISITOR_FASE7.md` | Que los contratos y las pruebas no sigan exigiendo peticiones eliminadas |
 
 **Dependencia:** requiere backend Fase 8 ya aplicado; no hay cambios de esquema, endpoints nuevos ni BFF. No se amplía el DTO público con MOOC/MDT. Esta modificación es únicamente frontend.
+
+## 2026-11-20 — Fase 9: workspace por curso y Configuraciones
+
+- Entrada `/campus/courses/{id}` → Módulos; área en blanco a propósito hasta migrar su backend y UI.
+- ADMIN entra sin enrollment; TEACHER exige enrollment `ACEPTADO`, rol de curso TEACHER y tenant coincidente; STUDENT conserva el menú general, sin opciones administrativas.
+- Menú basado en `course_type.code`, no booleanos `is_mdt` o IDs. MDT añade Archivos MDT, Evidencia MDT y Reportes (solo ADMIN). Asistencia se unifica en una sola opción para MOOC y MDT.
+- ADMIN/TEACHER comparten Módulos, Asistencia y Calificaciones. Matrículas, Certificados y Configuraciones son de ADMIN; Reportes de MDT solo ADMIN. Las secciones aún no migradas muestran un placeholder protegido.
+- El editor real de curso está en Configuraciones, no en el catálogo. Usa PATCH multipart y conserva imagen en cualquier estado de publicación; método de calificación usa operación independiente de recálculo.
+- Se retiraron los paneles «Certificados habilitados», «Próximos apartados» y la previsualización de transición MOOC/MDT. El tipo no se cambia a través de CourseUpdate porque la transición exige aprobación y reconciliación de datos en backend.
+- Se detectaron dos pendientes backend: `GET /courses/{id}/workspace` autenticado y restringido a profesor matriculado para conocer el código MOOC/MDT sin cambiar el DTO público; y soporte explícito para limpiar campos opcionales (descuento/fechas) en `CourseUpdate`. Consultar `docs/AULA_FASE9.md` para contrato y alcances.
+
+
+## 2026-11-20 — Fase 9.2: menú de aula con scroll y cambio explícito MOOC/MDT
+
+- Problema: en pantallas de poca altura el sidebar de 9 se desbordaba y ocultaba rutas al pie; causa: `.lms-menu` no tenía desplazamiento propio. Decisión: `CampusShell` mantiene brand y cuenta, da `flex:1;min-height:0;overflow-y:auto` al menú, compacta únicamente la vista de curso y garantiza visibilidad del enlace activo por `scrollTop`. Se conservan los tokens del tenant.
+- Se añadió `CourseTypeTransitionCard` a Configuraciones solo ADMIN, **fuera del PATCH general**. Usa BFF ya existente (`course-types`, `type-preview`, `type-change`), valida la modalidad disponible por `code`, muestra impacto real y requiere confirmación explícita. No se modifica FastAPI.
+- Se bloquea el cambio si hay ajustes generales sin guardar y se mantiene el control de concurrencia/seguridad del backend. Las respuestas no confirmadas nunca se anuncian como éxito.
+- El backend Fase 9.1 ya dispone del contexto docente; el DTO público sigue sin tipo. Mantener el soporte pendiente de limpieza explícita de descuentos y fechas sin mezclarlo con la conversión de modalidad.
+- Archivos y verificación: consultar `docs/AULA_FASE9.md` y `docs/FASE9_2_SIDEBAR_CAMBIO_TIPO.md`.

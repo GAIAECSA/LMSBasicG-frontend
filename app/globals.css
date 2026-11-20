@@ -535,3 +535,104 @@ img { max-width: 100%; display: block; }
 @media(max-width:1100px){.visitor-filterbar{flex-wrap:wrap}.visitor-filterbar>.visitor-search{flex-basis:100%}.visitor-enrolled-card{grid-template-columns:195px minmax(0,1fr)}.visitor-enrolled-access{grid-column:1/-1;border-left:0;border-top:1px solid #e2e9f1;flex-direction:row;align-items:center}.visitor-access-panel{flex:1}.visitor-not-yet{min-width:160px}}
 @media(max-width:690px){.visitor-page-head{align-items:stretch;flex-direction:column}.visitor-stat-grid,.visitor-catalog-grid{grid-template-columns:1fr}.visitor-stat{padding:16px}.visitor-tabs{width:100%;overflow-x:auto;padding-bottom:3px}.visitor-tabs button{flex:none}.visitor-enrolled-card{display:flex;flex-direction:column}.visitor-enrolled-cover{height:190px;min-height:190px}.visitor-enrolled-main{padding:20px}.visitor-enrolled-access{padding:14px}.visitor-catalog-hero{padding:33px 24px;min-height:225px}.visitor-hero-decoration{display:none}.visitor-catalog-filters{align-items:stretch;flex-direction:column}.visitor-catalog-filters .visitor-search{width:100%;flex:auto}.visitor-level-filter{justify-content:space-between}.visitor-level-filter select{min-width:0;flex:1}.visitor-catalog-cover{height:220px}}
 @media(prefers-reduced-motion:reduce){.visitor-catalog-card,.visitor-catalog-cover img,.visitor-enrolled-cover img,.visitor-progress-fill{transition:none}}
+
+/* Fase 9 — Aula interna y Configuraciones. Sin colores institucionales fijos:
+   todo el acento deriva de los tokens globales del tenant. */
+.lms-course-back{margin-bottom:6px}
+.lms-course-nav-heading{display:flex;flex-direction:column;gap:7px;padding:13px 14px 15px;margin-bottom:6px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff24;min-width:0}
+.lms-course-nav-label{font-size:10px;letter-spacing:.15em;font-weight:800;color:#e5eefb}
+.lms-course-nav-heading strong{font-size:14px;line-height:1.35;color:#fff;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lms-course-blank{min-height:calc(100vh - 100px);background:#fff;border-radius:18px;border:1px solid #edf0f5}
+.lms-course-soon{padding:clamp(24px,4vw,46px);border:1px solid #e2e8f0;background:#fff;border-radius:20px;min-height:190px}
+.lms-course-soon h1{font-size:clamp(25px,3vw,34px);color:#172b45;line-height:1.2;margin:0 0 14px}
+.lms-course-soon>p{color:#64748b;line-height:1.6;font-size:14px}
+.course-settings-page{max-width:1500px}
+.course-settings-form{border:1px solid #e0e7ef;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 5px 24px #101f3510}
+.course-settings-form .lms-course-create-columns{min-height:0;grid-template-columns:minmax(0,1.55fr) minmax(330px,1fr)}
+.course-settings-form .lms-course-create-fields,.course-settings-form .lms-course-create-preview{overflow:visible}
+.course-settings-form .lms-course-create-fields{padding:clamp(19px,3vw,32px)}
+.course-settings-form .lms-course-create-preview{padding:clamp(20px,3vw,28px)}
+.course-settings-form .lms-course-preview-cover>.lms-course-cover-fallback{position:absolute;inset:0;display:grid;place-items:center;color:var(--lms-accent-ink);background:var(--lms-brand-tint)}
+.course-settings-form .lms-course-create-flags .lms-switch-label{flex-direction:row;align-items:center;cursor:pointer}
+.course-settings-form .lms-course-create-flags .lms-switch-label input{flex:none;width:18px;height:18px;accent-color:var(--tenant-primary)}
+.course-settings-form .lms-course-create-fields input[readonly]{color:#66778c;background:#f1f5f9;cursor:default}
+.course-settings-price{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin:0 0 18px}
+.course-settings-price small{width:100%;letter-spacing:.1em;font-size:10px;font-weight:800;color:#64748b}
+.course-settings-price strong{font-size:20px;color:var(--lms-accent-ink)}
+.course-settings-price del{font-size:12px;color:#64748b}
+.course-settings-summary{margin-top:20px;border:1px solid var(--lms-brand-border);padding:14px 16px;background:#fff;border-radius:14px;font-size:13px;line-height:1.5}
+.course-settings-summary p{display:flex;gap:9px;align-items:center;font-weight:800;color:var(--lms-accent-ink);margin:0 0 5px}
+.course-settings-summary span{color:#64748b}
+.course-settings-form .lms-course-create-footer{padding:15px 26px}
+.course-settings-form .lms-course-create-actions{max-width:500px;margin-left:auto}
+@media(max-width:1100px){.course-settings-form .lms-course-create-columns{grid-template-columns:minmax(0,1fr) minmax(270px,.78fr)}.course-settings-form .lms-course-create-three-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:750px){.course-settings-form .lms-course-create-columns{display:flex;flex-direction:column}.course-settings-form .lms-course-create-preview{border-left:0;border-top:1px solid var(--lms-brand-border)}.course-settings-form .lms-course-create-three-fields,.course-settings-form .lms-course-create-flags{grid-template-columns:1fr}.course-settings-form .lms-course-create-actions{grid-template-columns:1fr 1fr}}
+
+
+/* Fase 9.2 — Menú accesible en pantallas de poca altura.
+   La marca y la cuenta son fijas dentro del sidebar; SOLO el nav se desplaza.
+   El color institucional siempre procede de los tokens del tenant. */
+.lms-sidebar{overflow:hidden;min-height:0;height:100vh;height:100dvh}
+.lms-sidebar .lms-brand{flex:0 0 auto}
+.lms-sidebar .lms-menu{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#ffffff60 transparent;
+  padding-bottom:13px}
+.lms-sidebar .lms-menu::-webkit-scrollbar{width:7px}
+.lms-sidebar .lms-menu::-webkit-scrollbar-thumb{background:#ffffff55;border-radius:999px}
+.lms-sidebar .lms-sidebar-bottom{flex:0 0 auto;margin-top:0}
+.lms-sidebar .lms-menu:focus-visible{outline:2px solid var(--tenant-on-primary);outline-offset:-3px;border-radius:10px}
+.lms-sidebar-course .lms-menu{gap:2px;padding:4px 12px 12px}
+.lms-sidebar-course .lms-nav-item{min-height:39px;gap:11px;padding:8px 12px;font-size:13px;border-radius:11px}
+.lms-sidebar-course .lms-nav-item>svg:first-child{width:18px;height:18px}
+.lms-sidebar-course .lms-course-back{margin-bottom:4px}
+.lms-sidebar-course .lms-course-nav-heading{gap:4px;padding:10px 12px;margin-bottom:6px}
+.lms-sidebar-course .lms-course-nav-heading strong{font-size:12px;-webkit-line-clamp:2}
+.lms-sidebar-course .lms-sidebar-bottom{padding:9px 10px 10px}
+.lms-sidebar-course .lms-support{margin-bottom:4px;padding:5px 12px;font-size:12px}
+.lms-sidebar-course .lms-account{padding:6px}
+.lms-sidebar-course .lms-avatar{width:34px;height:34px}
+.lms-sidebar-course .lms-account-logout{width:31px;height:31px}
+@media(max-height:650px){
+ .lms-sidebar-course .lms-brand{height:62px;padding:8px 12px}
+ .lms-sidebar-course .lms-brand-mark{width:40px;height:40px}
+ .lms-sidebar-course .lms-support{display:none}
+ .lms-sidebar-course .lms-sidebar-bottom{padding-top:7px}
+}
+/* Editor de modalidad: vista previa obligatoria, confirmación independiente.
+   Los acentos usan --tenant-primary / --lms-accent-ink. */
+.course-settings-transition{margin-top:22px;border:1px solid var(--lms-brand-border);
+ background:var(--tenant-surface);border-radius:20px;padding:clamp(18px,3vw,28px)}
+.course-settings-transition-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:17px}
+.course-settings-transition-heading>svg{color:var(--lms-accent-ink);flex:none;margin-top:4px}
+.course-settings-transition-heading h2{font-size:20px;font-weight:800;color:#142236;margin:0 0 5px}
+.course-settings-transition-heading p{font-size:13px;line-height:1.55;color:#5c6c82;margin:0}
+.course-settings-transition-controls{display:flex;align-items:flex-end;gap:13px;flex-wrap:wrap}
+.course-settings-transition-controls label{display:flex;flex:1 1 240px;flex-direction:column;gap:7px;font-size:13px;font-weight:750;color:#26364b}
+.course-settings-transition-controls select{min-height:44px;padding:9px 13px;max-width:420px;border:1px solid #d9e3f0;
+ border-radius:12px;background:#fff;color:#142236}
+.course-settings-transition-controls button{min-height:44px}
+.course-settings-transition button:disabled{opacity:.58;cursor:not-allowed}
+.course-settings-transition-note{font-size:12px;color:#52647d;line-height:1.6;margin:12px 0 0}
+.course-settings-transition-alert{margin:15px 0 0;padding:11px 13px;border:1px solid #f0d69b;
+ border-radius:11px;background:#fffbeb;color:#854d0e;font-size:13px;line-height:1.5}
+.course-settings-transition-plan{margin-top:18px;border-top:1px solid #e1e8f0;padding-top:18px}
+.course-settings-transition-plan h3{font-size:17px;margin:0 0 8px;color:#15273d}
+.course-settings-transition-plan>p{font-size:13px;line-height:1.6;color:#53647a;margin:0 0 14px}
+.course-settings-transition-counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}
+.course-settings-transition-counts>div{display:flex;flex-direction:column;gap:5px;border:1px solid #e2e8f0;
+ border-radius:11px;background:#f8fafc;padding:12px;color:#53647a;font-size:12px}
+.course-settings-transition-counts strong{font-size:22px;color:var(--lms-accent-ink)}
+.course-settings-transition-details{margin-top:13px;color:#36475e;font-size:13px}
+.course-settings-transition-details summary{cursor:pointer;font-weight:750;padding:8px 0}
+.course-settings-transition-details ul{padding-left:20px;margin:6px 0 12px;line-height:1.7}
+.course-settings-transition-confirm{display:flex;align-items:flex-start;gap:10px;
+ font-size:13px;color:#26364b;line-height:1.55;font-weight:650;margin:18px 0 12px}
+.course-settings-transition-confirm input{width:18px;height:18px;flex:none;margin-top:1px;accent-color:var(--tenant-primary)}
+.course-settings-transition-actions{display:flex;gap:10px;flex-wrap:wrap}
+.course-settings-transition-actions button{min-height:42px}
+@media(max-width:600px){.course-settings-transition-controls{flex-direction:column;align-items:stretch}
+ .course-settings-transition-controls label{flex-basis:auto}
+ .course-settings-transition-controls select{max-width:none}
+ .course-settings-transition-actions>button{flex:1 1 100%}}
+
+.course-settings-type-shortcut{color:var(--lms-accent-ink);font-weight:800;text-decoration:underline;text-underline-offset:3px}

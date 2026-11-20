@@ -109,8 +109,32 @@ Antes de crear cursos, comprueba la correspondencia exacta entre `lms_configs.co
 
 ## Fase 7 — VISITOR: navegación y cursos (2026-11-20)
 
-El acceso VISITOR se dirige a **Mis cursos** (sin opción «Inicio»). La información procede de `GET /enrollments/me` y del catálogo público del tenant; solo se muestran matrículas `ACEPTADO` de cursos publicados, incluso si la matrícula pública ya está cerrada. En cada tarjeta se presenta rol académico; para STUDENT se intenta calcular porcentaje de bloques activos completados mediante la API existente. Si no puede calcularse, se muestra «Progreso aún no disponible»; para TEACHER, «No aplica». **No es una nota ni cálculo de certificados**.
+El acceso VISITOR se dirige a **Mis cursos** (sin opción «Inicio»). La información procede de `GET /enrollments/me` y del catálogo público del tenant; solo se muestran matrículas `ACEPTADO` de cursos publicados, incluso si la matrícula pública ya está cerrada. En cada tarjeta se presenta rol académico; para STUDENT se consume directamente `progress_percent`, calculado en FastAPI Fase 8 mediante el agregado de bloques activos. Si no puede calcularse, se muestra «Progreso aún no disponible»; para TEACHER, «No aplica». **No es una nota ni cálculo de certificados**.
 
 La opción **Cursos** muestra todas las publicaciones de la academia, independientemente de `open_enrollment`, con filtros, portadas y precios, pero sin autoinscripción. **Certificados** se conserva como página informativa hasta migrar el módulo. ADMIN mantiene sus rutas y menú anteriores. El frontend utiliza los tokens de `branding_config` del tenant y el BFF/cookies existentes; no añade dependencia nueva ni cambia FastAPI.
 
-Consulta [Guía de VISITOR Fase 7](docs/VISITOR_FASE7.md), [Diseño y branding](docs/DISENO_Y_BRANDING.md) y [Decisiones](docs/DECISIONES_Y_CAMBIOS.md). Para instalar: superponer el ZIP de esta fase en la raíz del frontend, ejecutar `npm test && npm run typecheck && npm run lint && npm run build`, reconstruir y validar en tu entorno con PostgreSQL y datos reales. El cálculo de progreso por múltiples consultas debe reemplazarse en una siguiente fase por un endpoint agregado del backend.
+Consulta [Guía de VISITOR Fase 7](docs/VISITOR_FASE7.md), [Diseño y branding](docs/DISENO_Y_BRANDING.md) y [Decisiones](docs/DECISIONES_Y_CAMBIOS.md). Para instalar: superponer el ZIP de esta fase en la raíz del frontend, ejecutar `npm test && npm run typecheck && npm run lint && npm run build`, reconstruir y validar en tu entorno con PostgreSQL y datos reales. El progreso ya se obtiene desde el endpoint agregado de matrículas (Fase 8.1 del frontend).
+
+
+## Fase 9 — Aula y Configuraciones de curso (2026-11-20)
+
+`/campus/courses/{id}` abre Módulos (zona en blanco) tras autenticar y autorizar.
+ADMIN ingresa sin matrícula, y conserva acceso a todas las secciones del curso
+según MOOC/MDT. TEACHER debe tener matrícula ACEPTADO; puede consultar módulos,
+asistencia unificada, calificaciones y, en MDT, archivos/evidencia. STUDENT no
+cambia de sidebar.
+
+`/campus/courses/{id}/settings` permite editar los datos del curso y actualizar
+el método de calificación mediante el endpoint independiente de FastAPI. Se retiraron
+los paneles antiguos «Certificados habilitados» y «Próximos apartados»; el cambio
+MOOC/MDT no se mezcla con el PATCH general por requerir transición segura.
+
+**Pendiente obligatorio en FastAPI para acceso docente al workspace:** implementar
+`GET /api/v1/courses/{id}/workspace` con tenant + enrollment ACEPTADO de TEACHER,
+que devuelva tipo MOOC/MDT. **No** modificar el DTO público. Por ahora el acceso
+docente falla cerrado hasta disponer de ese endpoint. También falta permitir
+borrar descuento/fechas opcionales de forma explícita en CourseUpdate.
+
+[Guía de implementación](docs/AULA_FASE9.md) ·
+[Inventario incremental](docs/INVENTARIO_PATCH_FASE9.md) ·
+[Diseño y branding](docs/DISENO_Y_BRANDING.md).

@@ -137,3 +137,20 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
 - Las tarjetas de «Cursos» son solo de lectura: **no poner botones de solicitar matrícula ni entrar a un aula** hasta completar esos módulos; la placa «Inscripciones próximamente» explica el alcance actual.
 - El progreso presentado es un porcentaje de bloques activos de la matrícula STUDENT, no una calificación ni evidencia de certificado aprobado. La falta de denominador o errores de consulta se muestran como «Progreso aún no disponible»; TEACHER muestra «No aplica».
 - Conservar la geometría responsive de tarjetas y los estados vacíos, las etiquetas de rol y los filtros visuales para implementaciones posteriores. Comparar con las capturas aprobadas en escritorio y móvil.
+
+---
+
+## 20/11/2026 — Workspace y Configuraciones (Fase 9)
+
+- El sidebar mantiene el logo, nombre, ancho, contrastes y tokens derivados del tenant. Dentro de un curso de ADMIN/TEACHER reemplaza la navegación por retorno contextual, nombre del curso y secciones autorizadas. STUDENT conserva su menú VISITOR anterior.
+- La edición usa la composición en dos columnas del modal de creación de curso de Fase 6: formulario a la izquierda, vista previa de portada con cambios locales a la derecha, responsive móvil en una columna. Ahora se integra en el contenido de Configuraciones sin modal.
+- `lms-course-*` y `course-settings-*` en `app/globals.css` heredan la identidad (`--tenant-primary`, `--tenant-primary-hover`, `--tenant-on-primary`, `--lms-accent-ink`, `--lms-brand-tint`, `--lms-brand-border`). No establecer azules fijos en JSX.
+- «Módulos» debe permanecer visualmente en blanco por alcance funcional; no introducir tarjetas de indicadores, iconos de próximos apartados ni paneles de certificados en su lugar.
+
+
+## 20/11/2026 — Sidebar de aula compacto con desplazamiento (Fase 9.2)
+
+- Tres zonas del sidebar: marca siempre visible arriba, navegación desplazable con `min-height:0`, cuenta y cierre siempre visibles abajo. La capacidad de recorrer todas las secciones funciona también con alturas de viewport reducidas y menú móvil.
+- Para un curso ADMIN/TEACHER se reduce la altura de las filas sin reducir las zonas táctiles por debajo de 39 px; el elemento activo se hace visible automáticamente dentro del menú. No se ocultan módulos administrativos por motivos de tamaño de pantalla.
+- Los componentes nuevos del panel «Cambio de modalidad» usan `--tenant-primary`, `--lms-accent-ink`, `--tenant-surface` y bordes derivados; los avisos ámbar siguen siendo estados semánticos, no una segunda paleta institucional.
+- Evitar `position:fixed` para los enlaces individuales del curso y no fijar alturas en píxeles al menú: deben funcionar desktop, móvil y zoom del navegador.
