@@ -129,3 +129,8 @@ La entrega previa cambió la estética pese a que el usuario quería solo refact
 **Flujo conservado:** login por dominio → `GET /policies/pending` → con lista vacía, `/campus`; con lista no vacía, `/policies` hasta aceptar → `/campus`. No se requiere ningún documento publicado previamente. El backend no fue modificado.
 
 **Limitaciones:** solo funcionan los módulos ya implementados (Inicio y Políticas); otros elementos del menú continúan deshabilitados. No se han ejecutado aquí pruebas de integración con Docker y el backend del usuario.
+
+
+## 2026-11-19 — Fase 6.2: estándar de colores de identidad para todo el campus
+
+Se estableció que el sidebar, los encabezados de formularios (incluido crear curso), acciones e iconos deben tomar su identidad del mismo `branding_config.colors` del tenant. Se eliminaron el azul fijo del sidebar y el degradado arbitrario de la creación de cursos. Se conserva la semántica independiente de estados (verde/ámbar/rojo) y superficies neutras para legibilidad. Se derivan colores de texto/hover/sidebar accesibles en `lib/tenant/branding.ts`, sin modificar FastAPI ni los contratos de la base de datos. **Reglas permanentes e inventario: [`DISENO_Y_BRANDING.md`](DISENO_Y_BRANDING.md), sección «Estandarización visual del campus».**

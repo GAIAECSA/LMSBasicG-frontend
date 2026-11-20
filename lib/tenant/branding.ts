@@ -1,6 +1,6 @@
 import type { TenantHero, TenantPublic, TenantResponse, TenantTheme } from "./types";
 
-const DEFAULT_THEME: Omit<TenantTheme, "onPrimary"> = {
+const DEFAULT_THEME: Omit<TenantTheme, "onPrimary" | "onPrimaryHover" | "accentInk" | "sidebar"> = {
   primary: "#1D4ED8",
   primaryHover: "#1E40AF",
   primarySoft: "#DBEAFE",
@@ -30,13 +30,47 @@ function blend(hex: string, target: "#000000" | "#FFFFFF", weight: number): stri
   return `#${rgb.join("")}`.toUpperCase();
 }
 
-function readableOn(hex: string): string {
+/** Contraste WCAG de dos colores HEX normalizados. */
+function luminance(hex: string): number {
   const channels = [1, 3, 5].map((index) => {
     const value = parseInt(hex.slice(index, index + 2), 16) / 255;
     return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   });
-  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-  return luminance > 0.179 ? "#0F172A" : "#FFFFFF";
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+function contrast(a: string, b: string): number {
+  const first = luminance(a), second = luminance(b);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+}
+
+function readableOn(hex: string): string {
+  // El gris pizarra institucional no siempre llega a 4.5:1 sobre colores medios.
+  // Negro/blanco permiten garantizar contraste incluso cerca de ese umbral.
+  const dark = "#0F172A", light = "#FFFFFF";
+  if (contrast(hex, dark) >= 4.5 && contrast(hex, dark) >= contrast(hex, light)) return dark;
+  if (contrast(hex, light) >= 4.5) return light;
+  return "#000000";
+}
+
+function readableAccent(hex: string): string {
+  // En campus se emplean superficies neutras blancas. Conserva el tono de la
+  // academia y oscurece el acento solo si no es legible sobre blanco.
+  let result = hex;
+  for (let i = 0; i < 40 && contrast(result, "#FFFFFF") < 4.5; i++) {
+    result = blend(result, "#000000", 0.08);
+  }
+  return result;
+}
+
+function sidebarFromPrimary(hex: string): string {
+  // Un sidebar de la misma familia cromática, suficientemente oscuro para texto
+  // blanco (objetivo 7:1), aun con colores institucionales muy claros.
+  let result = blend(hex, "#000000", 0.56);
+  for (let i = 0; i < 40 && contrast(result, "#FFFFFF") < 7; i++) {
+    result = blend(result, "#000000", 0.08);
+  }
+  return result;
 }
 
 function text(value: unknown, fallback: string, max = 190): string {
@@ -52,14 +86,18 @@ export function buildTenant(response: TenantResponse): TenantPublic {
   const hero = record(content.hero);
 
   const primary = color(colors.primary, DEFAULT_THEME.primary);
+  const primaryHover = color(colors.primary_hover, primary === DEFAULT_THEME.primary ? DEFAULT_THEME.primaryHover : blend(primary, "#000000", 0.18));
   const theme: TenantTheme = {
     primary,
-    primaryHover: color(colors.primary_hover, primary === DEFAULT_THEME.primary ? DEFAULT_THEME.primaryHover : blend(primary, "#000000", 0.18)),
+    primaryHover,
     primarySoft: color(colors.primary_soft, primary === DEFAULT_THEME.primary ? DEFAULT_THEME.primarySoft : blend(primary, "#FFFFFF", 0.88)),
     background: color(colors.background, DEFAULT_THEME.background),
     surface: color(colors.surface, DEFAULT_THEME.surface),
     text: color(colors.text, DEFAULT_THEME.text),
     onPrimary: readableOn(primary),
+    onPrimaryHover: readableOn(primaryHover),
+    accentInk: readableAccent(primary),
+    sidebar: sidebarFromPrimary(primary),
   };
 
   const heroContent: TenantHero = {
@@ -96,5 +134,8 @@ export function tenantCssVars(theme: TenantTheme): Record<string, string> {
     "--tenant-surface": theme.surface,
     "--tenant-text": theme.text,
     "--tenant-on-primary": theme.onPrimary,
+    "--tenant-on-primary-hover": theme.onPrimaryHover,
+    "--tenant-accent-ink": theme.accentInk,
+    "--tenant-sidebar": theme.sidebar,
   };
 }

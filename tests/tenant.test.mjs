@@ -44,3 +44,15 @@ test("logo solamente admite endpoint del hostname correspondiente", () => {
   assert.equal(buildTenant(fixture("Dos", "dos.com", {}, logo)).logoUrl, null);
   assert.equal(buildTenant(fixture("Dos", "dos.com", {}, "https://example.com/malware.svg")).logoUrl, null);
 });
+
+test("los tokens de campus se derivan del tenant sin configuración adicional", () => {
+  const light = buildTenant(fixture("Clara", "clara.com", { colors: { primary: "#ffffff", primary_hover: "#eeeeee" } }));
+  const dark = buildTenant(fixture("Oscura", "oscura.com", { colors: { primary: "#111827", primary_hover: "#334155" } }));
+  assert.equal(light.theme.onPrimary, "#0F172A");
+  assert.equal(dark.theme.onPrimary, "#FFFFFF");
+  assert.notEqual(light.theme.sidebar, dark.theme.sidebar);
+  assert.notEqual(light.theme.accentInk, dark.theme.accentInk);
+  assert.equal(tenantCssVars(light.theme)["--tenant-sidebar"], light.theme.sidebar);
+  assert.equal(tenantCssVars(light.theme)["--tenant-accent-ink"], light.theme.accentInk);
+  assert.equal(tenantCssVars(light.theme)["--tenant-on-primary-hover"], light.theme.onPrimaryHover);
+});

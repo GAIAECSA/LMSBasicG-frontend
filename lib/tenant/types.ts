@@ -18,6 +18,9 @@ export interface TenantTheme {
   surface: string;
   text: string;
   onPrimary: string;
+  onPrimaryHover: string;
+  accentInk: string;
+  sidebar: string;
 }
 
 export interface TenantHero {
