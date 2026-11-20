@@ -10,7 +10,10 @@ export default async function CampusPage() {
   if (state.status === "unauthenticated") redirect("/login");
   if (state.status === "pending") redirect("/policies");
   if (state.status === "unavailable") return <main className="state-page" role="alert">No fue posible verificar la sesión. Actualiza para reintentar.</main>;
-  // El inicio ya es un dashboard del campus. El rol determina los accesos visibles,
+  // VISITOR entra directamente en sus matrículas; /campus es solo inicio ADMIN.
+  // Mantener la validación de políticas antes de cambiar la ruta de destino.
+  if (state.user.role.code === "VISITOR" && state.user.role.scope === "PLATFORM") redirect("/campus/my-courses");
+  // El inicio sigue disponible para administración. El rol determina los accesos visibles,
   // pero las autorizaciones siguen siendo responsabilidad de FastAPI y authState().
   // Los módulos provienen de business_lms_config + lms_configs (endpoint /me/modules).
   return <CampusClient tenant={tenant} user={state.user} modules={state.modules} expiresAt={state.expiresAt} />;

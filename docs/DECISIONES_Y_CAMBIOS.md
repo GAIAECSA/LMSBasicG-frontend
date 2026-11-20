@@ -134,3 +134,35 @@ La entrega previa cambió la estética pese a que el usuario quería solo refact
 ## 2026-11-19 — Fase 6.2: estándar de colores de identidad para todo el campus
 
 Se estableció que el sidebar, los encabezados de formularios (incluido crear curso), acciones e iconos deben tomar su identidad del mismo `branding_config.colors` del tenant. Se eliminaron el azul fijo del sidebar y el degradado arbitrario de la creación de cursos. Se conserva la semántica independiente de estados (verde/ámbar/rojo) y superficies neutras para legibilidad. Se derivan colores de texto/hover/sidebar accesibles en `lib/tenant/branding.ts`, sin modificar FastAPI ni los contratos de la base de datos. **Reglas permanentes e inventario: [`DISENO_Y_BRANDING.md`](DISENO_Y_BRANDING.md), sección «Estandarización visual del campus».**
+
+
+## 2026-11-20 — Fase 7, vista VISITOR: matrículas y catálogo
+
+| Qué se hizo | Cómo | Motivo |
+|---|---|---|
+| Inicio exclusivo para ADMIN | `/campus` redirige VISITOR a `/campus/my-courses` tras `authState` y políticas | El visitante entra directamente a sus cursos; el dashboard administrativo permanece igual |
+| Nuevo menú VISITOR | `CampusShell` muestra Mis cursos / Cursos / Certificados, mantiene Políticas | Evitar duplicar layout o exponer administración |
+| Mis cursos con datos existentes | SSR consulta `/enrollments/me`, lo cruza con `courses/public/landing` del tenant, y requiere `status=ACEPTADO`, `is_published=true`; nunca comprueba `open_enrollment` para una matrícula existente | Respetar publicación y estado sin permitir a VISITOR listar `GET /courses` administrativo |
+| Porcentaje honesto | SSR reúne `blocks-progress`, módulos, lecciones, bloques activos y bloques por defecto; calcula completados/activos para STUDENT. `null` si no se puede medir, TEACHER no aplica | No inventar porcentajes y aprovechar el progreso lazy ya existente; el agregado de FastAPI será la evolución escalable |
+| Catálogo solo de lectura | Endpoint público existente, buscador, filtro de nivel, precio y portada; no hay CTA a matrículas | La autoinscripción se implementará después; no hay funciones falsas |
+| Certificados informativo | Página independiente, protegida por sesión/rol/políticas y sin solicitudes a datos de certificados | El futuro módulo tendrá un lugar en el menú sin prometer su disponibilidad |
+| Diseño y pruebas | Nuevas clases `visitor-*` consumen variables de branding, nueva suite `visitor-phase7.test.mjs` | Evitar hardcodes de color y regresiones de permisos/publicación |
+
+### Contratos pendientes a decidir con backend
+
+- Para escalar `/campus/my-courses`, exponer un endpoint de resumen por matrícula con porcentaje de bloques calculado **en FastAPI** (incluyendo bloques por defecto y elegibilidad de completitud, conteos no eliminados/activos). Actualizar la vista para no hacer consultas N+1 por módulos/lecciones/bloques. La métrica actual es un porcentaje de **bloques activos**, no de notas, asistencia o certificados.
+- `/api/v1/enrollments/me` solo expone `CourseBasicResponse`; descripción e imagen se obtienen del catálogo público, por lo que cursos borrador se ocultan por diseño. No ampliar permisos de `/courses` administrativo a VISITOR.
+- El DTO público no contiene `course_type.code` (MOOC/MDT): la nueva vista no lo finge. Una futura ficha pública podrá ampliar el DTO si se quiere distinguir modalidades.
+- Mantener explícitamente separadas las solicitudes PENDIENTE de las matrículas ACEPTADO. No abrir autosolicitudes ni acceso al aula en esta fase.
+
+
+## 2026-11-20 — Fase 8.1: consumir progreso agregado de FastAPI (VISITOR)
+
+| Qué se hizo | Cómo | Por qué |
+|---|---|---|
+| Se eliminó el cálculo N+1 del frontend | `lib/visitor/data.ts` deja de descargar módulos, lecciones, bloques, tipos de bloques y BlockProgress por matrícula; usa `progress_percent` de `GET /api/v1/enrollments/me` | El backend Fase 8 computa el porcentaje mediante una única consulta SQL agregada, sin multiplicar peticiones HTTP |
+| Se actualizó el contrato de matrícula | `lib/visitor/types.ts` conserva y valida `progress_percent`, `completed_blocks`, `total_active_blocks`, incluidos los nulos | Distinguir 0% real de ausencia de denominador y detectar un backend desactualizado o inconsistente |
+| Se preservó la experiencia aprobada | `VisitorMyCourses`, la navegación VISITOR y el catálogo público no cambian; TEACHER muestra «No aplica», STUDENT usa el porcentaje del backend | Evitar rehacer la UI y conservar el filtrado por publicación + matrícula aceptada, sin filtrar por `open_enrollment` |
+| Se actualizaron tests y documentación | `tests/visitor-phase7.test.mjs` y `docs/VISITOR_FASE7.md` | Que los contratos y las pruebas no sigan exigiendo peticiones eliminadas |
+
+**Dependencia:** requiere backend Fase 8 ya aplicado; no hay cambios de esquema, endpoints nuevos ni BFF. No se amplía el DTO público con MOOC/MDT. Esta modificación es únicamente frontend.

@@ -124,3 +124,16 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
 - Ejecutar `npm test`, `npm run typecheck` y `npm run build`; contrastar además en el navegador a tamaños escritorio/móvil. Las pruebas de código no reemplazan la validación visual.
 
 **Nota de compatibilidad:** los nuevos campos de `TenantTheme` son derivados en el frontend; no se agregan claves obligatorias a `branding_config` ni cambia su schema JSONB.
+
+
+---
+
+## 20/11/2026 — Pantallas VISITOR (Fase 7)
+
+- El menú VISITOR conserva `CampusShell`, `businesses.name`, `logo_url` y `tenantCssVars()`; **no tiene Inicio**. Los accesos son «Mis cursos», «Cursos», «Certificados» e «Información → Políticas».
+- Los nuevos componentes `visitor-my-courses.tsx`, `visitor-catalog.tsx` y `visitor-certificates.tsx` usan exclusivamente clases `visitor-*` de `app/globals.css`. El acento principal, las superficies y los textos institucionales leen `--tenant-primary`, `--tenant-primary-hover`, `--tenant-primary-soft`, `--tenant-sidebar`, `--tenant-on-primary` y `--tenant-accent-ink`.
+- No incorporar paletas azules fijas por cliente. Colores de estados semánticos (confirmación verde, alertas) pueden ser neutrales e independientes del branding; nunca reflejan licencias o permisos.
+- Cursos públicos y matrícula: `CourseCover` y `courseCoverSrc()` son la única fuente de portadas same-origin. No montar `/uploads` de manera general ni usar enlaces externos al backend.
+- Las tarjetas de «Cursos» son solo de lectura: **no poner botones de solicitar matrícula ni entrar a un aula** hasta completar esos módulos; la placa «Inscripciones próximamente» explica el alcance actual.
+- El progreso presentado es un porcentaje de bloques activos de la matrícula STUDENT, no una calificación ni evidencia de certificado aprobado. La falta de denominador o errores de consulta se muestran como «Progreso aún no disponible»; TEACHER muestra «No aplica».
+- Conservar la geometría responsive de tarjetas y los estados vacíos, las etiquetas de rol y los filtros visuales para implementaciones posteriores. Comparar con las capturas aprobadas en escritorio y móvil.

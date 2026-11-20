@@ -422,3 +422,116 @@ img { max-width: 100%; display: block; }
 @media(max-width:960px){.lms-course-create-columns{grid-template-columns:minmax(0,1fr) minmax(280px,.85fr)}.lms-course-create-fields{padding:22px}.lms-course-create-preview{padding:22px}.lms-course-create-three-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:710px){.lms-course-create-backdrop{padding:0}.lms-course-create-dialog{width:100%;height:100dvh;border:0;border-radius:0}.lms-course-create-header{padding:17px 18px}.lms-course-create-header h2{font-size:23px}.lms-course-create-header p{font-size:12px}.lms-course-create-close{padding:9px;font-size:12px}.lms-course-create-columns{display:block;overflow-y:auto}.lms-course-create-fields,.lms-course-create-preview{overflow:visible}.lms-course-create-fields{padding:20px 18px}.lms-course-create-three-fields{grid-template-columns:1fr}.lms-course-create-preview{padding:19px}.lms-course-preview-cover{min-height:220px}.lms-course-create-footer{padding:11px 13px}}
 @media(max-width:430px){.lms-course-create-flags{grid-template-columns:1fr}.lms-course-create-actions{gap:7px}.lms-course-create-header .lms-course-create-eyebrow{font-size:10px}}
+
+/* Fase 7 — VISITOR: Mis cursos, catálogo informativo y certificados.
+   Paleta institucional EXCLUSIVAMENTE desde tokens del tenant (docs/DISENO_Y_BRANDING.md).
+   Los grises, estados y superficies son neutros; sin azules hardcodeados. */
+.visitor-page{display:flex;flex-direction:column;gap:27px;min-width:0;color:#142238}
+.visitor-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
+.visitor-page-head h1{font-size:clamp(32px,4vw,47px);font-weight:900;letter-spacing:-.055em;line-height:1.08;margin:3px 0 13px;color:#0f172a}
+.visitor-page-head p:not(.lms-eyebrow){font-size:15px;line-height:1.6;color:#63748a;margin:0;max-width:720px}
+.visitor-page-head p strong{color:#253851}
+.visitor-primary-action,.visitor-secondary-action{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:13px;font-size:13px;font-weight:820;text-decoration:none;white-space:nowrap;min-height:44px;padding:12px 18px}
+.visitor-primary-action{background:var(--tenant-primary);color:var(--tenant-on-primary)}
+.visitor-primary-action:hover{background:var(--tenant-primary-hover);color:var(--tenant-on-primary-hover)}
+.visitor-secondary-action{background:var(--tenant-surface);border:1px solid #d9e2ee;color:var(--tenant-accent-ink);box-shadow:0 3px 12px #132a4610}
+.visitor-secondary-action:hover{border-color:var(--tenant-primary)}
+.visitor-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.visitor-stat{display:flex;align-items:center;gap:15px;min-width:0;background:var(--tenant-surface);border:1px solid #dfe7ef;border-radius:20px;padding:20px;box-shadow:0 4px 15px #172d4311}
+.visitor-stat-icon{flex:none;width:51px;height:51px;border-radius:17px;background:var(--tenant-primary-soft);color:var(--tenant-accent-ink);display:grid;place-items:center}
+.visitor-stat>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.visitor-stat>div>span{font-size:10px;letter-spacing:.09em;color:#687e96;font-weight:850}
+.visitor-stat strong{font-size:29px;color:#0c172b;font-weight:880;line-height:1;letter-spacing:-.05em}
+.visitor-stat small{font-size:12px;color:#8291a5}
+.visitor-filterbar{display:flex;align-items:center;gap:14px;border:1px solid #dbe5ef;border-radius:20px;padding:14px;background:var(--tenant-surface);box-shadow:0 4px 16px #14283f0d}
+.visitor-tabs{display:flex;gap:7px;flex:0 0 auto}
+.visitor-tabs button{border:0;background:#f0f4f8;color:#52657c;border-radius:12px;padding:13px 15px;font-size:13px;font-weight:760;white-space:nowrap}
+.visitor-tabs button:hover{background:var(--tenant-primary-soft);color:var(--tenant-accent-ink)}
+.visitor-tabs button.visitor-tab-active{background:var(--tenant-primary);color:var(--tenant-on-primary);box-shadow:0 4px 12px color-mix(in srgb,var(--tenant-primary) 20%,transparent)}
+.visitor-search{display:flex;align-items:center;gap:11px;min-height:48px;min-width:0;flex:1;background:#f6f9fc;border:1px solid #dce5ef;border-radius:12px;padding:0 15px;color:#7b8ea6;cursor:text}
+.visitor-search:focus-within{border-color:var(--tenant-primary);box-shadow:0 0 0 3px var(--tenant-primary-soft)}
+.visitor-search input{width:100%;border:0;background:transparent;outline:0;font-size:14px;color:#183047;min-width:0}
+.visitor-search input::placeholder{color:#8796a9}
+.visitor-filter-info{color:#7a8aa0;font-size:12px;margin:12px 0 16px;line-height:1.6}
+.visitor-enrolled-list{display:flex;flex-direction:column;gap:15px}
+.visitor-enrolled-card{background:var(--tenant-surface);border:1px solid #dee6ee;border-radius:22px;box-shadow:0 5px 19px #1b2b4310;min-height:230px;display:grid;grid-template-columns:minmax(185px,245px) minmax(0,1fr) minmax(165px,205px);overflow:hidden}
+.visitor-enrolled-cover{position:relative;display:flex;align-items:center;justify-content:center;background:var(--tenant-primary-soft);color:var(--tenant-accent-ink);overflow:hidden;min-height:220px}
+.visitor-enrolled-cover>img{width:100%;height:100%;position:absolute;inset:0;object-fit:cover;transition:transform .24s}
+.visitor-enrolled-card:hover .visitor-enrolled-cover>img{transform:scale(1.035)}
+.visitor-enrolled-cover>.lms-course-cover-fallback{display:flex;width:100%;height:100%;align-items:center;justify-content:center}
+.visitor-enrolled-cover-label{position:absolute;left:14px;bottom:14px;border-radius:999px;padding:7px 12px;background:var(--tenant-primary);color:var(--tenant-on-primary);font-size:11px;font-weight:850;letter-spacing:.03em}
+.visitor-enrolled-main{min-width:0;padding:23px 25px;display:flex;flex-direction:column;align-items:stretch}
+.visitor-badge-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:13px}
+.visitor-status-badge,.visitor-complete-badge,.visitor-neutral-badge{font-size:11px;font-weight:800;line-height:1.3;display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px}
+.visitor-status-badge{background:#eaf8ef;color:#197044}
+.visitor-complete-badge{background:#dbfce9;color:#116437}
+.visitor-neutral-badge{background:#edf2f7;color:#61738b;text-transform:capitalize}
+.visitor-enrolled-main h2{font-size:clamp(18px,2vw,22px);font-weight:900;line-height:1.25;letter-spacing:-.035em;color:#111b2d;margin:0 0 10px;overflow-wrap:anywhere}
+.visitor-enrolled-description{margin:0 0 17px;font-size:13px;line-height:1.65;color:#62758d;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.visitor-progress{margin-top:auto}
+.visitor-progress-copy{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#5b6e87;font-size:10px;font-weight:800;letter-spacing:.045em;margin-bottom:9px}
+.visitor-progress-copy strong{font-size:14px;color:var(--tenant-accent-ink);font-weight:900}
+.visitor-progress-rail{height:8px;width:100%;background:#edf2f7;border-radius:999px;overflow:hidden}
+.visitor-progress-fill{height:100%;background:var(--tenant-primary);border-radius:999px;transition:width .25s}
+.visitor-progress-empty{margin-top:auto;display:flex;align-items:center;gap:9px;color:#73839a;font-size:12px;line-height:1.45;padding-top:9px}
+.visitor-enrolled-access{border-left:1px solid #e2e9f1;background:color-mix(in srgb,var(--tenant-primary) 2%,white);padding:17px;display:flex;flex-direction:column;justify-content:space-between;gap:14px}
+.visitor-access-panel{background:var(--tenant-surface);border:1px solid #dfe7ee;padding:15px;border-radius:15px;display:flex;flex-direction:column;gap:7px}
+.visitor-access-panel span{display:flex;align-items:center;gap:7px;color:var(--tenant-accent-ink);font-size:11px;font-weight:850;letter-spacing:.025em}
+.visitor-access-panel strong{font-size:17px;color:#132139}
+.visitor-access-panel small{font-size:12px;color:#6f8199}
+.visitor-not-yet{background:#e9eff5;color:#6c7e94;padding:13px 8px;border-radius:12px;text-align:center;font-size:12px;font-weight:790;cursor:not-allowed}
+.visitor-empty{border:1px dashed #d2dde9;background:var(--tenant-surface);border-radius:22px;padding:65px 25px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#7e8fa5}
+.visitor-empty>svg{color:var(--tenant-accent-ink)}
+.visitor-empty h2,.visitor-empty h3{font-size:21px;font-weight:900;color:#17253b;margin:16px 0 7px}
+.visitor-empty p{font-size:14px;max-width:475px;line-height:1.7;margin:0 0 21px}
+/* Catálogo visitante: misma composición de tarjetas que el LMS previo, sin CTA falsos. */
+.visitor-catalog-hero{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:center;justify-content:space-between;min-height:250px;border-radius:26px;background:linear-gradient(118deg,var(--tenant-sidebar),var(--tenant-primary));padding:36px clamp(24px,4vw,53px);color:#fff;gap:20px}
+.visitor-catalog-hero::before,.visitor-catalog-hero::after{content:"";position:absolute;z-index:-1;border-radius:50%;border:1px solid #ffffff2c;aspect-ratio:1}
+.visitor-catalog-hero::before{width:400px;right:-120px;top:-190px}
+.visitor-catalog-hero::after{width:230px;right:100px;bottom:-165px}
+.visitor-catalog-hero-copy{max-width:660px}
+.visitor-hero-eyebrow{font-size:11px;display:flex;align-items:center;gap:8px;letter-spacing:.17em;font-weight:850;color:#ffffffd9;margin:0 0 15px}
+.visitor-catalog-hero h1{font-size:clamp(33px,4vw,53px);line-height:1.07;letter-spacing:-.05em;margin:0 0 18px;color:#fff;font-weight:900}
+.visitor-catalog-hero h1 span{color:#fff;box-shadow:inset 0 -.14em 0 #ffffff3a}
+.visitor-catalog-hero-copy>p:not(.visitor-hero-eyebrow){font-size:15px;color:#f0f5ff;line-height:1.75;margin:0 0 23px}
+.visitor-hero-note{display:inline-flex;align-items:center;gap:9px;color:#fff;background:#ffffff22;border:1px solid #ffffff30;padding:10px 13px;border-radius:999px;font-size:12px;font-weight:690}
+.visitor-hero-decoration{display:grid;place-items:center;width:185px;height:185px;flex:none;border:1px solid #ffffff45;border-radius:50%;background:#ffffff1b;color:#fff;transform:rotate(-10deg)}
+.visitor-catalog-section{display:flex;flex-direction:column;gap:19px}
+.visitor-catalog-topline{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.visitor-catalog-topline h2{font-size:clamp(23px,2.6vw,30px);font-weight:850;color:#142236;letter-spacing:-.04em;margin:0 0 5px}
+.visitor-catalog-topline>div>p:last-child{color:#697d94;font-size:13px;margin:0}
+.visitor-total-count{white-space:nowrap;background:var(--tenant-primary-soft);color:var(--tenant-accent-ink);padding:9px 13px;border-radius:999px;font-size:12px;font-weight:800}
+.visitor-catalog-filters .visitor-search{flex:1}
+.visitor-level-filter{display:flex;align-items:center;gap:12px;min-height:48px;color:#71849a;font-size:12px;font-weight:760}
+.visitor-level-filter select{border:1px solid #dce5ef;background:#f6f9fc;color:#33465f;padding:12px 13px;border-radius:12px;font-size:13px;min-width:180px;max-width:100%}
+.visitor-level-filter select:focus{outline:2px solid var(--tenant-primary-soft);border-color:var(--tenant-primary)}
+.visitor-catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.visitor-catalog-card{min-width:0;display:flex;flex-direction:column;background:var(--tenant-surface);border:1px solid #dee6ef;border-radius:22px;overflow:hidden;box-shadow:0 8px 23px #1b2b430e;transition:transform .2s,box-shadow .2s}
+.visitor-catalog-card:hover{transform:translateY(-3px);box-shadow:0 15px 28px #192d491b}
+.visitor-catalog-cover{height:205px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--tenant-primary-soft);color:var(--tenant-accent-ink);overflow:hidden}
+.visitor-catalog-cover>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.visitor-catalog-card:hover .visitor-catalog-cover>img{transform:scale(1.04)}
+.visitor-catalog-cover>.lms-course-cover-fallback{display:flex;width:100%;height:100%;align-items:center;justify-content:center}
+.visitor-cover-level{position:absolute;top:15px;left:15px;background:var(--tenant-primary);color:var(--tenant-on-primary);font-size:10px;font-weight:860;padding:8px 13px;border-radius:999px;text-transform:capitalize;box-shadow:0 5px 13px #0002}
+.visitor-catalog-body{display:flex;flex:1;flex-direction:column;padding:22px;min-width:0}
+.visitor-catalog-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px;color:#697d94;font-size:11px;font-weight:760}
+.visitor-catalog-meta span{display:inline-flex;align-items:center;gap:5px}
+.visitor-catalog-body h2{font-size:19px;color:#101b30;font-weight:900;letter-spacing:-.025em;line-height:1.3;margin:0 0 11px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.visitor-catalog-description{font-size:13px;line-height:1.7;color:#63768f;margin:0 0 21px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.visitor-catalog-price{border-top:1px solid #edf1f6;padding-top:17px;margin-top:auto}
+.visitor-catalog-price>span{font-size:10px;font-weight:850;color:#71839a;letter-spacing:.07em}
+.visitor-catalog-price>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
+.visitor-catalog-price strong{font-size:23px;color:var(--tenant-accent-ink);font-weight:900}
+.visitor-catalog-price s{font-size:13px;color:#8495aa}
+.visitor-catalog-foot{display:flex;align-items:center;gap:8px;border-radius:11px;background:#f2f5f9;color:#7e8da0;font-size:11px;line-height:1.4;padding:13px;margin-top:16px;font-weight:710}
+/* Certificados: destino existente, sin API o acciones inoperantes. */
+.visitor-certificate-panel{min-height:390px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:50px 25px;border-radius:24px;border:1px solid #e0e7f0;background:var(--tenant-surface);box-shadow:0 10px 30px #1d304615}
+.visitor-certificate-emblem{display:grid;place-items:center;width:102px;height:102px;background:var(--tenant-primary-soft);color:var(--tenant-accent-ink);border-radius:29px;margin-bottom:20px}
+.visitor-coming-soon{font-size:11px;font-weight:880;letter-spacing:.14em;color:var(--tenant-accent-ink);background:var(--tenant-primary-soft);border-radius:999px;padding:8px 12px}
+.visitor-certificate-panel h2{font-size:clamp(23px,3vw,30px);letter-spacing:-.035em;font-weight:900;margin:15px 0 10px;color:#18283c}
+.visitor-certificate-panel>p{font-size:14px;color:#65788e;max-width:500px;line-height:1.7;margin:0}
+.visitor-certificate-note{display:flex;align-items:center;gap:10px;font-size:12px;color:#64758a;margin-top:23px;background:#f5f8fb;border-radius:12px;padding:12px 15px}
+@media(max-width:1250px){.visitor-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.visitor-catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.visitor-enrolled-card{grid-template-columns:205px minmax(0,1fr) 177px}}
+@media(max-width:1100px){.visitor-filterbar{flex-wrap:wrap}.visitor-filterbar>.visitor-search{flex-basis:100%}.visitor-enrolled-card{grid-template-columns:195px minmax(0,1fr)}.visitor-enrolled-access{grid-column:1/-1;border-left:0;border-top:1px solid #e2e9f1;flex-direction:row;align-items:center}.visitor-access-panel{flex:1}.visitor-not-yet{min-width:160px}}
+@media(max-width:690px){.visitor-page-head{align-items:stretch;flex-direction:column}.visitor-stat-grid,.visitor-catalog-grid{grid-template-columns:1fr}.visitor-stat{padding:16px}.visitor-tabs{width:100%;overflow-x:auto;padding-bottom:3px}.visitor-tabs button{flex:none}.visitor-enrolled-card{display:flex;flex-direction:column}.visitor-enrolled-cover{height:190px;min-height:190px}.visitor-enrolled-main{padding:20px}.visitor-enrolled-access{padding:14px}.visitor-catalog-hero{padding:33px 24px;min-height:225px}.visitor-hero-decoration{display:none}.visitor-catalog-filters{align-items:stretch;flex-direction:column}.visitor-catalog-filters .visitor-search{width:100%;flex:auto}.visitor-level-filter{justify-content:space-between}.visitor-level-filter select{min-width:0;flex:1}.visitor-catalog-cover{height:220px}}
+@media(prefers-reduced-motion:reduce){.visitor-catalog-card,.visitor-catalog-cover img,.visitor-enrolled-cover img,.visitor-progress-fill{transition:none}}

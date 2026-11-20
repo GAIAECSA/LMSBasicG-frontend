@@ -1,4 +1,4 @@
-# Athena LMS — Frontend SaaS multi-tenant (fase 4: inicio del campus)
+# Athena LMS — Frontend SaaS multi-tenant (Fase 7: VISITOR + gestión ADMIN)
 
 Portada **restaurada desde el JSX y los estilos del proyecto LMSBasicG original** (no rediseñada). Un solo Next.js 16 para `academia1.com`, `academia2.com` y `campus.academia3.com`. Nginx preserva el hostname y FastAPI resuelve el `business`. Colores, nombre, logo y portada provienen de la tabla `businesses`, sin compilar ni instalar otro frontend.
 
@@ -10,12 +10,13 @@ Portada **restaurada desde el JSX y los estilos del proyecto LMSBasicG original*
 - Login **sin registro público** por dominio, sesión JWT revocable en FastAPI y cookie HttpOnly host-only.
 - Rol `role.code`/`role.scope` y configuración `business_lms_config + lms_configs` recuperados del backend tras completar las políticas.
 - Políticas obligatorias en flujo secuencial (`/policies`), lectura HTML/PDF, aceptación individual o logout por rechazo.
-- **Inicio real de campus** `/campus`: shell lateral, datos de sesión y academia, acceso a Políticas y al catálogo. Los otros módulos todavía no se han migrado.
+- **Campus ADMIN** `/campus`: inicio, shell lateral, usuarios, categorías, subcategorías, cursos y políticas.
+- **Campus VISITOR**: tras login y políticas va directamente a `/campus/my-courses`, con matrículas aceptadas de cursos publicados, roles STUDENT/TEACHER y progreso de bloques STUDENT; catálogo interno de lectura `/campus/catalog` y apartado informativo `/campus/certificates`. Aún no hay autoinscripción, aula ni certificados funcionales.
 - Aviso informativo de cookies necesarias en `/`; sin cookies opcionales ni analytics.
 - Dockerfile optimizado, Docker Compose, Nginx compartido, healthcheck, ejemplo TLS.
 - Bitácora de decisiones y contrato del backend en `docs/`.
 
-**No incluye** módulos internos legacy ni el backend. La segunda fase añade el flujo de autenticación/políticas, no el LMS interno completo. **Renovación automática de sesión no implementable sin un endpoint de refresh en FastAPI** (ver `docs/AUTENTICACION_Y_POLITICAS.md`). El monitor comprueba revocación y expiración, no renueva el JWT.
+**No incluye** módulos internos legacy que aún no hayan sido migrados ni modifica el backend. Las fases siguientes irán incorporando aula, matrícula del visitante y certificados. **Renovación automática de sesión no implementable sin un endpoint de refresh en FastAPI** (ver `docs/AUTENTICACION_Y_POLITICAS.md`). El monitor comprueba revocación y expiración, no renueva el JWT.
 
 ## Puesta en marcha local
 
@@ -104,3 +105,12 @@ Este ZIP consolida Fases 2, 3 y 4 para eliminar la tarjeta provisional de la Fas
 La gestión administrativa de **Categorías, Subcategorías y Cursos** y el detalle `/campus/courses/{id}` están documentados en `docs/MODULO_CURSOS_FASE6.md`.
 
 Antes de crear cursos, comprueba la correspondencia exacta entre `lms_configs.code` y `ATHENA_LMS_MOOC_CODE` / `ATHENA_LMS_MDT_CODE`. **FastAPI necesita aplicar también la validación de licencia en creación y transición**; el BFF no sustituye ese control.
+
+
+## Fase 7 — VISITOR: navegación y cursos (2026-11-20)
+
+El acceso VISITOR se dirige a **Mis cursos** (sin opción «Inicio»). La información procede de `GET /enrollments/me` y del catálogo público del tenant; solo se muestran matrículas `ACEPTADO` de cursos publicados, incluso si la matrícula pública ya está cerrada. En cada tarjeta se presenta rol académico; para STUDENT se intenta calcular porcentaje de bloques activos completados mediante la API existente. Si no puede calcularse, se muestra «Progreso aún no disponible»; para TEACHER, «No aplica». **No es una nota ni cálculo de certificados**.
+
+La opción **Cursos** muestra todas las publicaciones de la academia, independientemente de `open_enrollment`, con filtros, portadas y precios, pero sin autoinscripción. **Certificados** se conserva como página informativa hasta migrar el módulo. ADMIN mantiene sus rutas y menú anteriores. El frontend utiliza los tokens de `branding_config` del tenant y el BFF/cookies existentes; no añade dependencia nueva ni cambia FastAPI.
+
+Consulta [Guía de VISITOR Fase 7](docs/VISITOR_FASE7.md), [Diseño y branding](docs/DISENO_Y_BRANDING.md) y [Decisiones](docs/DECISIONES_Y_CAMBIOS.md). Para instalar: superponer el ZIP de esta fase en la raíz del frontend, ejecutar `npm test && npm run typecheck && npm run lint && npm run build`, reconstruir y validar en tu entorno con PostgreSQL y datos reales. El cálculo de progreso por múltiples consultas debe reemplazarse en una siguiente fase por un endpoint agregado del backend.

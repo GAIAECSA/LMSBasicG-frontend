@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BookOpen, ChevronDown, ChevronLeft, CircleHelp, GraduationCap,
+import { Award, BookOpen, ChevronDown, ChevronLeft, CircleHelp, GraduationCap,
   House, Info, LogOut, Menu, ShieldCheck, UsersRound, X } from "lucide-react";
 import type { TenantPublic } from "@/lib/tenant/types";
 import type { AuthUser } from "@/lib/auth/types";
@@ -19,6 +19,7 @@ export function CampusShell({tenant,user,expiresAt,children}: {
 }) {
   const router=useRouter(),pathname=usePathname();
   const admin=isTenantAdmin(user.role);
+  const visitor=user.role.code==="VISITOR" && user.role.scope==="PLATFORM";
   const inPolicies=pathname==="/campus/policies";
   const inUsers=pathname==="/campus/users";
   const inCourses=pathname.startsWith("/campus/courses")||pathname==="/campus/categories"||pathname==="/campus/subcategories";
@@ -52,9 +53,17 @@ export function CampusShell({tenant,user,expiresAt,children}: {
         <button type="button" aria-label="Cerrar menú" className="lms-menu-close" onClick={closeMobile}><ChevronLeft size={21}/></button>
       </div>
       <nav className="lms-menu" aria-label="Módulos">
-        <Link href="/campus" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus"?"lms-nav-selected":""}`}>
+        {!visitor && <Link href="/campus" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus"?"lms-nav-selected":""}`}>
           <House size={20}/> <span>Inicio</span>
-        </Link>
+        </Link>}
+        {visitor && <>
+          <Link href="/campus/my-courses" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus/my-courses"?"lms-nav-selected":""}`}
+            aria-current={pathname==="/campus/my-courses"?"page":undefined}><GraduationCap size={20}/><span>Mis cursos</span></Link>
+          <Link href="/campus/catalog" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus/catalog"?"lms-nav-selected":""}`}
+            aria-current={pathname==="/campus/catalog"?"page":undefined}><BookOpen size={20}/><span>Cursos</span></Link>
+          <Link href="/campus/certificates" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus/certificates"?"lms-nav-selected":""}`}
+            aria-current={pathname==="/campus/certificates"?"page":undefined}><Award size={20}/><span>Certificados</span></Link>
+        </>}
         {admin && <>
           <button type="button" className={`lms-nav-item ${usersExpanded || inUsers ? "lms-nav-selected" : ""}`}
             aria-expanded={usersExpanded} aria-controls="lms-users-submenu"
