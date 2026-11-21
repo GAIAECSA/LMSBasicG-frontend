@@ -2,6 +2,8 @@ import { notFound,redirect } from 'next/navigation';
 import { getCourseWorkspace } from '@/lib/course-workspace/server';
 import { mayOpenSection,workspaceItems } from '@/lib/course-workspace/navigation';
 import { AdminCourseDetail } from '@/components/campus/admin-course-detail';
+import { CourseAttendanceManager } from '@/components/campus/course-attendance-manager';
+import { CourseEnrollmentsManager } from '@/components/campus/course-enrollments-manager';
 export const metadata={title:'Curso'};
 export default async function CourseSectionPage({params}:{params:Promise<{id:string;section:string}>}){
   const {id,section}=await params;
@@ -21,6 +23,11 @@ export default async function CourseSectionPage({params}:{params:Promise<{id:str
   }
   if(!ws.code||!mayOpenSection(ws.code,ws.role,section))notFound();
   if(section==='modules')return <div className="lms-course-blank" aria-label="Módulos del curso (pendiente de implementación)"/>;
+  if(section==='attendance')return <CourseAttendanceManager courseId={ws.id} courseName={ws.name}/>;
+  if(section==='enrollments'){
+    if(ws.role!=='ADMIN')notFound();
+    return <CourseEnrollmentsManager courseId={ws.id} courseName={ws.name}/>;
+  }
   if(section==='settings'){
     if(ws.role!=='ADMIN'||!ws.initialCourse)notFound();
     return <AdminCourseDetail courseId={ws.id} initialCourse={ws.initialCourse}/>;

@@ -185,3 +185,19 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
 - Se bloquea el cambio si hay ajustes generales sin guardar y se mantiene el control de concurrencia/seguridad del backend. Las respuestas no confirmadas nunca se anuncian como éxito.
 - El backend Fase 9.1 ya dispone del contexto docente; el DTO público sigue sin tipo. Mantener el soporte pendiente de limpieza explícita de descuentos y fechas sin mezclarlo con la conversión de modalidad.
 - Archivos y verificación: consultar `docs/AULA_FASE9.md` y `docs/FASE9_2_SIDEBAR_CAMBIO_TIPO.md`.
+
+## Fase 11 — Asistencias y Matrículas
+- Asistencia opcional, manual y recurrente, para ambos tipos de curso MOOC/MDT. ADMIN y TEACHER ACEPTADO registran estado propio y de terceros.
+- Matrículas exclusivas de ADMIN; rol por matrícula STUDENT/TEACHER, no rol PLATFORM del usuario.
+- Plantilla Excel en español; importación local segura de texto. Hasta disponer de backend por lote, creación por fila no atómica con resultados detallados.
+- No reproducir licencias o IDs fijos en UI; FastAPI sigue siendo autoridad de multi-tenancy y permisos.
+- Se prioriza no alterar datos por coincidencias de identidad ambiguas, no forzar rol en usuarios aceptados, ni modificar calificación/certificados.
+- Pendiente backend: endpoint recurrente transaccional, carga masiva de rol por fila, búsqueda paginada, DTO `role.code` de asistencia.
+- Véase `docs/FASE11_ASISTENCIA_Y_MATRICULAS.md`.
+
+## Fase 12.1 — Integración de operaciones atómicas en el frontend (20/11/2026)
+
+- Matrícula existente en lote: `POST /enrollments/admin/bulk` (FastAPI); búsqueda ADMIN paginada `GET /users/search` con filtro VISITOR activo.
+- Matrícula masiva: importa Excel español en navegador, envía JSON completo a `/enrollments/massive`; **prioriza cédula** dentro del tenant y no valida nombre/username/email para una cuenta encontrada. Solo el backend crea usuarios nuevos. No permite éxito parcial ni cambia roles previamente aceptados.
+- Asistencia: días UI domingo=0 convertidos a backend lunes=0; previsualización y creación recurrente se envían completas al backend. Asistencias PENDIENTE se provisionan transaccionalmente con las sesiones.
+- Se conservan las rutas, componentes y tokens de branding del tenant. No modificar el DTO público MOOC/MDT ni los permisos del workspace. Véase `docs/FASE12_1_FRONTEND_LOTES_ATOMICOS.md`.
