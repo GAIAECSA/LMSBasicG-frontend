@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/auth/backend';
 import { SESSION_COOKIE } from '@/lib/auth/server';
 import { getCourseWorkspace } from '@/lib/course-workspace/server';
 import { error, json, mutation, output, upstream, validIdPath } from '@/lib/academic/bff';
+import { attendanceApi, enrichAttendanceRoles } from '@/lib/course-workspace/attendance-api';
 
 export const runtime='nodejs';
 type Params={params:Promise<{id:string;resource:string[]}>};
@@ -36,7 +37,7 @@ async function call(ctx:Context,path:string,method='GET',body?:unknown):Promise<
 }
 async function sessionInCourse(ctx:Context,sessionId:number):Promise<NextResponse|null>{
   try{
-    const response=await apiFetch(`/api/v1/course-attendance/${sessionId}`,ctx.token);
+    const response=await apiFetch(attendanceApi.session(sessionId),ctx.token);
     if(!response.ok)return upstream(response);
     const session:unknown=await response.json();
     if(!record(session)||session.course_id!==ctx.courseId||session.id!==sessionId)
@@ -105,33 +106,28 @@ export async function GET(request:NextRequest,params:Params){
   const resource=(await params.params).resource;
   if(resource.length===1&&resource[0]==='attendance'){
     const ctx=await auth(request,params);if(ctx instanceof NextResponse)return ctx;
-    return call(ctx,`/api/v1/course-attendance/course/${ctx.courseId}`);
+    return call(ctx,attendanceApi.course(ctx.courseId));
   }
   if(resource.length===3&&resource[0]==='attendance'&&resource[2]==='records'){
     const ctx=await auth(request,params);if(ctx instanceof NextResponse)return ctx;
     const sid=validIdPath(resource[1]);if(!sid)return error(400,'Sesión inválida');
     const failure=await sessionInCourse(ctx,sid);if(failure)return failure;
-    const response=await call(ctx,`/api/v1/attendance/course-attendance/${sid}`);
+    const response=await call(ctx,attendanceApi.records(sid));
     if(!response.ok)return response;
     // Se utiliza role_id únicamente si se encuentra el código verdadero de su matrícula.
     // ADMIN consulta matrículas del curso; TEACHER obtiene su role_id desde /enrollments/me.
     try{
       const rows:unknown=await response.json();if(!Array.isArray(rows))return error(502,'Asistencias inválidas');
-      const enrollmentPath=ctx.role==='ADMIN'?`/api/v1/enrollments?course_id=${ctx.courseId}`:'/api/v1/enrollments/me';
+      // /enrollments/ (con barra final) evita un 307 adicional de FastAPI.
+      // Un docente solo puede leer /enrollments/me; no llamar al listado ADMIN.
+      const enrollmentPath=ctx.role==='ADMIN'
+        ? `/api/v1/enrollments/?course_id=${ctx.courseId}`
+        : '/api/v1/enrollments/me';
       const ref=await apiFetch(enrollmentPath,ctx.token);
       if(!ref.ok)return upstream(ref);
-      const enrollments:unknown=await ref.json();if(!Array.isArray(enrollments))return error(502,'Matrículas inválidas');
-      const byId=new Map<number,string>();const byRole=new Map<number,string>();
-      for(const item of enrollments){
-        if(!record(item)||!record(item.role)||!pos(item.id))continue;
-        if(item.role.code!=='STUDENT'&&item.role.code!=='TEACHER')continue;
-        byId.set(item.id,item.role.code);
-        if(pos(item.role.id))byRole.set(item.role.id,item.role.code);
-      }
-      return output(rows.map(r=>{
-        if(!record(r))return r;
-        return {...r,role_code:byId.get(r.enrollment_id as number)??byRole.get(r.role_id as number)??null};
-      }));
+      const enrollments:unknown=await ref.json();
+      if(!Array.isArray(enrollments))return error(502,'Matrículas inválidas');
+      return output(enrichAttendanceRoles(rows,enrollments,ctx.courseId,ctx.role));
     }catch{return error(503,'No se pudo completar la lista de asistencia');}
   }
   if(resource.length===2&&resource[0]==='enrollments'&&resource[1]==='users'){
@@ -160,11 +156,11 @@ export async function POST(request:NextRequest,params:Params){
   const payload=await body(request,batchOperation?350000:8192);if(payload instanceof NextResponse)return payload;
   if(resource.length===3&&resource[0]==='attendance'&&resource[1]==='recurring'&&resource[2]==='preview'){
     if(!validRecurring(payload,ctx.courseId))return error(400,'Programación recurrente inválida');
-    return call(ctx,'/api/v1/course_attendance/course-attendance/recurring/preview','POST',payload);
+    return call(ctx,attendanceApi.recurringPreview,'POST',payload);
   }
   if(resource.length===2&&resource[0]==='attendance'&&resource[1]==='recurring'){
     if(!validRecurring(payload,ctx.courseId))return error(400,'Programación recurrente inválida');
-    return call(ctx,'/api/v1/course_attendance/course-attendance/recurring','POST',payload);
+    return call(ctx,attendanceApi.recurring,'POST',payload);
   }
   if(resource.length===2&&resource[0]==='enrollments'&&resource[1]==='bulk'){
     if(!validBulkEnroll(payload,ctx.courseId))return error(400,'Lote de matrículas inválido');
@@ -176,7 +172,7 @@ export async function POST(request:NextRequest,params:Params){
   }
   if(resource.length===1&&resource[0]==='attendance'){
     if(!validSession(payload,ctx.courseId))return error(400,'Fecha u horario inválido');
-    return call(ctx,'/api/v1/course-attendance','POST',payload);
+    return call(ctx,attendanceApi.createSession,'POST',payload);
   }
   if(resource.length===1&&resource[0]==='enrollments'){
     if(!validEnroll(payload,ctx.courseId))return error(400,'Matrícula inválida');
@@ -206,18 +202,18 @@ export async function PUT(request:NextRequest,params:Params){
   const failed=await sessionInCourse(ctx,sid);if(failed)return failed;
   if(resource.length===2){
     if(!validSessionEdit(payload))return error(400,'Actualización de sesión inválida');
-    return call(ctx,`/api/v1/course-attendance/${sid}`,'PUT',payload);
+    return call(ctx,attendanceApi.session(sid),'PUT',payload);
   }
   if(resource.length===4&&resource[2]==='records'){
     const recordId=validIdPath(resource[3]);
     if(!recordId||!record(payload)||Object.keys(payload).length!==1||!states.includes(String(payload.attendance_state)))
       return error(400,'Estado de asistencia inválido');
     // Impedir modificar mediante esta URL registros de otras sesiones.
-    const original=await apiFetch(`/api/v1/attendance/${recordId}`,ctx.token);
+    const original=await apiFetch(attendanceApi.record(recordId),ctx.token);
     if(!original.ok)return upstream(original);
     const row:unknown=await original.json();
     if(!record(row)||row.course_attendance_id!==sid)return error(404,'Asistencia fuera de la sesión');
-    return call(ctx,`/api/v1/attendance/${recordId}`,'PUT',payload);
+    return call(ctx,attendanceApi.record(recordId),'PUT',payload);
   }
   return error(404,'Operación no disponible');
 }
@@ -242,5 +238,5 @@ export async function DELETE(request:NextRequest,params:Params){
   const ctx=await auth(request,params);if(ctx instanceof NextResponse)return ctx;
   const sid=validIdPath(resource[1]);if(!sid)return error(400,'Sesión inválida');
   const failed=await sessionInCourse(ctx,sid);if(failed)return failed;
-  return call(ctx,`/api/v1/course-attendance/${sid}`,'DELETE');
+  return call(ctx,attendanceApi.session(sid),'DELETE');
 }

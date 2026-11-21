@@ -53,7 +53,8 @@ test('el SSR vincula las nuevas vistas a sus permisos de aula',()=>{
   assert.match(api,/getCourseWorkspace/);assert.match(api,/adminOnly/);assert.match(api,/sessionInCourse/);
   assert.match(api,/sameOriginRequest|mutation\(request/);
   assert.match(api,/\/api\/v1\/enrollments\/admin/);
-  assert.match(api,/\/api\/v1\/course-attendance/);
+  assert.match(api,/attendanceApi\.course/);
+  assert.match(read('lib/course-workspace/attendance-api.ts'),/\/api\/v1\/course_attendance\/course-attendance/);
 });
 test('la vista no introduce branding institucional fijo ni dependencias npm nuevas',()=>{
   const css=read('app/globals.css').split('/* Fase 11')[1];

@@ -60,8 +60,9 @@ test('BFF aplica permisos, tamaños de lote y redirige exactamente a la fase 12'
   assert.match(route,/\/api\/v1\/enrollments\/admin\/bulk/);
   assert.match(route,/\/api\/v1\/enrollments\/massive/);
   assert.match(route,/\/api\/v1\/users\/search/);
-  assert.match(route,/\/api\/v1\/course_attendance\/course-attendance\/recurring\/preview/);
-  assert.match(route,/\/api\/v1\/course_attendance\/course-attendance\/recurring/);
+  assert.match(route,/attendanceApi\.recurringPreview/);
+  assert.match(route,/attendanceApi\.recurring/);
+  assert.match(read('lib/course-workspace/attendance-api.ts'),/\/api\/v1\/course_attendance\/course-attendance/);
   assert.match(route,/role_code:'VISITOR'/);
   assert.match(route,/mutation\(request/);
 });

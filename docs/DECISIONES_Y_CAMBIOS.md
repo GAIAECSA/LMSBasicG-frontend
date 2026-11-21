@@ -201,3 +201,20 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
 - Matrícula masiva: importa Excel español en navegador, envía JSON completo a `/enrollments/massive`; **prioriza cédula** dentro del tenant y no valida nombre/username/email para una cuenta encontrada. Solo el backend crea usuarios nuevos. No permite éxito parcial ni cambia roles previamente aceptados.
 - Asistencia: días UI domingo=0 convertidos a backend lunes=0; previsualización y creación recurrente se envían completas al backend. Asistencias PENDIENTE se provisionan transaccionalmente con las sesiones.
 - Se conservan las rutas, componentes y tokens de branding del tenant. No modificar el DTO público MOOC/MDT ni los permisos del workspace. Véase `docs/FASE12_1_FRONTEND_LOTES_ATOMICOS.md`.
+
+## Fase 12.2 — Compatibilidad total de rutas de Asistencia (Frontend)
+
+- Se corrigió el 404 de `GET /api/course-workspace/{id}/attendance` y las rutas
+  individuales POST/GET/PUT/DELETE del BFF. El backend monta
+  `/api/v1/course_attendance/course-attendance` y `/api/v1/attendance/attendance`,
+  no `/api/v1/course-attendance` ni `/api/v1/attendance` sin segmento adicional.
+- Todas las rutas se centralizaron en `lib/course-workspace/attendance-api.ts` y
+  quedaron cubiertas por pruebas de regresión. Los endpoints recurrentes ya correctos
+  no cambian su semántica ni su atomicidad.
+- La identificación de los roles de asistencia es por matrícula del curso. ADMIN
+  consulta matrículas del curso; TEACHER utiliza `/enrollments/me` y discrimina
+  `role_id` docente conforme a los dos roles académicos vigentes. No se conceden
+  permisos administrativos al profesor.
+- Sin cambios de matriculación, autenticación, UI, estilos ni branding. Un 500 en
+  `/api/auth/session` es independiente y exige revisar logs de Next.js.
+- Ver `docs/FASE12_2_CORRECCION_ASISTENCIA.md`.
