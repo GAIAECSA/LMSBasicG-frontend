@@ -260,3 +260,11 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
   reutilizan tokens institucionales desde `DISENO_Y_BRANDING.md`.
 - No hay migración Alembic, dependencia adicional ni cambios en el aula STUDENT.
 - Documentación técnica: `docs/CALIFICACIONES_FRONTEND.md`.
+
+## 22/11/2026 — Certificados (ADMIN)
+
+- Se integra la pantalla `certificates` solo para ADMIN sobre el contrato backend `20261122_0004`, con BFF explícito y archivos privados.
+- MOOC: editor de 1122×794, presets, fondo opcional, prueba PDF de backend sin emisión, gestión de revocación/renovación e historial de certificados AUTOMATIC. La emisión inicial la solicita el STUDENT posteriormente. Las capacidades `AUTOMATIC` de MDT se conservan sin generación habilitada en este frontend.
+- MDT: importación PDF masiva de tipo MDT e INSTITUTIONAL por cédula del nombre, subida individual por matrícula, corrección documentada, visor, descargas e historial; sin revocación/renovación de documentos externos.
+- El endpoint backend no permite quitar totalmente un fondo de plantilla ya guardado ni buscar globalmente los certificados AUTOMATIC: se documenta sin simular funcionalidades.
+- Documentación vigente: `docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md`.

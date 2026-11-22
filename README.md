@@ -176,3 +176,9 @@ posterior compatible); no utilizar el primer parche sin corrección.
 **No se requieren migraciones nuevas** ni paquetes npm adicionales.
 
 Contrato y verificaciones: [Calificaciones frontend](docs/CALIFICACIONES_FRONTEND.md).
+
+## Certificados — vista ADMIN (22/11/2026)
+
+El workspace del curso incluye `/campus/courses/{id}/certificates` únicamente para ADMIN. MOOC: diseño con plantillas `classic`/`modern`, fondo editable, PDF de prueba generado en backend sin persistencia, listado de certificados reservados/emitidos, revocación/renovación e historial. MDT: certificados oficiales y, si habilitados, institucionales con subida masiva por cédula, individual por matrícula, corrección auditada y visor privado. La emisión automática MOOC por STUDENT corresponde a la futura pantalla STUDENT; la capacidad opcional `AUTOMATIC` en MDT permanece sin generación activa.
+
+**Requisito:** backend de Certificados del 22/11/2026 y migración `20261122_0004`. Consulta [`docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md`](docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md). Ejecutar `npm test`, `npm run typecheck`, `npm run lint` y `npm run build` tras agregar el parche.

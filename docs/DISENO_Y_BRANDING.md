@@ -200,3 +200,15 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
   MDT ni otras actividades ajenas al contrato.
 - Es un módulo **solo lectura**: jamás incorporar botones de calificación o
   ediciones de peso en esta vista. El cálculo oficial permanece en FastAPI.
+
+---
+
+## 22/11/2026 — Certificados ADMIN
+
+- La sección **Certificados** es exclusiva de ADMIN dentro de cada curso. MOOC utiliza dos pestañas «Plantilla y diseño» y «Certificados automáticos»; MDT utiliza «Ministerio del Trabajo» y, solo con capacidad activa, «Institucional».
+- `components/campus/course-certificates.module.css` mantiene la interfaz neutra y utiliza únicamente `--tenant-primary`, `--tenant-accent-ink`, `--lms-brand-tint` y `--lms-brand-border` para acciones/focos/selecciones institucionales. Los colores de estados (emitido, pendiente, revocado) son semánticos.
+- El **certificado en sí** tiene sus propios colores, tipografías y fondo configurados por ADMIN. No se debe forzar el color del tenant en la composición del documento salvo decisión expresa del diseñador.
+- El lienzo se diseña en **1122×794 px CSS** y se escala para mobile manteniendo coordenadas JSON. Drag, ajuste de tamaño y controles numéricos coexisten. Para validar fidelidad tipográfica se usa el PDF real de FastAPI, nunca se considera la tipografía local del navegador suficiente.
+- Los visores PDF usan iframe con URL BFF same-origin o `blob:` temporal de vista previa sin emisión. No exponer JWT ni rutas privadas de almacenamiento. Descarga opcional, no automática.
+- La operación de emisión MOOC inicial pertenece al futuro STUDENT; la vista ADMIN tiene exclusivamente configuración, prueba, revocación, renovación e historial. En MDT/INSTITUTIONAL no se muestran acciones de revocación o renovación.
+- Referencia completa: `docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md`.

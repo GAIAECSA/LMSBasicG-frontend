@@ -6,6 +6,7 @@ import { CourseAttendanceManager } from '@/components/campus/course-attendance-m
 import { CourseEnrollmentsManager } from '@/components/campus/course-enrollments-manager';
 import { CourseMdtResources } from '@/components/campus/course-mdt-resources';
 import { CourseGrades } from '@/components/campus/course-grades';
+import { CourseCertificates } from '@/components/campus/course-certificates';
 export const metadata={title:'Curso'};
 export default async function CourseSectionPage({params}:{params:Promise<{id:string;section:string}>}){
   const {id,section}=await params;
@@ -28,6 +29,11 @@ export default async function CourseSectionPage({params}:{params:Promise<{id:str
   if(section==='attendance')return <CourseAttendanceManager courseId={ws.id} courseName={ws.name}/>;
   if(section==='mdt-resources'&&ws.code==='MDT')return <CourseMdtResources courseId={ws.id} courseName={ws.name}/>;
   if(section==='grades')return <CourseGrades courseId={ws.id} courseName={ws.name}/>;
+  if(section==='certificates'){
+    if(ws.role!=='ADMIN'||!ws.initialCourse)notFound();
+    return <CourseCertificates courseId={ws.id} courseName={ws.name}
+      courseCode={ws.code} capabilities={ws.initialCourse.certificate_types}/>;
+  }
   if(section==='enrollments'){
     if(ws.role!=='ADMIN')notFound();
     return <CourseEnrollmentsManager courseId={ws.id} courseName={ws.name}/>;
