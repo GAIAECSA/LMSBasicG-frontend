@@ -154,3 +154,25 @@ Esta versión requiere el parche backend **Recursos MDT PDF único + visor** (si
 ADMIN y TEACHER aceptado abren **Recursos MDT** en el curso y previsualizan el documento dentro de un visor privado same-origin; descargar pasa a ser una acción opcional del visor. Se conservan subir/reemplazar e historial. El Homework académico fuera de este módulo no cambia.
 
 Contratos, instalación, seguridad y pruebas: [`docs/RECURSOS_MDT_FRONTEND.md`](docs/RECURSOS_MDT_FRONTEND.md) y [`docs/RECURSOS_MDT_PDF_FRONTEND_PATCH.md`](docs/RECURSOS_MDT_PDF_FRONTEND_PATCH.md).
+
+## Calificaciones — ADMIN / TEACHER, solo lectura (21/11/2026)
+
+La opción existente «Calificaciones» del workspace MOOC y MDT se conecta a
+`/campus/courses/{id}/grades`. Muestra estudiantes con matrícula `ACEPTADO` y rol
+`STUDENT`, únicamente `quiz` y `homework` activos con **`lesson_id IS NOT NULL`**.
+Incluye actividades que no cuentan para la nota; ningún bloque documental raíz
+MDT se muestra ni entra en el promedio. La nota final la calcula FastAPI usando
+`AVERAGE` o `WEIGHTED`; los filtros de actividades no recalculan notas.
+
+El BFF `GET /api/courses/{id}/grades` usa la cookie HttpOnly, el acceso del
+workspace y el endpoint de solo lectura `GET /api/v1/courses/{id}/grades` del
+**parche backend corregido**. Pantalla responsiva: tabla de dos columnas fijas y
+actividades desplazables en escritorio, tarjetas desplegables en móvil. Búsqueda,
+filtros y paginación independiente en ambos ejes. No existen controles de edición.
+
+**Requisito previo:** instalar exclusivamente
+`Athena_Backend_Calificaciones_CORREGIDO_Sin_Bloques_Raiz_20261121.zip` (o versión
+posterior compatible); no utilizar el primer parche sin corrección.
+**No se requieren migraciones nuevas** ni paquetes npm adicionales.
+
+Contrato y verificaciones: [Calificaciones frontend](docs/CALIFICACIONES_FRONTEND.md).

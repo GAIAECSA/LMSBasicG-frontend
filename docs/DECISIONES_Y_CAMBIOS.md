@@ -240,3 +240,23 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
 **Implementación:** `mdt-resources.ts` unifica la validación de cantidad/tamaño/formato solo para MDT y deriva URLs BFF `/preview` y `/download`. El BFF limita streaming multipart y convierte las respuestas PDF autorizadas en `inline` (visor) o `attachment` (descarga), sin exponer JWT ni URL del almacenamiento. `mdt-pdf-preview.tsx` incorpora modal accesible con iframe, descarga y fallback. `mdt-student-documents.tsx` y `mdt-institutional-pdfs.tsx` mantienen la misma gestión y muestran los archivos anteriores incompatibles como «Requiere actualización», sin eliminarlos automáticamente. CSS sigue `DISENO_Y_BRANDING.md`.
 
 **Dependencia:** el backend requiere la actualización `Athena_Backend_Recursos_MDT_PDF_Unico_Visor_PATCH_20261121.zip` y Alembic `20261121_0003` ya existente, sin migraciones nuevas. No se modifica Homework académico de lecciones. Ver `docs/RECURSOS_MDT_FRONTEND.md`.
+
+---
+
+## 21/11/2026 — Vista de Calificaciones (ADMIN / TEACHER)
+
+- Se activa la sección `grades` existente del workspace; no se crea menú nuevo.
+- Los alumnos proceden exclusivamente de matrículas `ACEPTADO` y rol de curso
+  `STUDENT`; la autorización ADMIN/TEACHER se comprueba en SSR, BFF y FastAPI.
+- API de lectura `GET /api/v1/courses/{id}/grades` consumida por BFF
+  `GET /api/courses/{id}/grades`, con filtros y páginas independientes de alumnos
+  y actividades. Sin POST, PATCH, DELETE ni recálculo del navegador.
+- Se usa el **parche backend corregido**: solo Quiz/Homework con `lesson_id` no
+  nulo, activos y no eliminados. No se muestran recursos MDT raíz ni participan
+  en `AVERAGE` o `WEIGHTED`. Mostrar también actividades no calificables.
+- Calificación final y pesos son datos de FastAPI (Decimal como cadena). Ausencia
+  de nota es `null`, representada con `—`; cero calificado se muestra `0.00`.
+- Desktop: tabla con estudiante/final fijos. Móvil: tarjetas expandibles. Se
+  reutilizan tokens institucionales desde `DISENO_Y_BRANDING.md`.
+- No hay migración Alembic, dependencia adicional ni cambios en el aula STUDENT.
+- Documentación técnica: `docs/CALIFICACIONES_FRONTEND.md`.

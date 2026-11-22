@@ -177,3 +177,26 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
 - Mantener contraste, foco de teclado, cierre con Escape y restauración del foco. En móvil el visor ocupa casi toda la altura; hay fallback «Abrir en otra pestaña» si el dispositivo no incrusta PDF.
 - La privacidad forma parte del diseño: no usar `iframe` con URL de FastAPI ni poner JWT en `src`. El visor y la descarga pasan por BFF y comprobaciones backend para cada solicitud.
 - No alterar la geometría de la portada pública, sidebar, editor de cursos, tablas de otros módulos ni modificar Homework académico.
+
+---
+
+## 21/11/2026 — Calificaciones ADMIN / TEACHER (normativo)
+
+- La matriz de notas reutiliza el workspace del curso y los componentes de
+  cabecera y botones existentes (`workspace-heading`, `workspace-panel`,
+  `lms-outline-button`). Los estilos propios están encapsulados en
+  `components/campus/course-grades.module.css`, sin modificar `app/globals.css`.
+- Mantener superficies neutras y acentos derivados de `--tenant-primary`,
+  `--tenant-accent-ink`, `--lms-accent-ink`, `--lms-brand-tint` y
+  `--lms-brand-border`. No agregar colores institucionales fijos.
+- En escritorio, las columnas **Estudiante** y **Nota final** permanecen fijas,
+  mientras que los encabezados de actividades se desplazan. El encabezado de cada
+  Quiz/Homework muestra tipo, nombre, lección, inclusión en nota y peso relativo.
+- En pantallas pequeñas, presentar **tarjetas expandibles** por estudiante, sin
+  encoger la tabla hasta impedir su lectura. Mantener controles y resultados
+  accesibles para teclado, zoom y lectores de pantalla.
+- El estado **No cuenta** no se representa con colores de error. `0.00` es una
+  nota calificada real; `—` es ausencia de nota final. No mostrar documentos raíz
+  MDT ni otras actividades ajenas al contrato.
+- Es un módulo **solo lectura**: jamás incorporar botones de calificación o
+  ediciones de peso en esta vista. El cálculo oficial permanece en FastAPI.
