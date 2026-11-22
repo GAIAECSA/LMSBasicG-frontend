@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BookOpen, CheckCircle2, ImagePlus, Info, RefreshCw, Save } from 'lucide-react';
 import { CourseCover } from './course-cover';
 import { CourseTypeTransitionCard } from './course-type-transition';
+import { CourseCertificateSettings } from './course-certificate-settings';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
 import { parseCategory, parseCourse, parseList, parseSubcategory,
   type Category,type Subcategory,type ManagedCourse,type CourseLevel,type GradeMethod } from '@/lib/academic/types';
@@ -220,6 +221,13 @@ export function AdminCourseDetail({courseId,initialCourse}:{courseId:number;init
         </div>
       </footer>
     </form>}
+    {!loading&&course.course_type.code==='MDT'&&<CourseCertificateSettings
+      key={`${courseId}-${course.course_type_id}`}
+      courseId={courseId}
+      disabled={busy||partialUpdate}
+      unsaved={unsaved}
+      onChanged={()=>router.refresh()}
+    />}
     {!loading&&<CourseTypeTransitionCard
       key={course.course_type_id}
       courseId={courseId}

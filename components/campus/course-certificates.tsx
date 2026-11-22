@@ -1,21 +1,24 @@
 'use client';
 import {useState} from 'react';
-import {FileBadge2,FileStack,LayoutTemplate,ShieldCheck} from 'lucide-react';
+import {FileBadge2,FileStack,LayoutTemplate,ShieldCheck,Users} from 'lucide-react';
 import type {LucideIcon} from 'lucide-react';
 import type {CourseCode,CertificateCapability} from '@/lib/academic/types';
 import {CertificateTemplateEditor} from './certificate-template-editor';
 import {CertificateAutomaticManager} from './certificate-automatic-manager';
-import {CertificateExternalManager} from './certificate-external-manager';
+import {CertificateExternalManager, type CertificateExternalFocus} from './certificate-external-manager';
+import {CertificateMdtOverview} from './certificate-mdt-overview';
 import css from './course-certificates.module.css';
 
-type CertificateTab='design'|'automatic'|'MDT'|'INSTITUTIONAL';
+type CertificateTab='design'|'automatic'|'overview'|'MDT'|'INSTITUTIONAL';
 type CertificateTabItem={id:CertificateTab;title:string;icon:LucideIcon};
 
 type Props={courseId:number;courseName:string;courseCode:CourseCode;
   capabilities:CertificateCapability[]};
 export function CourseCertificates({courseId,courseName,courseCode,capabilities}:Props){
+  const institutionalEnabled=capabilities.some(c=>c.certificate_type.code==='INSTITUTIONAL'&&c.is_active);
   const [tab,setTab]=useState<CertificateTab>(
-    courseCode==='MOOC'?'design':'MDT');
+    courseCode==='MOOC'?'design':institutionalEnabled?'overview':'MDT');
+  const [focus,setFocus]=useState<CertificateExternalFocus|undefined>(undefined);
   const enabled=(code:string)=>capabilities.some(c=>c.certificate_type.code===code&&c.is_active);
   const isMooc=courseCode==='MOOC';
   const institutional=enabled('INSTITUTIONAL');
@@ -29,6 +32,7 @@ export function CourseCertificates({courseId,courseName,courseCode,capabilities}
       {id:'automatic',title:'Certificados automáticos',icon:FileBadge2},
     );
   } else {
+    if (institutional) tabs.push({id:'overview',title:'Por estudiante',icon:Users});
     tabs.push({id:'MDT',title:'Ministerio del Trabajo',icon:FileStack});
     if (institutional) {
       tabs.push({id:'INSTITUTIONAL',title:'Institucional',icon:ShieldCheck});
@@ -50,7 +54,7 @@ export function CourseCertificates({courseId,courseName,courseCode,capabilities}
     {!isMooc&&enabled('AUTOMATIC')&&<p className={css.info}>La capacidad AUTOMATIC de este curso MDT permanece configurada, pero su generación no está habilitada en esta fase.</p>}
     <nav className={css.tabs} aria-label="Secciones de certificados">
       {tabs.map(item=><button type="button" key={item.id} className={`${css.tab} ${tab===item.id?css.tabSelected:''}`}
-        aria-current={tab===item.id?'page':undefined} onClick={()=>setTab(item.id)}>
+        aria-current={tab===item.id?'page':undefined} onClick={()=>{setFocus(undefined);setTab(item.id);}}>
         <item.icon size={16} aria-hidden="true"/> {item.title}</button>)}
     </nav>
     {isMooc? <>
@@ -58,8 +62,11 @@ export function CourseCertificates({courseId,courseName,courseCode,capabilities}
       {tab==='design'&&<CertificateTemplateEditor courseId={courseId} courseName={courseName}/>}
       {tab==='automatic'&&<CertificateAutomaticManager courseId={courseId}/>}
     </>:<>
-      {(tab==='MDT'||tab==='INSTITUTIONAL')&&<CertificateExternalManager key={`${courseId}-${tab}`}
-        courseId={courseId} code={tab} />}
+      {institutional&&tab==='overview'&&<CertificateMdtOverview courseId={courseId}
+        onManage={(code,student,action)=>{setFocus({student,action});setTab(code);}}/>}
+      {(tab==='MDT'||tab==='INSTITUTIONAL')&&<CertificateExternalManager
+        key={`${courseId}-${tab}-${focus?.student.enrollment_id??'none'}-${focus?.action??'none'}`}
+        courseId={courseId} code={tab} focus={focus}/>}
     </>}
   </section>;
 }

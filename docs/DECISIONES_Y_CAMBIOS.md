@@ -268,3 +268,10 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
 - MDT: importación PDF masiva de tipo MDT e INSTITUTIONAL por cédula del nombre, subida individual por matrícula, corrección documentada, visor, descargas e historial; sin revocación/renovación de documentos externos.
 - El endpoint backend no permite quitar totalmente un fondo de plantilla ya guardado ni buscar globalmente los certificados AUTOMATIC: se documenta sin simular funcionalidades.
 - Documentación vigente: `docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md`.
+
+## 22/11/2026 — Certificados institucionales opcionales por curso MDT
+
+- ADMIN puede habilitar/deshabilitar `INSTITUTIONAL` desde Configuraciones solo para MDT. `MDT` se conserva obligatorio. `AUTOMATIC` opcional no se modifica ni se activa funcionalmente en MDT.
+- El BFF consulta reglas del backend, porque la fila INSTITUTIONAL puede no existir hasta su primera activación. El PUT envía todos los tipos activos para no deshabilitar otras capacidades.
+- La sección Certificados muestra una tabla comparativa de los dos certificados por matrícula cuando institucional está habilitado y conserva las pantallas de importación, carga, visor, corrección e historial.
+- No hay cambios en modelos, migraciones ni en el backend.

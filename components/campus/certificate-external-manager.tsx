@@ -7,11 +7,12 @@ import {CERT_IMPORT_BATCH,certificateApi,certificateRequest,displayDate,
 import {CertificatePdfViewer} from './certificate-pdf-viewer';
 import css from './course-certificates.module.css';
 
-export function CertificateExternalManager({courseId,code}:{courseId:number;code:'MDT'|'INSTITUTIONAL'}){
+export type CertificateExternalFocus = {student:ExternalStudent;action:'upload'|'history'};
+export function CertificateExternalManager({courseId,code,focus}:{courseId:number;code:'MDT'|'INSTITUTIONAL';focus?:CertificateExternalFocus}){
   const [roster,setRoster]=useState<ExternalRoster|null>(null);
   const [page,setPage]=useState(1);
-  const [draft,setDraft]=useState('');
-  const [search,setSearch]=useState('');
+  const [draft,setDraft]=useState(focus?.student.username??'');
+  const [search,setSearch]=useState(focus?.student.username??'');
   const [revision,setRevision]=useState(0);
   const [loading,setLoading]=useState(true);
   const [working,setWorking]=useState(false);
@@ -19,11 +20,11 @@ export function CertificateExternalManager({courseId,code}:{courseId:number;code
   const [notice,setNotice]=useState('');
   const [selection,setSelection]=useState<File[]>([]);
   const [results,setResults]=useState<ImportResult[]|null>(null);
-  const [uploadTarget,setUploadTarget]=useState<ExternalStudent|null>(null);
+  const [uploadTarget,setUploadTarget]=useState<ExternalStudent|null>(focus?.action==='upload'?focus.student:null);
   const [uploaded,setUploaded]=useState<File|null>(null);
   const [reason,setReason]=useState('');
   const [viewer,setViewer]=useState<{id:number;studentName:string}|null>(null);
-  const [historyId,setHistoryId]=useState<number|null>(null);
+  const [historyId,setHistoryId]=useState<number|null>(focus?.action==='history'?focus.student.certificate_id:null);
   const [events,setEvents]=useState<CertEvent[]|null>(null);
   const [historyError,setHistoryError]=useState('');
   const api=useCallback((path:string)=>certificateApi(courseId,path),[courseId]);

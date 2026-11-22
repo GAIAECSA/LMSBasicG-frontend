@@ -182,3 +182,7 @@ Contrato y verificaciones: [Calificaciones frontend](docs/CALIFICACIONES_FRONTEN
 El workspace del curso incluye `/campus/courses/{id}/certificates` únicamente para ADMIN. MOOC: diseño con plantillas `classic`/`modern`, fondo editable, PDF de prueba generado en backend sin persistencia, listado de certificados reservados/emitidos, revocación/renovación e historial. MDT: certificados oficiales y, si habilitados, institucionales con subida masiva por cédula, individual por matrícula, corrección auditada y visor privado. La emisión automática MOOC por STUDENT corresponde a la futura pantalla STUDENT; la capacidad opcional `AUTOMATIC` en MDT permanece sin generación activa.
 
 **Requisito:** backend de Certificados del 22/11/2026 y migración `20261122_0004`. Consulta [`docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md`](docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md). Ejecutar `npm test`, `npm run typecheck`, `npm run lint` y `npm run build` tras agregar el parche.
+
+### Certificados MDT: ministerial + institucional opcional (22/11/2026)
+
+ADMIN puede activar el certificado institucional en **Curso MDT → Configuraciones → Certificados del curso**. El ministerial continúa obligatorio. En Certificados, cuando ambos están habilitados, se muestra un resumen conjunto por estudiante y permanecen disponibles las cargas masivas/individuales, correcciones, visores e historiales por tipo. El BFF usa `PUT /api/v1/courses/{id}/certificate-types` sin IDs hardcodeados. Véase `docs/CERTIFICADOS_MDT_DOBLE_DOCUMENTO_20261122.md`.

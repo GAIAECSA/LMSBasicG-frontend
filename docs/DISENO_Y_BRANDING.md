@@ -212,3 +212,14 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
 - Los visores PDF usan iframe con URL BFF same-origin o `blob:` temporal de vista previa sin emisión. No exponer JWT ni rutas privadas de almacenamiento. Descarga opcional, no automática.
 - La operación de emisión MOOC inicial pertenece al futuro STUDENT; la vista ADMIN tiene exclusivamente configuración, prueba, revocación, renovación e historial. En MDT/INSTITUTIONAL no se muestran acciones de revocación o renovación.
 - Referencia completa: `docs/CERTIFICADOS_FRONTEND_ADMIN_20261122.md`.
+
+---
+
+## 22/11/2026 — Certificados MDT: institucional opcional
+
+- El control institucional en Configuraciones del curso aparece **solo en MDT** y utiliza un componente independiente: `course-certificate-settings.tsx` + `.module.css`. No alterar el formulario general, portada ni estilo de MOOC.
+- Mantener el ministerial como opción obligatoria no editable; institucional como única opción adicional con guardado explícito y confirmación desde FastAPI. No usar IDs fijos.
+- Cuando el institucional esté habilitado, «Certificados» presenta primero una tabla de **dos columnas documentales independientes por estudiante**, con visor PDF, subida, corrección e historial a través del gestor previamente aprobado.
+- Botones, focos y acentos respetan `--tenant-primary`, `--tenant-accent-ink`, `--lms-brand-border`, `--lms-brand-tint` y `--tenant-surface`; los estados de cargado/pendiente mantienen colores semánticos.
+- La tabla debe desplazarse horizontalmente en dispositivos estrechos. Los PDF se abren en el visor BFF privado, no se descargan automáticamente ni se exponen enlaces FastAPI.
+- Contrato y decisiones: `docs/CERTIFICADOS_MDT_DOBLE_DOCUMENTO_20261122.md`.
