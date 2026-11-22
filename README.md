@@ -138,3 +138,19 @@ borrar descuento/fechas opcionales de forma explícita en CourseUpdate.
 [Guía de implementación](docs/AULA_FASE9.md) ·
 [Inventario incremental](docs/INVENTARIO_PATCH_FASE9.md) ·
 [Diseño y branding](docs/DISENO_Y_BRANDING.md).
+
+## Fase 13 — Recursos MDT unificados (21/11/2026)
+
+Dentro del curso MDT, `Archivos MDT` y `Evidencia MDT` se sustituyen por **Recursos MDT** (`/campus/courses/{id}/mdt-resources`), disponible para ADMIN del tenant y TEACHER matriculado aceptado. Contiene dos apartados: **Archivos de estudiantes** (Homeworks directos de curso, listado paginado de estudiantes entregados/pendientes y subida/reemplazo por matrícula) y **Evidencias institucionales** (PDF de curso exclusivos del personal). Incluye historial de cambios y descargas privadas mediante BFF.
+
+**Prerequisito:** aplicar el parche de backend `Athena_Backend_Recursos_MDT_PATCH_20261121.zip` y migración `20261121_0003` antes de desplegar esta pantalla. Ningún bloque nuevo se crea desde el frontend; no modifica calificaciones ni el flujo de Homework académico. La pantalla propia de subida para STUDENT queda para la futura migración del aula.
+
+Ver [contratos, archivos, instalación y aceptación de Fase 13](docs/RECURSOS_MDT_FRONTEND.md) y [diseño normativo](docs/DISENO_Y_BRANDING.md).
+
+### Recursos MDT — actualización PDF único y visor privado (21/11/2026)
+
+Esta versión requiere el parche backend **Recursos MDT PDF único + visor** (sin nueva migración; Alembic `20261121_0003`). Ambos tipos de documento MDT admiten exactamente un PDF por requisito de hasta 25 MiB. Las entregas con formatos antiguos no se destruyen; se identifican para reemplazo y conservan descarga explícita.
+
+ADMIN y TEACHER aceptado abren **Recursos MDT** en el curso y previsualizan el documento dentro de un visor privado same-origin; descargar pasa a ser una acción opcional del visor. Se conservan subir/reemplazar e historial. El Homework académico fuera de este módulo no cambia.
+
+Contratos, instalación, seguridad y pruebas: [`docs/RECURSOS_MDT_FRONTEND.md`](docs/RECURSOS_MDT_FRONTEND.md) y [`docs/RECURSOS_MDT_PDF_FRONTEND_PATCH.md`](docs/RECURSOS_MDT_PDF_FRONTEND_PATCH.md).

@@ -154,3 +154,26 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
 - Para un curso ADMIN/TEACHER se reduce la altura de las filas sin reducir las zonas táctiles por debajo de 39 px; el elemento activo se hace visible automáticamente dentro del menú. No se ocultan módulos administrativos por motivos de tamaño de pantalla.
 - Los componentes nuevos del panel «Cambio de modalidad» usan `--tenant-primary`, `--lms-accent-ink`, `--tenant-surface` y bordes derivados; los avisos ámbar siguen siendo estados semánticos, no una segunda paleta institucional.
 - Evitar `position:fixed` para los enlaces individuales del curso y no fijar alturas en píxeles al menú: deben funcionar desktop, móvil y zoom del navegador.
+
+---
+
+## 21/11/2026 — Recursos MDT (Fase 13)
+
+- En cursos MDT de ADMIN y TEACHER existe una sola entrada de sidebar **Recursos MDT**. Las dos opciones antiguas «Archivos MDT» y «Evidencia MDT» se retiraron; no se añaden nuevas secciones al shell fuera del curso.
+- Dentro de Recursos MDT hay dos pestañas: **Archivos de estudiantes** y **Evidencias institucionales**. El historial aparece como bloque complementario y no compite con las dos pestañas de gestión.
+- Los componentes `course-mdt-resources`, `mdt-student-documents`, `mdt-institutional-pdfs`, `mdt-resource-history` usan clases `mdt-*` de `app/globals.css`, junto con `workspace-panel`, `workspace-tabs`, `workspace-table`, `lms-outline-button` y `button-primary` existentes.
+- Se aplican los tokens institucionales `--tenant-primary`, `--tenant-on-primary`, `--tenant-accent-ink`, `--lms-accent-ink`, `--lms-brand-tint` y `--lms-brand-border`. **No fijar un color institucional en JSX**. Los únicos colores particulares son semánticos: verde = archivo entregado, ámbar = pendiente o advertencia.
+- Respetar las superficies neutras, el ancho adaptable del sidebar y los breakpoints del campus. El listado de estudiantes permanece en tabla con desplazamiento horizontal en móvil; los recursos y PDFs se apilan. Los botones de carga son alcanzables con teclado y tienen foco visible.
+- El color o estado visual no concede permisos. Los botones de reemplazo solo invocan rutas del BFF autenticado y FastAPI valida acceso a cada curso/documento. Los archivos privados no se convierten en enlaces públicos.
+- No se modifica la portada pública, el editor de cursos ni otras pantallas de la academia. Ver [contrato funcional de Recursos MDT](RECURSOS_MDT_FRONTEND.md).
+
+---
+
+## 21/11/2026 — Visor de Recursos MDT y PDF único (normativo)
+
+- **PDF único (1 archivo, 25 MiB)** para documentos de STUDENT e institucionales; validación en `lib/course-workspace/mdt-resources.ts`, BFF y backend.
+- Botón **Ver PDF** abre `MdtPdfPreview`, un diálogo responsivo sobre superficies neutras con `iframe` privado BFF same-origin. La descarga se ofrece como acción explícita secundaria dentro del diálogo, nunca como efecto de «Ver PDF».
+- El modal sigue usando `lms-modal`, `lms-modal-backdrop`, `mdt-icon-button`, `button-primary` y `lms-outline-button`; colores institucionales exclusivamente mediante `--tenant-primary`, `--tenant-accent-ink`, `--lms-accent-ink`, `--lms-brand-border` y `--tenant-surface`. Un documento legacy se indica como advertencia semántica, no como un color institucional.
+- Mantener contraste, foco de teclado, cierre con Escape y restauración del foco. En móvil el visor ocupa casi toda la altura; hay fallback «Abrir en otra pestaña» si el dispositivo no incrusta PDF.
+- La privacidad forma parte del diseño: no usar `iframe` con URL de FastAPI ni poner JWT en `src`. El visor y la descarga pasan por BFF y comprobaciones backend para cada solicitud.
+- No alterar la geometría de la portada pública, sidebar, editor de cursos, tablas de otros módulos ni modificar Homework académico.

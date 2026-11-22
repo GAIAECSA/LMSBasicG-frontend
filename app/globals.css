@@ -725,3 +725,126 @@ img { max-width: 100%; display: block; }
 .workspace-result strong{min-width:130px}.workspace-result.ok svg{color:#15935a}.workspace-result.fail svg{color:#c03636}.workspace-result.skip svg{color:#a66b20}
 @media(max-width:1050px){.workspace-attendance-layout{grid-template-columns:1fr}.workspace-session-scroll{max-height:220px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.workspace-person-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.workspace-panel{padding:16px;border-radius:15px}.workspace-heading{align-items:stretch}.workspace-heading>.workspace-actions{justify-content:flex-start}.workspace-form-grid,.workspace-form-three,.workspace-person-grid{grid-template-columns:1fr}.workspace-attendance-layout{gap:10px}.workspace-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.workspace-mass-global{flex-direction:column;align-items:stretch}.workspace-bottom-actions{align-items:stretch;flex-direction:column}.workspace-bottom-actions button{width:100%}}
+
+/* ===============================================================
+   Recursos MDT: administración documental de curso (Fase 13).
+   Paleta institucional exclusivamente desde DISENO_Y_BRANDING.md.
+   El color verde/ámbar indica estados, NO identidad del tenant.
+   =============================================================== */
+.mdt-resources-page{display:flex;flex-direction:column;gap:17px}
+.mdt-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mdt-summary-tile{background:var(--tenant-surface,#fff);border:1px solid var(--lms-brand-border,#dce5ee);border-radius:17px;padding:17px 19px;display:grid;grid-template-columns:24px 1fr;column-gap:12px;row-gap:3px;min-width:0}
+.mdt-summary-tile>svg{grid-row:1/4;align-self:start;color:var(--lms-accent-ink,var(--tenant-accent-ink))}
+.mdt-summary-tile>span{font-size:12px;color:#63748a;font-weight:700}
+.mdt-summary-tile>strong{font-size:24px;color:#243247;line-height:1.25;font-weight:850}
+.mdt-summary-tile>small{color:#64748b;font-size:11px;line-height:1.4}
+.mdt-tabs{margin:2px 0 0;gap:9px}
+.mdt-tabs button{min-height:42px;justify-content:center;flex:0 1 auto}
+.mdt-documents-layout{display:grid;grid-template-columns:minmax(235px,.33fr) minmax(0,1fr);gap:15px;align-items:start}
+.mdt-requirements{min-width:0}.mdt-requirement-list{display:flex;flex-direction:column;gap:9px;max-height:620px;overflow-y:auto}
+.mdt-requirement{width:100%;text-align:left;border:1px solid #e2e8f0;background:#f8fafc;border-radius:13px;padding:14px 15px;display:flex;flex-direction:column;gap:7px;cursor:pointer;min-height:72px;color:#24364e}
+.mdt-requirement:hover{border-color:var(--lms-brand-border,#cbd5e1)}
+.mdt-requirement:focus-visible,.mdt-tabs button:focus-visible,.mdt-icon-button:focus-visible,.mdt-pdf-upload:focus-within,.mdt-link-button:focus-visible{outline:3px solid var(--tenant-primary);outline-offset:2px}
+.mdt-requirement.active{background:var(--lms-brand-tint,#eef4fa);border-color:var(--tenant-primary);box-shadow:inset 3px 0 0 var(--tenant-primary)}
+.mdt-requirement strong{font-size:13px;line-height:1.4;overflow-wrap:anywhere}.mdt-requirement small{font-size:12px;color:#63758f}
+.mdt-progress{display:block;height:5px;background:#e2e8f0;border-radius:99px;overflow:hidden}
+.mdt-progress>span{display:block;height:100%;background:var(--tenant-primary);border-radius:99px;transition:width .15s ease}
+.mdt-students{min-width:0}.mdt-filters{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.mdt-filters .workspace-search{flex:1 1 190px;margin:0;min-height:42px}
+.mdt-filters select{min-height:42px;border:1px solid #d7e2ef;padding:7px 11px;border-radius:11px;background:#fff;color:#1f3049;min-width:145px;font-size:13px}
+.mdt-link-button{border:0;background:transparent;color:var(--lms-accent-ink,var(--tenant-accent-ink));font-size:12px;font-weight:700;padding:10px;cursor:pointer}
+.mdt-list-count{color:#667890;font-size:12px;margin:2px 0 12px}
+.mdt-students-table{min-width:700px}.mdt-students-table td:nth-child(3){max-width:230px}
+.mdt-students-table .lms-outline-button{display:inline-flex;gap:7px;align-items:center;justify-content:center;white-space:nowrap}
+.mdt-state{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:750;border-radius:99px;padding:6px 10px;white-space:nowrap}
+.mdt-done{color:#126b4a;background:#e6f6ee}.mdt-waiting{color:#8a621a;background:#fff4d9}
+.mdt-legacy{color:#9a3412!important;font-weight:650!important}
+.mdt-muted{font-size:12px;color:#697a90}.mdt-attachment-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.mdt-attachment-list li{display:flex;gap:5px;flex-wrap:wrap;align-items:baseline;font-size:12px;overflow-wrap:anywhere}
+.mdt-attachment-list a{color:var(--lms-accent-ink,var(--tenant-accent-ink));text-decoration:underline;text-underline-offset:2px;word-break:break-word}
+.mdt-attachment-list small{color:#64748b;font-size:10px}
+.mdt-pagination{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;margin-top:14px}
+.mdt-pagination span{font-size:12px;color:#64748b;font-weight:600}
+.mdt-pagination .lms-outline-button{display:inline-flex;align-items:center;gap:5px;min-height:36px}
+.mdt-upload-dialog{max-width:min(95vw,620px);width:100%;max-height:min(94vh,900px);overflow:auto;padding:25px}
+.mdt-dialog-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.mdt-dialog-header h2{margin:4px 0 0;font-size:21px;font-weight:850;color:#20314c}
+.mdt-upload-dialog>p:not(.mdt-advisory){font-size:13px;color:#556980;margin:12px 0}
+.mdt-icon-button{border:1px solid #e2e8f0;background:#fff;color:#64748b;border-radius:9px;padding:7px;display:grid;place-items:center}
+.mdt-advisory{font-size:12px;line-height:1.6;padding:11px 13px;border:1px solid #eadab2;background:#fffbeb;color:#795523;border-radius:10px;display:flex;gap:7px;align-items:start}
+.mdt-advisory svg{flex:none;margin-top:1px}
+.mdt-upload-form{display:flex;flex-direction:column;gap:15px;margin-top:15px}
+.mdt-file-picker{position:relative;border:2px dashed var(--lms-brand-border,#cbd5e1);background:var(--lms-brand-tint,#f4f7fb);border-radius:13px;min-height:135px;padding:20px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;text-align:center;color:var(--lms-accent-ink,var(--tenant-accent-ink));cursor:pointer}
+.mdt-file-picker>span{font-size:14px;font-weight:800}.mdt-file-picker>small{font-size:12px;color:#62758c;line-height:1.5}
+.mdt-file-picker input{max-width:100%;font-size:12px;margin-top:9px;color:#32435b}
+.mdt-selected-files{margin:0;list-style:none;display:flex;flex-direction:column;gap:5px;padding:0;max-height:120px;overflow-y:auto}
+.mdt-selected-files li{display:flex;justify-content:space-between;gap:12px;align-items:start;padding:8px 10px;background:#f7f9fc;border:1px solid #edf1f6;border-radius:9px;font-size:12px;color:#32445c;overflow-wrap:anywhere}
+.mdt-selected-files small{white-space:nowrap;color:#66788f}
+.mdt-comment-label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:700;color:#304159}
+.mdt-comment-label textarea{resize:vertical;border:1px solid #d6e0ec;border-radius:10px;padding:11px;color:#24364e;font-size:13px}
+.mdt-dialog-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.mdt-dialog-actions>button{min-height:41px;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.mdt-pdf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.mdt-pdf-card{border:1px solid #e1e7ef;background:#fff;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:13px;min-width:0}
+.mdt-pdf-card-top{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.mdt-pdf-icon{height:45px;width:45px;display:grid;place-items:center;background:var(--lms-brand-tint,#edf4fc);color:var(--lms-accent-ink,var(--tenant-accent-ink));border-radius:12px}
+.mdt-pdf-card h3{font-size:16px;color:#1d304a;font-weight:850;margin:0;overflow-wrap:anywhere}
+.mdt-pdf-card>p{font-size:12px;color:#63758c;line-height:1.55;margin:0}
+.mdt-pdf-info{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#33465c;min-height:40px}
+.mdt-pdf-info strong{font-size:12px;overflow-wrap:anywhere}.mdt-pdf-info small{color:#697a91;font-size:11px}
+.mdt-pdf-visibility{display:flex;gap:6px;align-items:start;font-size:11px;color:#9a6b26}
+.mdt-pdf-visibility svg{flex:none;margin-top:1px}
+.mdt-pdf-actions{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-top:auto}
+.mdt-pdf-actions .lms-outline-button,.mdt-pdf-actions .button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:9px 14px;font-size:12px}
+.mdt-pdf-upload{position:relative;cursor:pointer;overflow:hidden}
+.mdt-pdf-upload input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.mdt-pdf-upload.mdt-disabled{opacity:.55;cursor:not-allowed}
+.mdt-history-section{margin-top:2px}
+.mdt-history-heading{display:flex;align-items:start;justify-content:space-between;gap:15px;flex-wrap:wrap;margin-bottom:13px}
+.mdt-history-heading>div{display:flex;align-items:center;gap:8px;color:var(--lms-accent-ink,var(--tenant-accent-ink))}
+.mdt-history-heading h2{margin:0;font-size:17px}.mdt-history-heading small{font-size:12px;line-height:1.5;color:#687a91;max-width:500px}
+.mdt-history-toggle{display:inline-flex;align-items:center;gap:7px;min-height:37px}
+.mdt-history-body{margin-top:16px}
+@media(max-width:1050px){.mdt-documents-layout{grid-template-columns:1fr}.mdt-requirement-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));max-height:none}.mdt-pdf-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:710px){.mdt-summary{grid-template-columns:1fr}.mdt-tabs{flex-direction:column}.mdt-tabs button{width:100%}.mdt-pdf-grid{grid-template-columns:1fr}.mdt-students-table{min-width:620px}.mdt-upload-dialog{padding:18px}.mdt-dialog-actions{flex-direction:column-reverse}.mdt-dialog-actions>button{width:100%}.mdt-filters{align-items:stretch}.mdt-filters .workspace-search,.mdt-filters select,.mdt-filters>button{flex:1 1 100%;width:100%}}
+
+/* Recursos MDT — fase PDF único + visor protegido.
+   Identidad visual exclusivamente desde DISENO_Y_BRANDING.md. */
+.mdt-document-view{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:34px;padding:7px 10px;border:1px solid var(--tenant-primary-border,#bed4ef);
+  border-radius:10px;background:var(--tenant-primary-tint,#eef4fa);
+  color:var(--tenant-accent-ink);font-size:12px;font-weight:750;text-decoration:none;
+  cursor:pointer;white-space:nowrap}
+.mdt-document-view:hover{background:var(--tenant-primary-soft,#e3edf9)}
+.mdt-document-name{display:inline-block;max-width:100%;font-size:12px;overflow-wrap:anywhere;color:#334155}
+.mdt-legacy-download{display:inline-flex;align-items:center;gap:5px;color:#8b5e13;font-weight:650}
+.mdt-attachment-list li{align-items:center;gap:6px 10px}
+.mdt-preview-backdrop{z-index:1000;padding:14px}
+.mdt-preview-dialog{display:flex;flex-direction:column;width:min(1180px,96vw);max-width:none;
+  height:min(94dvh,950px);max-height:94dvh;min-height:0;overflow:hidden;padding:0;
+  background:var(--tenant-surface,#fff);border-radius:17px}
+.mdt-preview-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:15px 19px;border-bottom:1px solid var(--lms-brand-border,#e2e8f0)}
+.mdt-preview-heading{display:flex;align-items:start;gap:11px;min-width:0}
+.mdt-preview-heading>svg{color:var(--lms-accent-ink,var(--tenant-accent-ink));flex:none;margin-top:4px}
+.mdt-preview-heading>div{min-width:0}
+.mdt-preview-heading h2{font-size:17px;line-height:1.4;color:#243247;font-weight:800;margin:0}
+.mdt-preview-heading p{font-size:12px;color:#64748b;margin:3px 0 0;overflow-wrap:anywhere}
+.mdt-preview-frame-wrap{flex:1 1 auto;min-height:0;background:#e9edf2;overflow:hidden}
+.mdt-preview-frame{display:block;width:100%;height:100%;border:0;background:#fff}
+.mdt-preview-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 19px;border-top:1px solid var(--lms-brand-border,#e2e8f0)}
+.mdt-preview-footer p{margin:0;font-size:11px;color:#64748b;line-height:1.5}
+.mdt-preview-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:none}
+.mdt-preview-actions a{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  font-size:12px;min-height:40px;padding:9px 13px;white-space:nowrap}
+.mdt-preview-dialog a:focus-visible,.mdt-preview-dialog button:focus-visible,.mdt-document-view:focus-visible,
+.mdt-legacy-download:focus-visible{outline:3px solid var(--tenant-primary);outline-offset:2px}
+@media(max-width:720px){
+  .mdt-preview-backdrop{padding:6px}
+  .mdt-preview-dialog{height:96dvh;max-height:96dvh;width:100%;border-radius:12px}
+  .mdt-preview-header{padding:12px}
+  .mdt-preview-footer{padding:10px 12px;align-items:stretch;flex-direction:column}
+  .mdt-preview-actions{width:100%}
+  .mdt-preview-actions a{flex:1 1 135px;white-space:normal;text-align:center}
+}

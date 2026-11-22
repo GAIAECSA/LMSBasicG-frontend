@@ -5,7 +5,7 @@
 import type { CourseCode } from '@/lib/academic/types';
 
 export type WorkspaceRole = 'ADMIN' | 'TEACHER';
-export type CourseSection = 'modules' | 'attendance' | 'mdt-files' | 'mdt-evidence' |
+export type CourseSection = 'modules' | 'attendance' | 'mdt-resources' |
   'grades' | 'enrollments' | 'certificates' | 'reports' | 'settings';
 export type WorkspaceItem = { section: CourseSection; label: string; adminOnly?: boolean };
 
@@ -23,8 +23,7 @@ const adminSettings: WorkspaceItem = {section:'settings',label:'Configuraciones'
 export function workspaceItems(code:CourseCode, role:WorkspaceRole):WorkspaceItem[] {
   const items: WorkspaceItem[] = [...common];
   if (code==='MDT') items.push(
-    {section:'mdt-files',label:'Archivos MDT'},
-    {section:'mdt-evidence',label:'Evidencia MDT'},
+    {section:'mdt-resources',label:'Recursos MDT'},
   );
   items.push(...sharedTail);
   if (code==='MDT')items.push({section:'reports',label:'Reportes',adminOnly:true});

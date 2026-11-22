@@ -19,11 +19,12 @@ test('menú MOOC de ADMIN es exacto y no incluye opciones MDT',()=>{
   assert.deepEqual(workspaceItems('MOOC','ADMIN').map(x=>x.label),[
     'Módulos','Asistencia','Calificaciones','Matrículas','Certificados','Configuraciones']);
   assert.equal(mayOpenSection('MOOC','ADMIN','reports'),false);
-  assert.equal(mayOpenSection('MOOC','ADMIN','mdt-files'),false);
+  assert.equal(mayOpenSection('MOOC','ADMIN','mdt-resources'),false);
+  assert.equal(mayOpenSection('MDT','ADMIN','mdt-files'),false);
 });
 test('menú MDT de ADMIN incluye asistencias unificadas y reportes',()=>{
   assert.deepEqual(workspaceItems('MDT','ADMIN').map(x=>x.label),[
-    'Módulos','Asistencia','Archivos MDT','Evidencia MDT','Calificaciones',
+    'Módulos','Asistencia','Recursos MDT','Calificaciones',
     'Matrículas','Certificados','Reportes','Configuraciones']);
   assert.equal(workspaceItems('MDT','ADMIN').filter(x=>x.label==='Asistencia').length,1);
 });

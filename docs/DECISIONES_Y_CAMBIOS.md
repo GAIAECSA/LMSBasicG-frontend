@@ -218,3 +218,25 @@ Se estableció que el sidebar, los encabezados de formularios (incluido crear cu
 - Sin cambios de matriculación, autenticación, UI, estilos ni branding. Un 500 en
   `/api/auth/session` es independiente y exige revisar logs de Next.js.
 - Ver `docs/FASE12_2_CORRECCION_ASISTENCIA.md`.
+
+---
+
+## 21/11/2026 — Fase 13: Recursos MDT en Next.js
+
+**Decisión aprobada:** «Archivos MDT» y «Evidencia MDT» se unifican en **Recursos MDT**. Bloques `homework` de curso (`lesson_id IS NULL`) son requisitos documentales por STUDENT; bloques `pdf` de curso son evidencias institucionales no calificables. ADMIN del tenant y TEACHER aceptado del curso gestionan ambos grupos. No se crean LessonBlocks nuevos, no se califican estos documentos y el STUDENT puede seguir reemplazando sus propias entregas desde el backend de Homework.
+
+**Implementación:** pantalla en `course-mdt-resources.tsx` con dos pestañas y subcomponentes separados, BFF privado `/api/mdt-resources/courses/{id}`, validadores TypeScript de DTO, búsqueda/paginación de FastAPI, subida/reemplazo por matrícula, PDF institucional, historial de autoría, CSS `.mdt-*` con tokens de branding. No se expone el JWT, paths internos ni URLs originales de archivos en el navegador.
+
+**Dependencia:** requiere `20261121_0003` del parche backend de Recursos MDT. La carga propia de STUDENT se implementará visualmente cuando se migre el aula de estudiante; no se añadió a este panel de administración.
+
+**Pruebas:** `tests/mdt-resources.test.mjs` y actualización de expectativas de Fase 9. Revisar la guía `docs/RECURSOS_MDT_FRONTEND.md` antes de cambios posteriores; es el contrato vigente de esta sección.
+
+---
+
+## 21/11/2026 — Recursos MDT: PDF único y visor en frontend
+
+**Decisión del producto:** todos los recursos MDT (Homework raíz de STUDENT y bloques PDF institucionales) admiten únicamente un PDF de hasta 25 MiB; la consulta primaria es una previsualización privada con descarga opcional. Se mantienen subir, reemplazar, historial y permisos ADMIN/TEACHER, con edición propia STUDENT controlada por backend. La pantalla propia del STUDENT sigue pendiente de migración.
+
+**Implementación:** `mdt-resources.ts` unifica la validación de cantidad/tamaño/formato solo para MDT y deriva URLs BFF `/preview` y `/download`. El BFF limita streaming multipart y convierte las respuestas PDF autorizadas en `inline` (visor) o `attachment` (descarga), sin exponer JWT ni URL del almacenamiento. `mdt-pdf-preview.tsx` incorpora modal accesible con iframe, descarga y fallback. `mdt-student-documents.tsx` y `mdt-institutional-pdfs.tsx` mantienen la misma gestión y muestran los archivos anteriores incompatibles como «Requiere actualización», sin eliminarlos automáticamente. CSS sigue `DISENO_Y_BRANDING.md`.
+
+**Dependencia:** el backend requiere la actualización `Athena_Backend_Recursos_MDT_PDF_Unico_Visor_PATCH_20261121.zip` y Alembic `20261121_0003` ya existente, sin migraciones nuevas. No se modifica Homework académico de lecciones. Ver `docs/RECURSOS_MDT_FRONTEND.md`.

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, CircleHelp, ClipboardCheck, FileText, FolderOpen, GraduationCap, House, Info, LogOut, Menu, Settings2, ShieldCheck, UsersRound, X } from "lucide-react";
+import { ArrowLeft, Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, CircleHelp, ClipboardCheck, FolderOpen, GraduationCap, House, Info, LogOut, Menu, Settings2, ShieldCheck, UsersRound, X } from "lucide-react";
 import { workspaceItems, type CourseSection, type WorkspaceRole } from "@/lib/course-workspace/navigation";
 import type { CourseCode } from "@/lib/academic/types";
 import type { TenantPublic } from "@/lib/tenant/types";
@@ -17,8 +17,8 @@ import { SessionMonitor } from "@/components/auth/session-monitor";
  */
 type CourseWorkspaceNav = { id:number; name:string; code:CourseCode; role:WorkspaceRole };
 const courseIcon: Record<CourseSection,typeof BookOpen> = {
-  modules:BookOpen, attendance:CalendarDays, 'mdt-files':FolderOpen,
-  'mdt-evidence':FileText, grades:ClipboardCheck, enrollments:UsersRound,
+  modules:BookOpen, attendance:CalendarDays, 'mdt-resources':FolderOpen,
+  grades:ClipboardCheck, enrollments:UsersRound,
   certificates:Award, reports:BarChart3, settings:Settings2,
 };
 export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
