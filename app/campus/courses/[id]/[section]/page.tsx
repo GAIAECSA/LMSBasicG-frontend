@@ -8,6 +8,7 @@ import { CourseMdtResources } from '@/components/campus/course-mdt-resources';
 import { CourseGrades } from '@/components/campus/course-grades';
 import { CourseModules } from '@/components/campus/course-modules';
 import { CourseCertificates } from '@/components/campus/course-certificates';
+import { CourseReports } from '@/components/campus/course-reports';
 export const metadata={title:'Curso'};
 export default async function CourseSectionPage({params}:{params:Promise<{id:string;section:string}>}){
   const {id,section}=await params;
@@ -30,6 +31,7 @@ export default async function CourseSectionPage({params}:{params:Promise<{id:str
   if(section==='attendance')return <CourseAttendanceManager courseId={ws.id} courseName={ws.name}/>;
   if(section==='mdt-resources'&&ws.code==='MDT')return <CourseMdtResources courseId={ws.id} courseName={ws.name}/>;
   if(section==='grades')return <CourseGrades courseId={ws.id} courseName={ws.name}/>;
+  if(section==='reports'&&ws.role==='ADMIN'&&ws.code==='MDT')return <CourseReports courseId={ws.id} courseName={ws.name}/>;
   if(section==='certificates'){
     if(ws.role!=='ADMIN'||!ws.initialCourse)notFound();
     return <CourseCertificates courseId={ws.id} courseName={ws.name}
