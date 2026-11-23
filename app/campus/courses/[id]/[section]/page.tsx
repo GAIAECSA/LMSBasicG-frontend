@@ -6,6 +6,7 @@ import { CourseAttendanceManager } from '@/components/campus/course-attendance-m
 import { CourseEnrollmentsManager } from '@/components/campus/course-enrollments-manager';
 import { CourseMdtResources } from '@/components/campus/course-mdt-resources';
 import { CourseGrades } from '@/components/campus/course-grades';
+import { CourseModules } from '@/components/campus/course-modules';
 import { CourseCertificates } from '@/components/campus/course-certificates';
 export const metadata={title:'Curso'};
 export default async function CourseSectionPage({params}:{params:Promise<{id:string;section:string}>}){
@@ -25,7 +26,7 @@ export default async function CourseSectionPage({params}:{params:Promise<{id:str
     return <section className="lms-course-soon"><h1>{ws.name}</h1><p>El aula del estudiante se incorporará en una próxima fase.</p></section>;
   }
   if(!ws.code||!mayOpenSection(ws.code,ws.role,section))notFound();
-  if(section==='modules')return <div className="lms-course-blank" aria-label="Módulos del curso (pendiente de implementación)"/>;
+  if(section==='modules')return <CourseModules courseId={ws.id} courseName={ws.name} role={ws.role}/>;
   if(section==='attendance')return <CourseAttendanceManager courseId={ws.id} courseName={ws.name}/>;
   if(section==='mdt-resources'&&ws.code==='MDT')return <CourseMdtResources courseId={ws.id} courseName={ws.name}/>;
   if(section==='grades')return <CourseGrades courseId={ws.id} courseName={ws.name}/>;
