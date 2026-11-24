@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveTenant } from "@/lib/tenant/resolve";
 import { authState, SESSION_COOKIE } from "@/lib/auth/server";
 
-/** 60 s heartbeat / enfoque de pestaña; comprueba revocación, rol, expiración y policies nuevas. */
+/** Heartbeat / enfoque de pestaña: los fallos transitorios no eliminan la sesión.
+ * Solo un 401 verificado invalida el token; la falta de red siempre es 503.
+ */
 export async function GET(request: NextRequest) {
-  const state = await authState(await resolveTenant(),request.cookies.get(SESSION_COOKIE)?.value);
+  let state: Awaited<ReturnType<typeof authState>>;
+  try {
+    state = await authState(await resolveTenant(), request.cookies.get(SESSION_COOKIE)?.value);
+  } catch {
+    return NextResponse.json({status:"unavailable"},
+      {status:503,headers:{"Cache-Control":"no-store"}});
+  }
   if (state.status === "unauthenticated") {
     const response = NextResponse.json({status:state.status},{status:401,headers:{"Cache-Control":"no-store"}});
     response.cookies.delete(SESSION_COOKIE);

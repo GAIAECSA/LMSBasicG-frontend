@@ -39,7 +39,13 @@ export async function authState(tenant: TenantPublic, token?: string): Promise<A
     if (!pending) return {status:"unavailable"};
     if (pending.length) return {status:"pending",pending,expiresAt:claims.expiresAt};
 
-    const me = await apiFetch("/api/v1/users/me",current);
+    // Una vez verificadas las políticas, las lecturas de perfil y módulos son
+    // independientes: ejecutarlas en paralelo reduce latencia sin cachear permisos.
+    // FastAPI sigue verificando JWT/JTI/tenant en AMBAS solicitudes.
+    const [me, moduleResponse] = await Promise.all([
+      apiFetch("/api/v1/users/me",current),
+      apiFetch("/api/v1/business-lms-config/me/modules",current),
+    ]);
     if (me.status === 401 || me.status === 403) return {status:"unauthenticated"};
     if (me.status === 428) return await policiesAfterRace(current,claims.expiresAt);
     if (!me.ok) return {status:"unavailable"};
@@ -47,7 +53,6 @@ export async function authState(tenant: TenantPublic, token?: string): Promise<A
     if (!validUser(user) || user.business_id !== tenant.id || !allowedLmsRole(user.role)) {
       return {status:"unauthenticated"};
     }
-    const moduleResponse = await apiFetch("/api/v1/business-lms-config/me/modules",current);
     if (moduleResponse.status === 401 || moduleResponse.status === 403) return {status:"unauthenticated"};
     if (moduleResponse.status === 428) return await policiesAfterRace(current,claims.expiresAt);
     if (!moduleResponse.ok) return {status:"unavailable"};

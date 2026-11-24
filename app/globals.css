@@ -848,3 +848,35 @@ img { max-width: 100%; display: block; }
   .mdt-preview-actions{width:100%}
   .mdt-preview-actions a{flex:1 1 135px;white-space:normal;text-align:center}
 }
+
+/* Estabilidad UX — colapso real del sidebar en escritorio.
+ * Se conservan los tokens institucionales y el comportamiento móvil original.
+ * La preferencia no altera permisos, navegación ni contenido del campus.
+ */
+@media (min-width:961px) {
+  .lms-menu-close-mobile {display:none}
+  .lms-shell .lms-sidebar {transition:width .2s ease,flex-basis .2s ease}
+  .lms-shell-collapsed .lms-sidebar {width:78px;flex:0 0 78px}
+  .lms-shell-collapsed .lms-brand {justify-content:center;padding:12px 6px;gap:0;flex-wrap:wrap;height:auto;min-height:118px}
+  .lms-shell-collapsed .lms-brand-copy {display:none}
+  .lms-shell-collapsed .lms-brand-mark {width:44px;height:44px}
+  .lms-shell-collapsed .lms-menu-close-desktop {width:40px;height:34px;margin-top:5px}
+  .lms-shell-collapsed .lms-menu {padding-left:7px;padding-right:7px}
+  .lms-shell-collapsed .lms-nav-item {justify-content:center;padding:11px 7px;gap:0}
+  .lms-shell-collapsed .lms-nav-item>span,
+  .lms-shell-collapsed .lms-nav-item>svg:not(:first-child),
+  .lms-shell-collapsed .lms-submenu,
+  .lms-shell-collapsed .lms-course-nav-heading,
+  .lms-shell-collapsed .lms-support,
+  .lms-shell-collapsed .lms-account-copy {display:none}
+  .lms-shell-collapsed .lms-sidebar-bottom {padding:10px 5px}
+  .lms-shell-collapsed .lms-account {flex-direction:column;gap:8px;padding:8px 4px}
+  .lms-shell-collapsed .lms-avatar {width:37px;height:37px}
+  .lms-shell-collapsed .lms-account-logout {width:35px;height:35px}
+  .lms-shell-collapsed .lms-nav-item:focus-visible,
+  .lms-shell-collapsed .lms-menu-close-desktop:focus-visible {outline:2px solid white;outline-offset:-3px}
+}
+@media (max-width:960px) {
+  .lms-menu-close-desktop {display:none}
+  .lms-menu-close-mobile {display:grid}
+}

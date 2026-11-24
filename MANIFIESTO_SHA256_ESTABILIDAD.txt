@@ -1,0 +1,17 @@
+# Athena — parche estabilidad, cache y sidebar, 2026-11-24
+
+Para cada ruta copiar y reemplazar en la raíz del frontend.
+No hay cambios al backend ni migración.
+
+c3c88a0a1c8b6d7894ea6f304faf9f53b9aa508757d0fcc9686c2b74e9713cc6  app/api/auth/session/route.ts
+14a79056675ad9325d7f972c9f1919d8bdc3c76a1490e70503b6712bfd06bc7e  app/global-error.tsx
+aeae686df66781116cb29039468d70bab6646c7ef69681b2a61e8dddd13ca594  app/globals.css
+40c0be53687b4c4115b4ab52624885b455bb8001e29fd60735eb9ead2d7a761c  components/auth/session-monitor.tsx
+858fdbd4b7f825972a12456c898f5d078472f0a8c21b438a1a68632a0bf88f63  components/campus/campus-shell.tsx
+730a434e680c18c9a3bef93651caca52e52b843390d48bd865e79ba06baad958  docs/ESTABILIDAD_TENANT_SIDEBAR_20261124.md
+0fa0392c1fdf1d6bdbc9ca9314c00556b564d113ea4c174b1b3389176b007281  lib/auth/server.ts
+6547537fc88e1c1e32792200335fc74d29665db7d9aee83dcce78661aa22a8b5  lib/tenant/lookup.ts
+76c6ba64ef5cfd4c86d9ac125dad6eea983e92539ab9e23c641e118bf97040b4  lib/tenant/resolve.ts
+f37bb6baae4ec19184b13062fb2b7e0765df73a5a17445ee373407701ef12df4  lib/tenant/ttl-cache.ts
+b60e71c6d772bfd6e3d61209aa7c252db0b62948f334cb7f931005e21bc49dbb  lib/tenant/validation.ts
+8d34a3be7add6fd8ddf9ad11b7953dcb2a4ca5c69fac786906640aa53d7d718b  tests/campus-stability.test.mjs

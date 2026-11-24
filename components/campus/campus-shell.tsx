@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, CircleHelp, ClipboardCheck, FolderOpen, GraduationCap, House, Info, LogOut, Menu, Settings2, ShieldCheck, UsersRound, X } from "lucide-react";
+import { ArrowLeft, Award, BarChart3, BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, ClipboardCheck, FolderOpen, GraduationCap, House, Info, LogOut, Menu, Settings2, ShieldCheck, UsersRound, X } from "lucide-react";
 import { workspaceItems, type CourseSection, type WorkspaceRole } from "@/lib/course-workspace/navigation";
 import type { CourseCode } from "@/lib/academic/types";
 import type { TenantPublic } from "@/lib/tenant/types";
@@ -36,6 +36,12 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
   const [usersExpanded,setUsersExpanded]=useState(inUsers);
   const [coursesExpanded,setCoursesExpanded]=useState(inCourses);
   const [mobile,setMobile]=useState(false);
+  const [collapsed,setCollapsed]=useState(false);
+  // La preferencia visual se guarda por tenant; nunca se comparte identidad académica.
+  useEffect(() => {
+    try { setCollapsed(window.localStorage.getItem(`athena:sidebar:${tenant.id}`) === "collapsed"); }
+    catch { /* Almacenamiento privado/restringido: funciona sin persistencia. */ }
+  }, [tenant.id]);
   const [closing,setClosing]=useState(false);
   const policyHeading=admin?"Administración":"Información";
   const PersonIcon=admin?ShieldCheck:Info;
@@ -49,6 +55,25 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
     finally {router.replace("/login");router.refresh();}
   }
   function closeMobile() {setMobile(false);}
+  function toggleDesktop() {
+    setCollapsed(value => {
+      const next = !value;
+      try {window.localStorage.setItem(`athena:sidebar:${tenant.id}`, next ? "collapsed" : "expanded");}
+      catch { /* Preferencia opcional. */ }
+      return next;
+    });
+    // Los submenús no ocupan espacio al colapsar; al reabrir se pueden desplegar.
+    if (!collapsed) {setExpanded(false);setUsersExpanded(false);setCoursesExpanded(false);}
+  }
+  function openGroup(group:"policies"|"users"|"courses") {
+    if (collapsed) {
+      setCollapsed(false);
+      try {window.localStorage.setItem(`athena:sidebar:${tenant.id}`, "expanded");} catch {}
+    }
+    if (group === "policies") setExpanded(value => !value);
+    if (group === "users") setUsersExpanded(value => !value);
+    if (group === "courses") setCoursesExpanded(value => !value);
+  }
   // Si un enlace del curso se abre por URL directa o desde otra sección,
   // asegura que el elemento seleccionado sea visible dentro del menú desplazable.
   // Se ajusta SOLO scrollTop del menú; nunca se desplaza la página principal.
@@ -61,22 +86,27 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
     if(item.bottom>panel.bottom)menu.scrollTop+=item.bottom-panel.bottom+8;
     else if(item.top<panel.top)menu.scrollTop-=panel.top-item.top+8;
   },[pathname,courseWorkspace?.id,courseWorkspace?.code,mobile]);
-  return <div className="lms-shell">
+  return <div className={`lms-shell ${collapsed ? "lms-shell-collapsed" : ""}`}>
     <SessionMonitor expiresAt={expiresAt}/>
     <button type="button" className="lms-mobile-open" aria-label="Abrir menú" onClick={()=>setMobile(true)}><Menu size={22}/></button>
     {mobile&&<button aria-label="Cerrar menú" type="button" className="lms-sidebar-backdrop" onClick={closeMobile}/>}
-    <aside className={`lms-sidebar ${courseWorkspace?"lms-sidebar-course ":""}${mobile?"lms-sidebar-open":""}`} aria-label="Menú del campus">
+    <aside id="athena-sidebar" className={`lms-sidebar ${courseWorkspace?"lms-sidebar-course ":""}${mobile?"lms-sidebar-open":""}`} aria-label="Menú del campus">
       <div className="lms-brand">
         <span className="lms-brand-mark">
           {tenant.logoUrl?<img alt="" src={tenant.logoUrl}/>:<GraduationCap size={26} aria-hidden="true"/>}
         </span>
         <div className="lms-brand-copy"><strong title={tenant.name}>{tenant.name}</strong><small>CAMPUS VIRTUAL</small></div>
-        <button type="button" aria-label="Cerrar menú" className="lms-menu-close" onClick={closeMobile}><ChevronLeft size={21}/></button>
+        <button type="button" aria-label="Cerrar menú" className="lms-menu-close lms-menu-close-mobile" onClick={closeMobile}><ChevronLeft size={21}/></button>
+        <button type="button" aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
+          aria-expanded={!collapsed} aria-controls="athena-sidebar" title={collapsed ? "Expandir menú" : "Contraer menú"}
+          className="lms-menu-close lms-menu-close-desktop" onClick={toggleDesktop}>
+          {collapsed ? <ChevronRight size={21}/> : <ChevronLeft size={21}/>}
+        </button>
       </div>
       <nav className="lms-menu" ref={menuRef} tabIndex={courseWorkspace?0:undefined} aria-label={courseWorkspace?"Secciones del curso":"Módulos"}>
         {courseWorkspace ? <>
           <Link href={courseWorkspace.role==='ADMIN'?'/campus/courses':'/campus/my-courses'}
-            className="lms-nav-item lms-course-back" onClick={closeMobile}>
+            className="lms-nav-item lms-course-back" title="Volver al listado de cursos" onClick={closeMobile}>
             <ArrowLeft size={20}/><span>{courseWorkspace.role==='ADMIN'?'Volver a administración':'Volver a mis cursos'}</span>
           </Link>
           <div className="lms-course-nav-heading" title={courseWorkspace.name}>
@@ -88,27 +118,27 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
             const active=pathname===href;
             const Icon=courseIcon[item.section];
             return <Link key={item.section} href={href} onClick={closeMobile}
-              className={`lms-nav-item ${active?'lms-nav-selected':''}`}
+              className={`lms-nav-item ${active?'lms-nav-selected':''}`} title={item.label}
               aria-current={active?'page':undefined}>
               <Icon size={20}/><span>{item.label}</span>
             </Link>;
           })}
         </> : <>
-        {!visitor && <Link href="/campus" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus"?"lms-nav-selected":""}`}>
+        {!visitor && <Link href="/campus" onClick={closeMobile} title="Inicio" className={`lms-nav-item ${pathname==="/campus"?"lms-nav-selected":""}`}>
           <House size={20}/> <span>Inicio</span>
         </Link>}
         {visitor && <>
           <Link href="/campus/my-courses" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus/my-courses"?"lms-nav-selected":""}`}
-            aria-current={pathname==="/campus/my-courses"?"page":undefined}><GraduationCap size={20}/><span>Mis cursos</span></Link>
+            title="Mis cursos" aria-current={pathname==="/campus/my-courses"?"page":undefined}><GraduationCap size={20}/><span>Mis cursos</span></Link>
           <Link href="/campus/catalog" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus/catalog"?"lms-nav-selected":""}`}
-            aria-current={pathname==="/campus/catalog"?"page":undefined}><BookOpen size={20}/><span>Cursos</span></Link>
+            title="Cursos" aria-current={pathname==="/campus/catalog"?"page":undefined}><BookOpen size={20}/><span>Cursos</span></Link>
           <Link href="/campus/certificates" onClick={closeMobile} className={`lms-nav-item ${pathname==="/campus/certificates"?"lms-nav-selected":""}`}
-            aria-current={pathname==="/campus/certificates"?"page":undefined}><Award size={20}/><span>Certificados</span></Link>
+            title="Certificados" aria-current={pathname==="/campus/certificates"?"page":undefined}><Award size={20}/><span>Certificados</span></Link>
         </>}
         {admin && <>
           <button type="button" className={`lms-nav-item ${usersExpanded || inUsers ? "lms-nav-selected" : ""}`}
             aria-expanded={usersExpanded} aria-controls="lms-users-submenu"
-            onClick={() => setUsersExpanded(value => !value)}>
+            onClick={() => openGroup("users")} title="Gestión de usuarios">
             <UsersRound size={20}/><span>Gestión de usuarios</span><ChevronDown size={17} className={usersExpanded ? "lms-chevron-open" : ""}/>
           </button>
           {usersExpanded && <div id="lms-users-submenu" className="lms-submenu">
@@ -119,7 +149,7 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
         {admin && <>
           <button type="button" className={`lms-nav-item ${coursesExpanded || inCourses ? "lms-nav-selected" : ""}`}
             aria-expanded={coursesExpanded} aria-controls="lms-courses-submenu"
-            onClick={() => setCoursesExpanded(value => !value)}>
+            onClick={() => openGroup("courses")} title="Cursos">
             <BookOpen size={20}/><span>Cursos</span><ChevronDown size={17} className={coursesExpanded ? "lms-chevron-open" : ""}/>
           </button>
           {coursesExpanded && <div id="lms-courses-submenu" className="lms-submenu">
@@ -131,7 +161,7 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
           </div>}
         </>}
         <button type="button" className={`lms-nav-item ${expanded?"lms-nav-selected":""}`} aria-expanded={expanded}
-          aria-controls="lms-policies-submenu" onClick={()=>setExpanded(v=>!v)}>
+          aria-controls="lms-policies-submenu" onClick={()=>openGroup("policies")} title={policyHeading}>
           <PersonIcon size={20}/><span>{policyHeading}</span><ChevronDown size={17} className={expanded?"lms-chevron-open":""}/>
         </button>
         {expanded&&<div id="lms-policies-submenu" className="lms-submenu">
