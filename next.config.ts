@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone", // Docker copia solo lo indispensable al runtime.
+  reactStrictMode: true,
+  poweredByHeader: false,
 };
 
 export default nextConfig;

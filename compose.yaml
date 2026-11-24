@@ -1,0 +1,44 @@
+# Frontend + Nginx interno. FastAPI existe por separado y NO se incluye ni modifica.
+# Nginx expone exclusivamente loopback: el TLS público va en Nginx/Caddy del host.
+services:
+  frontend:
+    build: .
+    restart: unless-stopped
+    environment:
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:?Define BACKEND_INTERNAL_URL en .env}
+      NODE_ENV: production
+      ATHENA_LMS_MOOC_CODE: ${ATHENA_LMS_MOOC_CODE:-MOOC}
+      ATHENA_LMS_MDT_CODE: ${ATHENA_LMS_MDT_CODE:-MDT}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "9001"
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:?Define BACKEND_UPSTREAM en .env}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
