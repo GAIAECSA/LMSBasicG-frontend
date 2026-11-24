@@ -44,7 +44,8 @@ test('ADMIN no requiere matrícula y TEACHER sí requiere ACEPTADO (gate SSR)',(
   assert.match(server,/api\/v1\/enrollments\/me/);
   assert.match(server,/item.status==='ACEPTADO'/);
   assert.match(server,/parseVisitorEnrollments/);
-  assert.match(server,/course\.is_published/);
+  assert.match(server,/student-courses\/\$\{courseId\}\/overview/);
+  assert.doesNotMatch(server,/if\(!enrollment\.course\.is_published\)/);
   assert.match(server,/\/workspace`/);
   assert.doesNotMatch(server,/guess|is_mdt|role_id===/);
   const layout=read('app/campus/courses/[id]/layout.tsx');

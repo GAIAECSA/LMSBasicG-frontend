@@ -9,6 +9,8 @@ import { CourseGrades } from '@/components/campus/course-grades';
 import { CourseModules } from '@/components/campus/course-modules';
 import { CourseCertificates } from '@/components/campus/course-certificates';
 import { CourseReports } from '@/components/campus/course-reports';
+import { StudentCourse } from '@/components/campus/student-course';
+import { isStudentSection } from '@/lib/student-course/domain';
 export const metadata={title:'Curso'};
 export default async function CourseSectionPage({params}:{params:Promise<{id:string;section:string}>}){
   const {id,section}=await params;
@@ -23,8 +25,8 @@ export default async function CourseSectionPage({params}:{params:Promise<{id:str
   if(result.status!=='ready')return <div className="lms-error" role="alert">No se pudo validar el acceso al curso.</div>;
   const ws=result.workspace;
   if(ws.role==='STUDENT'){
-    if(section!=='modules')notFound();
-    return <section className="lms-course-soon"><h1>{ws.name}</h1><p>El aula del estudiante se incorporará en una próxima fase.</p></section>;
+    if(!ws.code||!isStudentSection(section))notFound();
+    return <StudentCourse courseId={ws.id} courseName={ws.name} section={section} code={ws.code} userId={result.user.id}/>;
   }
   if(!ws.code||!mayOpenSection(ws.code,ws.role,section))notFound();
   if(section==='modules')return <CourseModules courseId={ws.id} courseName={ws.name} role={ws.role}/>;

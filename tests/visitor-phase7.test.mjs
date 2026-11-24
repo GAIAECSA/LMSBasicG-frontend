@@ -106,12 +106,13 @@ test('rutas VISITOR conservan authState, rol y políticas; SSR obtiene progreso 
   assert.doesNotMatch(loader, /studentBlockPercentage|percentageFromBlocks/);
 });
 
-test('catálogo informativo sin matrículas ni botones de acceso a un aula inexistente', () => {
+test('catálogo informativo separado del aula STUDENT habilitada', () => {
   const catalog = read('components/campus/visitor-catalog.tsx');
   const mine = read('components/campus/visitor-my-courses.tsx');
   assert.doesNotMatch(catalog, /href="\/campus\/courses\//);
   assert.doesNotMatch(catalog, /\/enrollments\/request/);
-  assert.match(mine, /Aula próximamente/);
+  assert.doesNotMatch(mine, /Aula próximamente/);
+  assert.match(mine, /Continuar aprendiendo/);
   assert.match(read('app/globals.css'), /\.visitor-catalog-grid/);
   assert.match(read('docs/DISENO_Y_BRANDING.md'), /Única fuente institucional/);
 });

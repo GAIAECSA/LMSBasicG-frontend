@@ -48,9 +48,8 @@ function CourseRow({item}:{item:VisitorCourse}) {
         <small>En este curso</small>
       </div>
       <Link className="visitor-secondary-action" href={`/campus/courses/${item.course.id}`}>
-        {item.role==='TEACHER'?'Ir a módulos':'Ver curso'} <ArrowRight size={16}/>
+        {item.role==='TEACHER'?'Ir a módulos':'Continuar aprendiendo'} <ArrowRight size={16}/>
       </Link>
-      {item.role==='STUDENT'&&<small className="visitor-not-yet">Aula próximamente</small>}
     </aside>
   </article>;
 }

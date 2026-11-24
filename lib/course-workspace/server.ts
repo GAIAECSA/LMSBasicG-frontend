@@ -14,18 +14,14 @@ export type Workspace = {
   id:number; name:string; code:CourseCode|null;
   role:WorkspaceRole|'STUDENT';
   initialCourse?:ManagedCourse;
+  /** Solo SSR/BFF. Datos ya autorizados y validados nuevamente en el BFF. */
+  studentOverview?:unknown;
 };
 export type WorkspaceResult =
   | {status:'unauthenticated'|'pending'|'unavailable'|'forbidden'}
   | {status:'ready';tenant:TenantPublic;user:AuthUser;expiresAt:string|null;workspace:Workspace};
 
-/** Contrato propuesto para la lectura docente, NO para el catálogo público:
- * GET /api/v1/courses/{id}/workspace, autenticado con mismo tenant y matrícula
- * ACEPTADO de TEACHER (y también se podrá admitir ADMIN). La respuesta mínima:
- * {course_id:1,name:'Curso',course_type:{code:'MOOC'|'MDT'}}.
- * El backend actual aún NO expone esa ruta. Hasta entonces el acceso docente
- * falla cerrado; no se infiere el tipo desde IDs de blocks ni módulos licenciados.
- */
+/** Workspace docente autenticado, obtenido de FastAPI (nunca de URLs públicas). */
 function parseTeacherWorkspace(value:unknown,id:number):{name:string;code:CourseCode}|null {
   if(!value||typeof value!=='object')return null;
   const row=value as Record<string,unknown>;
@@ -63,10 +59,17 @@ export const getCourseWorkspace = cache(async(courseId:number):Promise<Workspace
     const enrollment=enrollments.find(item=>item.course.id===courseId&&item.status==='ACEPTADO');
     if(!enrollment)return {status:'forbidden'};
     if(enrollment.role.code==='STUDENT'){
-      // El aula del alumno sigue pendiente; conservar menú VISITOR.
-      if(!enrollment.course.is_published)return {status:'forbidden'};
+      // Una matrícula aceptada permite cursar un curso no publicado: el catálogo
+      // público solo regula nuevos visitantes, no revoca el acceso académico.
+      const own=await apiFetch(`/api/v1/student-courses/${courseId}/overview`,token);
+      if(own.status===403||own.status===404)return {status:'forbidden'};
+      if(!own.ok)return {status:'unavailable'};
+      const overview:unknown=await own.json();
+      if(!overview||typeof overview!=='object'||!('course'in overview))return {status:'unavailable'};
+      const c=(overview as {course?:{id?:number;name?:string;code?:unknown}}).course;
+      if(c?.id!==courseId||typeof c.name!=='string'||!['MOOC','MDT'].includes(String(c.code)))return {status:'unavailable'};
       return {status:'ready',tenant,user:state.user,expiresAt:state.expiresAt,
-        workspace:{id:courseId,name:enrollment.course.name,code:null,role:'STUDENT'}};
+        workspace:{id:courseId,name:c.name,code:c.code as CourseCode,role:'STUDENT',studentOverview:overview}};
     }
     if(enrollment.role.code!=='TEACHER')return {status:'forbidden'};
     // No publicar datos privados de borradores usando el catálogo público.
