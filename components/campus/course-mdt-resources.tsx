@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useState} from 'react';
 import {FileCheck2,FileStack,History,RefreshCw} from 'lucide-react';
 import {apiErrorMessage,requestJson} from '@/lib/academic/client';
@@ -44,7 +45,7 @@ export function CourseMdtResources({courseId,courseName}:{courseId:number;course
         </button>
       </div>
     </header>
-    {error&&<p className="lms-error" role="alert">{error} <button type="button" onClick={()=>void load()}>Reintentar</button></p>}
+    {error&&<ToastMessage kind="error" message={error}><button type="button" onClick={()=>void load()}>Reintentar</button></ToastMessage>}
     {loading&&!summary?<div className="lms-loading-card" role="status">Cargando recursos MDT...</div>:summary&&<>
       <section className="mdt-summary" aria-label="Resumen documental">
         <div className="mdt-summary-tile"><FileStack size={22} aria-hidden="true"/>

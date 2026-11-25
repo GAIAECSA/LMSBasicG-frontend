@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useState } from 'react';
 import { Eye, FilePlus2, History, RefreshCw, Search } from 'lucide-react';
 import { certificateApi, certificateRequest, parseRoster, readableError,
@@ -96,7 +97,7 @@ export function CertificateMdtOverview({ courseId, onManage }: {
         <RefreshCw size={16}/> Actualizar
       </button>
     </div>
-    {error && <div className="lms-error" role="alert">{error}</div>}
+    {error && <ToastMessage kind="error" message={error} />}
     {loading ? <p className={css.empty} role="status">Consultando ambos tipos de certificados...</p> : rosters && <>
       {rosters.ministry.students.length === 0
         ? <p className={css.empty}>No se encontraron estudiantes para esta búsqueda.</p>

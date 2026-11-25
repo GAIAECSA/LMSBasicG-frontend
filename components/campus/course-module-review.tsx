@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, Eye, LoaderCircle, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -66,7 +67,7 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
   if(requireSurvey&&(!['PAPER','VERBAL'].includes(evidence)||!surveyConfirmed))throw Error('La encuesta asistida requiere respuestas reales confirmadas en papel o verbalmente.');
  }
  async function beginQuiz(){try{validateAssisted();
-  if(!confirm(`¿Iniciar un Quiz asistido para ${selected?.firstname} ${selected?.lastname}? Se registrará el operador.`))return;
+  if(!(await confirmAction(`¿Iniciar un Quiz asistido para ${selected?.firstname} ${selected?.lastname}? Se registrará el operador.`)))return;
   const res=await operation(()=>sendJson(link('assisted','quiz','blocks',block.id,'enrollments',participant,'start'),'POST',{reason:reason.trim(),evidence_source:evidence}),'Intento asistido creado. Registra ahora las respuestas.');
   if(res&&typeof res==='object'&&'attempt_id'in res){const obj=res as {attempt_id:number;questions:AttemptQuestion[]};setAttempt({id:obj.attempt_id,status:'EN_PROGRESO',questions:obj.questions,assisted:true});setAnswers({});}
  }catch(e){setError(apiErrorMessage(e));}}
@@ -75,15 +76,15 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
    setAttempt(res);setAnswers({});
  }catch(e){setError(apiErrorMessage(e));}}
  async function sendQuiz(){if(!attempt)return;try{validateAssisted();
-  if(!confirm('¿Entregar este intento? La nota se asignará a la matrícula seleccionada y se auditará.'))return;
+  if(!(await confirmAction('¿Entregar este intento? La nota se asignará a la matrícula seleccionada y se auditará.')))return;
   const response=await operation(()=>sendJson(link('assisted','quiz','attempts',attempt.id,'submit'),'POST',{
    answers,reason:reason.trim(),evidence_source:evidence}),'Intento entregado y calificado automáticamente.');
   if(response)setAttempt(null);
  }catch(e){setError(apiErrorMessage(e));}}
  async function readQuizReview(id:number){try{setReviewAttempt(await requestJson(link('quiz','attempts',id,'review')) as AttemptDetail);}catch(e){setError(apiErrorMessage(e));}}
  async function overrideQuiz(){if(!reviewAttempt)return;try{validateAssisted();
-  if(!score.trim()&&!confirm('Se quitará la nota manual para restaurar la calculada. ¿Continuar?'))return;
-  if(!confirm('Se cambiará la nota oficial y se recalculará el promedio. El cambio tendrá auditoría.'))return;
+  if(!score.trim()&&!(await confirmAction('Se quitará la nota manual para restaurar la calculada. ¿Continuar?')))return;
+  if(!(await confirmAction('Se cambiará la nota oficial y se recalculará el promedio. El cambio tendrá auditoría.')))return;
   const number=score.trim()?Number(score):null;
   if(number!==null&&(!Number.isFinite(number)||number<0||number>10))throw Error('Nota entre 0 y 10');
   const response=await operation(()=>sendJson(link('assisted','quiz','attempts',reviewAttempt.id,'override'),'PATCH',{score:number,reason:reason.trim(),evidence_source:evidence}),'La nota oficial fue corregida con auditoría.');
@@ -94,7 +95,7 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
    if(!comment.trim()&&!files.length)throw Error('Registra la entrega real de texto o archivo.');
    if(files.length>5||files.some(f=>f.size>20*1024*1024)||files.reduce((n,f)=>n+f.size,0)>25*1024*1024)throw Error('Máximo 5 archivos; 20 MiB por archivo y 25 MiB total.');
    const n=score.trim()?Number(score):null;if(n!==null&&(!Number.isFinite(n)||n<0||n>10))throw Error('Nota entre 0 y 10');
-   if(!confirm(`¿Registrar esta entrega para ${selected.firstname} ${selected.lastname}? El operador quedará auditado.`))return;
+   if(!(await confirmAction(`¿Registrar esta entrega para ${selected.firstname} ${selected.lastname}? El operador quedará auditado.`)))return;
    const form=new FormData();form.set('reason',reason.trim());form.set('evidence_source',evidence);if(comment.trim())form.set('comment',comment.trim());
    for(const file of files)form.append('files',file);if(n!==null)form.set('score',String(n));if(feedback.trim())form.set('feedback',feedback.trim());
    const result=await operation(()=>sendFile(link('assisted','homework','blocks',block.id,'enrollments',participant),form),'Entrega asistida registrada.');
@@ -102,7 +103,7 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
   }catch(e){setError(apiErrorMessage(e));}}
  async function gradeHomework(row:HomeworkRow){try{
   const n=Number(score);if(!score.trim()||!Number.isFinite(n)||n<0||n>10)throw Error('Nota entre 0 y 10.');
-  if(!confirm('¿Guardar esta calificación para la entrega existente?'))return;
+  if(!(await confirmAction('¿Guardar esta calificación para la entrega existente?')))return;
   await operation(()=>sendJson(link('homework','submissions',row.id,'grade'),'PUT',{score:n,feedback:feedback.trim()||null}),'Tarea calificada.');
  }catch(e){setError(apiErrorMessage(e));}}
  async function transcribeSurvey(){try{validateAssisted(true);if(!survey)return;
@@ -110,25 +111,25 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
    if(q.required&&(v===undefined||v===null||v===''))throw Error(`Falta respuesta: ${q.question}`);
    if(v!==undefined&&v!==null&&v!=='')payload[String(q.id)]=v;
   }
-  if(!confirm(`¿Transcribir estas respuestas reales de ${selected?.firstname} ${selected?.lastname}? Se permite una única respuesta.`))return;
+  if(!(await confirmAction(`¿Transcribir estas respuestas reales de ${selected?.firstname} ${selected?.lastname}? Se permite una única respuesta.`)))return;
   const res=await operation(()=>sendJson(link('assisted','surveys',survey.id,'enrollments',participant),'POST',{
     reason:reason.trim(),evidence_source:evidence,answers:payload}),'Encuesta transcrita, identificada y auditada.');
   if(res){setAnswers({});setSurveyConfirmed(false);}
  }catch(e){setError(apiErrorMessage(e));}}
  async function publishForum(){try{validateAssisted();if(!selected||selected.role!=='STUDENT')throw Error('El foro asistido solo permite estudiantes.');
   if(!comment.trim())throw Error('Escribe el mensaje proporcionado.');
-  if(!confirm('El mensaje se asociará al estudiante, identificado como registro asistido. ¿Publicar?'))return;
+  if(!(await confirmAction('El mensaje se asociará al estudiante, identificado como registro asistido. ¿Publicar?')))return;
   const res=await operation(()=>sendJson(link('assisted','forum','blocks',block.id,'enrollments',participant,'posts'),'POST',{
     comment:comment.trim(),parent_id:parent?Number(parent):null,reason:reason.trim(),evidence_source:evidence}),'Publicación asistida registrada.');
   if(res){setComment('');setParent('');}
  }catch(e){setError(apiErrorMessage(e));}}
- async function moderate(row:ForumRow){if(!confirm(row.is_hidden?'¿Restaurar este mensaje?':'¿Ocultar mensaje inapropiado?'))return;
+ async function moderate(row:ForumRow){if(!(await confirmAction(row.is_hidden?'¿Restaurar este mensaje?':'¿Ocultar mensaje inapropiado?')))return;
   await operation(()=>sendJson(link('forum','posts',row.id,'moderation'),'PATCH',{hidden:!row.is_hidden}),'Moderación guardada.');
  }
  return <div className={css.backdrop}><section className={`${css.modal} ${css.wide}`} aria-modal="true" role="dialog" aria-label={`Revisar ${block.title}`}>
   <div className={css.modalTop}><div><h2><ClipboardCheck size={19} style={{display:'inline'}}/> Revisar: {block.title}</h2><span style={{fontSize:12,color:'#708096'}}>Consulta de resultados y operaciones asistidas auditables.</span></div>
    <button aria-label="Cerrar revisión" onClick={onClose}><X size={20}/></button></div>
-  {error&&<div role="alert" className={css.error}>{error}</div>}{notice&&<div role="status" className={css.success}>{notice}</div>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.placeholder}><LoaderCircle className={css.spin}/> Consultando actividad…</p>:<div className={css.stack}>
    <div className={css.twoColumns}><div className={css.panel}><h3>Elegir participante</h3>
     <label className={css.field}>Buscar estudiante<input placeholder="Nombre, usuario…" value={search} onChange={e=>{setPage(1);setSearch(e.target.value);}}/></label>
@@ -152,12 +153,12 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
     {reviewAttempt&&<div className={css.panel}><h3>Intento #{reviewAttempt.id} · {reviewAttempt.score}/10</h3>
      {reviewAttempt.questions.map(q=><p key={q.id}><strong>{q.question}</strong> · Respuesta: {JSON.stringify(q.answer)} · Correcta: {JSON.stringify(q.correct_answer)} · Puntos: {q.score_awarded}</p>)}
      <label className={css.field}>Nueva nota oficial / 10 (dejar vacío para quitar override)<input type="number" step="0.01" min="0" max="10" value={score} onChange={e=>setScore(e.target.value)}/></label>
-     <button className="button-primary" disabled={busy||!reason.trim()} onClick={()=>void overrideQuiz()}>Corregir nota con auditoría</button></div>}
+     <button className="button button-primary" disabled={busy||!reason.trim()} onClick={()=>void overrideQuiz()}>Corregir nota con auditoría</button></div>}
     {selected&&selected.role==='STUDENT'&&!attempt&&<div className={css.panel}><h3>Registro asistido de Quiz</h3><p>Responderás únicamente las preguntas seleccionadas para el intento. FastAPI calculará la nota de 0 a 10.</p>
-     <button className="button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void beginQuiz()}>Iniciar intento asistido</button></div>}
+     <button className="button button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void beginQuiz()}>Iniciar intento asistido</button></div>}
     {attempt&&<div className={css.panel}><h3>Completar intento asistido #{attempt.id}</h3>{attempt.questions.map(q=><fieldset key={q.id} className={css.question}>
      <legend>{q.question}</legend><AnswerField question={q} current={answers[q.id]} onValue={v=>setAnswers(s=>({...s,[q.id]:v}))}/></fieldset>)}
-     <button className="button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void sendQuiz()}>Enviar y calificar automáticamente</button></div>}
+     <button className="button button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void sendQuiz()}>Enviar y calificar automáticamente</button></div>}
    </div>}
    {block.block_type==='homework'&&<div className={css.stack}><div className={css.panel}><h3>Entregas existentes ({homework.length})</h3>{homework.filter(x=>!participant||x.enrollment_id===participant).map(row=><div key={row.id} className={css.question}>
      <strong>Matrícula #{row.enrollment_id} · {row.status} {row.assisted?'· Asistida':''} · Nota {row.score===null?'pendiente':row.score+'/10'}</strong>
@@ -172,7 +173,7 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
       <label className={css.field}>Adjuntos de la entrega (opcionales, hasta 5)<input type="file" multiple onChange={e=>setFiles(Array.from(e.target.files||[]))}/></label>
       <div className={css.twoColumns}><label className={css.field}>Nota 0–10 (opcional)<input type="number" step="0.01" min="0" max="10" value={score} onChange={e=>setScore(e.target.value)}/></label>
        <label className={css.field}>Retroalimentación<input value={feedback} onChange={e=>setFeedback(e.target.value)}/></label></div>
-      <button className="button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void submitHomework()}>Guardar entrega asistida</button></div>}
+      <button className="button button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void submitHomework()}>Guardar entrega asistida</button></div>}
    </div>}
    {block.block_type==='survey'&&<div className={css.stack}><div className={css.panel}><h3>Respuestas ({surveyResult?.rows.length||0})</h3>
     <label className={css.field}>Filtrar rol<select value={filterRole} onChange={e=>setFilterRole(e.target.value as typeof filterRole)}><option value="ALL">Ambos</option><option value="STUDENT">Estudiantes</option><option value="TEACHER">Docentes</option></select></label>
@@ -186,7 +187,7 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
       {q.question_type==='scale'?<div className={css.inline}>{[1,2,3,4,5].map((n)=><label key={n}><input type="radio" name={`survey-assisted-${q.id}`} checked={answers[q.id]===n} onChange={()=>setAnswers(s=>({...s,[q.id]:n}))}/>
        {['😞','😕','😐','🙂','😄'][n-1]} {n}</label>)}</div>:<textarea value={String(answers[q.id]||'')} onChange={e=>setAnswers(s=>({...s,[q.id]:e.target.value}))}/>}</fieldset>)}
      <label className={css.check}><input type="checkbox" checked={surveyConfirmed} onChange={e=>setSurveyConfirmed(e.target.checked)}/> Confirmo que las respuestas fueron proporcionadas realmente por el participante.</label>
-     <button className="button-primary" disabled={busy||!surveyConfirmed||reason.trim().length<10||evidence==='ADMINISTRATIVE'} onClick={()=>void transcribeSurvey()}>Guardar transcripción auditada</button>
+     <button className="button button-primary" disabled={busy||!surveyConfirmed||reason.trim().length<10||evidence==='ADMINISTRATIVE'} onClick={()=>void transcribeSurvey()}>Guardar transcripción auditada</button>
     </div>}
    </div>}
    {block.block_type==='forum'&&<div className={css.stack}><div className={css.panel}><h3>Conversación ({posts.length} mensajes)</h3>
@@ -197,13 +198,13 @@ export function CourseModuleReview({courseId,block,onClose}:{courseId:number;blo
      <label className={css.field}>Mensaje proporcionado por el estudiante<textarea value={comment} onChange={e=>setComment(e.target.value)}/></label>
      <label className={css.field}>Responder a (opcional)<select value={parent} onChange={e=>setParent(e.target.value)}><option value="">Nueva publicación</option>
       {posts.filter(p=>!p.is_hidden).map(p=><option key={p.id} value={p.id}>Mensaje #{p.id} · {p.comment?.slice(0,60)}</option>)}</select></label>
-     <button className="button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void publishForum()}>Registrar publicación asistida</button></div>}
+     <button className="button button-primary" disabled={busy||reason.trim().length<10} onClick={()=>void publishForum()}>Registrar publicación asistida</button></div>}
    </div>}
    <div className={css.panel}><h3>Últimas operaciones auditadas</h3><p>La auditoría conserva operador, matrícula objetivo, fecha, acción y motivo.</p>
      {!activeAudit.length?<p>Sin registros asistidos en esta selección.</p>:<div className={css.tableScroll}><table className={css.table}><thead><tr><th>Fecha</th><th>Matrícula</th><th>Operador</th><th>Acción</th><th>Motivo</th></tr></thead><tbody>
       {activeAudit.map(a=><tr key={a.id}><td>{new Date(a.created_at).toLocaleString('es-EC')}</td><td>#{a.enrollment_id}</td><td>#{a.operator_user_id}</td><td>{a.action}</td><td>{a.reason}</td></tr>)}</tbody></table></div>}</div>
   </div>}
-  <div className={css.formActions}><button className="lms-outline-button" disabled={busy} onClick={()=>void load()}><RefreshCw size={15}/> Actualizar</button><button className="button-primary" onClick={onClose}>Cerrar revisión</button></div>
+  <div className={css.formActions}><button className="lms-outline-button" disabled={busy} onClick={()=>void load()}><RefreshCw size={15}/> Actualizar</button><button className="button button-primary" onClick={onClose}>Cerrar revisión</button></div>
  </section></div>;
 }
 function AnswerField({question,current,onValue}:{question:AttemptQuestion;current:unknown;onValue:(value:unknown)=>void}){

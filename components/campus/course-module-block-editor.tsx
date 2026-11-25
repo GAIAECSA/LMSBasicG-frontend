@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type Dispatch, type SetStateAction } from 'react';
 import { AlertCircle, BookOpen, CheckCircle2, ClipboardList, FileText, LoaderCircle, Plus, Save, Upload, X } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -126,7 +127,7 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
  async function fixAnswer(){if(answerId===null)return;const q=quizQuestions.find(x=>x.id===answerId);
   if(!q||correctReason.trim().length<5){setError('Escribe un motivo de al menos 5 caracteres.');return;}
   let correction:unknown=q.question_type==='TRUE_FALSE'?newQuiz.trueFalse:q.question_type==='MULTIPLE'?newQuiz.correct:newQuiz.correct[0];
-  if(!confirm('La corrección de clave recalculará TODAS las notas históricas de esta pregunta. ¿Continuar?'))return;
+  if(!(await confirmAction('La corrección de clave recalculará TODAS las notas históricas de esta pregunta. ¿Continuar?')))return;
   const ok=await execute(()=>sendJson(link('quiz','questions',answerId,'correct-answer'),'PATCH',{correct_answer:correction,reason:correctReason.trim()}),'Clave corregida y notas recalculadas.');
   if(ok!==null){setAnswerId(null);setCorrectReason('');}
  }
@@ -148,14 +149,14 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
   setSurveyQuestion({question:'',question_type:'scale',required:true});
  }
  async function submitOwnSurvey(){if(!survey||role!=='TEACHER'||myResponse?.submitted)return;
-  if(!confirm('¿Enviar tus respuestas de forma definitiva? Solo puedes responder esta encuesta una vez.'))return;
+  if(!(await confirmAction('¿Enviar tus respuestas de forma definitiva? Solo puedes responder esta encuesta una vez.')))return;
   const answers:Record<string,string|number>={};for(const q of survey.questions){const a=myAnswers[q.id];if(q.required&&(a===undefined||a==='')){setError(`Responde la pregunta «${q.question}».`);return;}
    if(a!==undefined&&a!=='')answers[String(q.id)]=a;}
   await execute(()=>sendJson(link('survey','surveys',survey.id,'submit'),'POST',{answers}),'Tu respuesta quedó registrada.');
  }
  return <div className={css.backdrop}><section className={`${css.modal} ${css.wide}`} role="dialog" aria-modal="true" aria-label={`Configurar ${block.title}`}>
   <div className={css.modalTop}><div><h2>Configurar: {block.title}</h2><span style={{fontSize:12,color:'#66788d'}}>{block.block_type.toUpperCase()} {icon} Recurso #{block.id}</span></div><button onClick={onClose} aria-label="Cerrar configuración"><X size={20}/></button></div>
-  {error&&<div className={css.error} role="alert">{error}</div>}{notice&&<div className={css.success} role="status">{notice}</div>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.placeholder}><LoaderCircle className={css.spin}/> Cargando recurso…</p>:!detail?<div className={css.emptySmall}>No se pudo cargar el recurso.</div>:<>
    {['quiz','survey'].includes(block.block_type)&&<div className={css.tabs}>
     <button className={tab==='config'?css.selected:''} onClick={()=>setTab('config')}>Configuración</button>
@@ -189,7 +190,7 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
     {block.block_type==='survey'&&<label>Quién responde<select value={audience} onChange={e=>setAudience(e.target.value as typeof audience)}><option value="BOTH">Estudiantes y docentes, misma encuesta</option><option value="STUDENT">Solo estudiantes</option><option value="TEACHER">Solo docentes</option></select></label>}
     {block.block_type==='forum'&&topic&&<label className={css.check}><input type="checkbox" checked={closed} onChange={e=>setClosed(e.target.checked)}/> Cerrar la conversación a nuevas publicaciones</label>}
     <div className={css.formActions}><button type="button" className="lms-outline-button" onClick={onClose}>Cerrar</button>
-      <button type="submit" className="button-primary" disabled={busy}><Save size={16}/> {busy?'Guardando…':'Guardar configuración'}</button></div>
+      <button type="submit" className="button button-primary" disabled={busy}><Save size={16}/> {busy?'Guardando…':'Guardar configuración'}</button></div>
     {['quiz','survey','forum'].includes(block.block_type)&&<p className={css.info}>La configuración del contenido y la del recurso específico usan contratos distintos. Si alguna operación falla, la pantalla mostrará el error y podrás verificar el estado al recargar.</p>}
    </form>}
    {tab==='questions'&&block.block_type==='quiz'&&<div className={css.stack}>
@@ -212,7 +213,7 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
        <label className={css.field}>Enunciado<textarea required value={newQuiz.question} onChange={e=>setNewQuiz(s=>({...s,question:e.target.value}))}/></label>
        <QuestionCorrect draft={newQuiz} setDraft={setNewQuiz}/>
        {config.score_mode==='MANUAL'&&<label className={css.field}>Valor de la pregunta<input type="number" step="0.01" min="0.01" value={newQuiz.value} onChange={e=>setNewQuiz(s=>({...s,value:Number(e.target.value)}))}/></label>}
-       <div className={css.inline}><button type="submit" disabled={busy} className="button-primary"><Plus size={15}/> {editingQuestion?'Guardar cambios':'Añadir pregunta'}</button>
+       <div className={css.inline}><button type="submit" disabled={busy} className="button button-primary"><Plus size={15}/> {editingQuestion?'Guardar cambios':'Añadir pregunta'}</button>
         {editingQuestion&&<button type="button" className={css.smallButton} onClick={()=>{setEditingQuestion(null);setNewQuiz(blankQuestion());}}>Cancelar edición</button>}</div>
       </form>}
      <p className={css.info}>No hay eliminación de preguntas Quiz en el contrato actual. Tras el primer intento, la única modificación permitida es corregir la clave con motivo y recálculo.</p>
@@ -221,14 +222,14 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
     <div className={css.list}>{survey.questions.map((q,i)=><div className={css.question} key={q.id}><div className={css.questionHeader}>
      <strong>{i+1}. {q.question}</strong><small>{q.question_type==='scale'?'Likert 1–5':'Abierta'} · {q.required?'Obligatoria':'Opcional'}</small></div>
      <div className={css.inline}><button className={css.smallButton} onClick={()=>{setSurveyEdit(q.id);setSurveyQuestion({question:q.question,question_type:q.question_type,required:q.required});}}>Editar</button>
-      <button className={css.smallButton} disabled={busy} onClick={()=>{if(confirm('¿Eliminar esta pregunta? FastAPI impedirá eliminarla si existen respuestas.'))void execute(()=>sendJson(link('survey','questions',q.id),'DELETE'),'Pregunta archivada.');}}>Eliminar</button></div></div>)}</div>
+      <button className={css.smallButton} disabled={busy} onClick={async ()=>{if((await confirmAction('¿Eliminar esta pregunta? FastAPI impedirá eliminarla si existen respuestas.')))void execute(()=>sendJson(link('survey','questions',q.id),'DELETE'),'Pregunta archivada.');}}>Eliminar</button></div></div>)}</div>
     <form className={css.panel} onSubmit={saveSurveyQuestion}><h3>{surveyEdit?'Editar':'Nueva'} pregunta</h3>
      <label className={css.field}>Pregunta<textarea value={surveyQuestion.question} onChange={e=>setSurveyQuestion(s=>({...s,question:e.target.value}))}/></label>
      <label className={css.field}>Tipo<select value={surveyQuestion.question_type} onChange={e=>setSurveyQuestion(s=>({...s,question_type:e.target.value as 'scale'|'text'}))}>
       <option value="scale">Likert 5 (caritas / 1 a 5)</option><option value="text">Respuesta abierta</option></select></label>
      <label className={css.check}><input type="checkbox" checked={surveyQuestion.required} onChange={e=>setSurveyQuestion(s=>({...s,required:e.target.checked}))}/> Respuesta obligatoria</label>
      {surveyEdit&&<label className={css.field}>Motivo si ya hay respuestas (solo corrección no sustancial)<input value={surveyReason} onChange={e=>setSurveyReason(e.target.value)}/></label>}
-     <div className={css.inline}><button className="button-primary" disabled={busy}>Guardar pregunta</button>{surveyEdit&&<button type="button" className={css.smallButton} onClick={()=>{setSurveyEdit(null);setSurveyQuestion({question:'',question_type:'scale',required:true});}}>Cancelar</button>}</div>
+     <div className={css.inline}><button className="button button-primary" disabled={busy}>Guardar pregunta</button>{surveyEdit&&<button type="button" className={css.smallButton} onClick={()=>{setSurveyEdit(null);setSurveyQuestion({question:'',question_type:'scale',required:true});}}>Cancelar</button>}</div>
     </form></>}</div>}
    {tab==='import'&&['quiz','survey'].includes(block.block_type)&&<div className={css.stack}>
      <p className={css.info}>{block.block_type==='quiz'?'GIFT: selección simple, múltiple y verdadero/falso. Se rechazan variantes no soportadas.':'CSV: columnas order,type,question,required; type=scale o text.'} La previsualización no escribe en la base.</p>
@@ -237,8 +238,8 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
      <label className={css.field}>Archivo {block.block_type==='quiz'?'.gift / .txt':'.csv'}<input type="file" accept={block.block_type==='quiz'?'.gift,.txt':'.csv,text/csv'} onChange={async e=>{const f=e.target.files?.[0];if(!f)return;if(f.size>500000){setError('Archivo máximo 500 KB');return;}const t=await f.text();if(block.block_type==='quiz')setGift(t);else setCsv(t);setImportPreview([]);}}/></label>
      <label className={css.field}>Contenido<textarea rows={10} value={block.block_type==='quiz'?gift:csv} onChange={e=>{block.block_type==='quiz'?setGift(e.target.value):setCsv(e.target.value);setImportPreview([]);}}/></label>
      <div className={css.inline}><button className={css.smallButton} disabled={busy||!(block.block_type==='quiz'?gift:csv).trim()||(block.block_type==='quiz'&&attemptCount>0)||(block.block_type==='survey'&&!survey)} onClick={()=>void importText(block.block_type==='quiz'?'gift':'csv',false)}>Validar y previsualizar</button>
-      <button className="button-primary" disabled={busy||!importPreview.length||(block.block_type==='quiz'&&attemptCount>0)||block.block_type==='survey'&&!survey} onClick={()=>{
-       if(confirm(`¿Importar ${importPreview.length} preguntas de forma atómica?`))void importText(block.block_type==='quiz'?'gift':'csv',true);}}>Importar {importPreview.length||''} preguntas</button></div>
+      <button className="button button-primary" disabled={busy||!importPreview.length||(block.block_type==='quiz'&&attemptCount>0)||block.block_type==='survey'&&!survey} onClick={async ()=>{
+       if((await confirmAction(`¿Importar ${importPreview.length} preguntas de forma atómica?`)))void importText(block.block_type==='quiz'?'gift':'csv',true);}}>Importar {importPreview.length||''} preguntas</button></div>
      {importPreview.length>0&&<div className={css.panel}><h3>Previsualización ({importPreview.length})</h3>{importPreview.slice(0,35).map((q,i)=><p key={i}>{i+1}. {String(asMap(q).question||'')} · {String(asMap(q).question_type||asMap(q).type||'')}</p>)}
        {importPreview.length>35&&<p>… y {importPreview.length-35} preguntas más.</p>}</div>}
    </div>}
@@ -250,7 +251,7 @@ export function CourseModuleBlockEditor({courseId,block,role,initialTab='config'
        {survey.questions.map((q,i)=><label key={q.id}>{i+1}. {q.question} {q.required?'*':''}{q.question_type==='scale'?<select value={myAnswers[q.id]??''} onChange={e=>setMyAnswers(s=>({...s,[q.id]:Number(e.target.value)}))}>
         <option value="">Selecciona</option>{[1,2,3,4,5].map(n=><option value={n} key={n}>{['😞','😕','😐','🙂','😄'][n-1]} {n} / 5</option>)}</select>:
         <textarea value={String(myAnswers[q.id]??'')} onChange={e=>setMyAnswers(s=>({...s,[q.id]:e.target.value}))}/>}</label>)}
-       <button className="button-primary" disabled={busy} onClick={()=>void submitOwnSurvey()}>Enviar respuesta única</button></div>}
+       <button className="button button-primary" disabled={busy} onClick={()=>void submitOwnSurvey()}>Enviar respuesta única</button></div>}
    </div>}
   </>}
  </section></div>;

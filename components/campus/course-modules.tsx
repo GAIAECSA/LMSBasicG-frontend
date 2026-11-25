@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type MouseEvent } from 'react';
 import { AlignLeft, ArrowDown, ArrowUp, BookOpen, ClipboardCheck, ClipboardList, Eye, FileText,
   GripVertical, ImageIcon, Layers3, LoaderCircle, LockKeyhole, MessageSquare, PenLine, Plus,
@@ -81,7 +82,7 @@ export function CourseModules({courseId,courseName,role}:{courseId:number;course
   const ok=await run(()=>sendFile(url('blocks',generalEdit.id),payload,'PUT'),'Propiedades guardadas.');if(ok)setGeneralEdit(null);
  }
  async function remove(kind:'module'|'lesson'|'block',id:number,title:string){
-  if(busy||!confirm(`¿Archivar «${title}»? Se preserva el historial académico. Si afecta al plan ponderado, ajusta el plan antes de archivar.`))return;
+  if(busy||!(await confirmAction(`¿Archivar «${title}»? Se preserva el historial académico. Si afecta al plan ponderado, ajusta el plan antes de archivar.`)))return;
   await run(()=>sendJson(url(kind==='module'?'modules':kind==='lesson'?'lessons':'blocks',id),'DELETE'),'Elemento archivado.');
  }
  async function persistMove(next:CourseStructure){
@@ -115,11 +116,11 @@ export function CourseModules({courseId,courseName,role}:{courseId:number;course
    <div className={css.toolbar}><button className="lms-outline-button" onClick={()=>void load()} disabled={busy}><RefreshCw size={16}/> Actualizar</button>
    <button className="lms-outline-button" onClick={()=>setPreview(true)} disabled={!tree}><Eye size={16}/> Vista previa</button>
    <button className="lms-outline-button" onClick={()=>setPlan(true)} disabled={!tree}><ClipboardCheck size={16}/> Plan de calificación</button>
-   <button className="button-primary" onClick={()=>openCreate({kind:'module',parentId:null})} disabled={busy||loading}><Plus size={16}/> Nuevo módulo</button></div></div>
-  {error&&<div className={css.error} role="alert">{error}</div>}{notice&&<div className={css.success} role="status">{notice}</div>}
+   <button className="button button-primary" onClick={()=>openCreate({kind:'module',parentId:null})} disabled={busy||loading}><Plus size={16}/> Nuevo módulo</button></div></div>
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   <p className={css.hint}><GripVertical size={15}/> Arrastra módulos, lecciones y recursos, incluso entre módulos/lecciones del mismo curso. Usa las flechas para ordenar con teclado.</p>
   {loading?<p className={css.placeholder}><LoaderCircle className={css.spin}/> Cargando estructura académica…</p>:!tree?<p className={css.placeholder}>No fue posible cargar el curso. Usa Actualizar.</p>:
-   tree.modules.length===0?<div className={css.empty}><Layers3 size={35}/><h2>Tu curso aún no tiene módulos</h2><p>Crea el primer módulo para incorporar lecciones y recursos.</p><button className="button-primary" onClick={()=>openCreate({kind:'module',parentId:null})}><Plus size={16}/> Crear primer módulo</button></div>:
+   tree.modules.length===0?<div className={css.empty}><Layers3 size={35}/><h2>Tu curso aún no tiene módulos</h2><p>Crea el primer módulo para incorporar lecciones y recursos.</p><button className="button button-primary" onClick={()=>openCreate({kind:'module',parentId:null})}><Plus size={16}/> Crear primer módulo</button></div>:
    <div className={css.moduleList}>{tree.modules.map((m,mi)=><article key={m.id} className={css.module}>
     <div className={css.moduleHead} onDragOver={e=>{if(dragging.current?.kind==='module')e.preventDefault();}} onDrop={e=>drop(e,'module',null,mi)}>
       <button title="Arrastrar módulo" aria-label={`Arrastrar módulo ${m.name}`} className={css.grip} draggable={!busy}
@@ -180,7 +181,7 @@ export function CourseModules({courseId,courseName,role}:{courseId:number;course
      <label>Nombre<input required maxLength={255} value={name} onChange={e=>setName(e.target.value)} placeholder="Nombre del elemento"/></label>
      {(generalEdit||create?.kind==='block')&&<label>Disponible desde (opcional)<input type="datetime-local" value={date} onChange={e=>setDate(e.target.value)}/><small>La actividad seguirá visible, pero quedará bloqueada para estudiantes hasta esa fecha.</small></label>}
      {(generalEdit?GRADED_KINDS.has(generalEdit.block_type):create?.kind==='block'&&GRADED_KINDS.has(kind))&&<label className={css.check}><input type="checkbox" checked={counts} onChange={e=>setCounts(e.target.checked)}/> Cuenta para la nota final <small>Si el curso es WEIGHTED, incluye el recurso desde Plan de calificación.</small></label>}
-     <div className={css.formActions}><button type="button" className="lms-outline-button" onClick={closeForms}>Cancelar</button><button className="button-primary" disabled={busy||!name.trim()}>{busy?'Guardando…':'Guardar'}</button></div>
+     <div className={css.formActions}><button type="button" className="lms-outline-button" onClick={closeForms}>Cancelar</button><button className="button button-primary" disabled={busy||!name.trim()}>{busy?'Guardando…':'Guardar'}</button></div>
     </form>
   </section></div>}
   {blockEdit&&<CourseModuleBlockEditor courseId={courseId} role={role} block={blockEdit} initialTab={respond?'respond':'config'} onClose={()=>setBlockEdit(null)} onSaved={()=>void load()}/>}

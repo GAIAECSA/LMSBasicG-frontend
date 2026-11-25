@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +46,7 @@ export function MyPolicies() {
     <div className="lms-page-heading"><div><p className="lms-eyebrow"><Info size={15}/> INFORMACIÓN</p>
       <h1>Políticas</h1><p>Consulta las políticas vigentes de tu academia y de la plataforma. También puedes ver tu última aceptación histórica.</p></div></div>
     {loading?<div className="lms-loading-card">Cargando políticas disponibles…</div>:
-      error?<div className="lms-error" role="alert">{error} <button type="button" onClick={()=>{setError("");void load().catch(()=>setError("No fue posible conectar."));}}>Reintentar</button></div>:
+      error?<ToastMessage kind="error" message={error}><button type="button" onClick={()=>{setError("");void load().catch(()=>setError("No fue posible conectar."));}}>Reintentar</button></ToastMessage>:
       catalog&&catalog.current.length===0&&historicOnly.length===0?<div className="lms-empty-card"><BookOpen size={35}/>
         <h2>No hay políticas disponibles</h2><p>Cuando se publiquen, podrás consultarlas desde aquí.</p></div>:
       <div className="lms-policy-grid">

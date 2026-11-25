@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, CheckCircle2, Eye, RefreshCw } from 'lucide-react';
@@ -129,7 +130,7 @@ export function CourseTypeTransitionCard({courseId,course,disabled,unsaved,onCha
           entre MOOC y MDT únicamente si el tenant tiene habilitada la modalidad de destino.</p>
       </div>
     </div>
-    {error&&<p className="lms-error" role="alert">{error}</p>}
+    {error&&<ToastMessage kind="error" message={error} />}
     <div className="course-settings-transition-controls">
       <label htmlFor="course-settings-target-type">Nueva modalidad
         <select id="course-settings-target-type" value={selectedId}

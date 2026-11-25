@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 /* eslint-disable @next/next/no-img-element -- Vista previa local blob: y portada pública validada por el BFF. */
 
 import Link from 'next/link';
@@ -180,8 +181,8 @@ export function AdminCourses() {
     {!loading && !allowed.length && <p className="lms-academic-note" role="status">
       El tenant no tiene habilitada la creación de cursos MOOC ni MDT. Los cursos existentes siguen disponibles.
     </p>}
-    {error && <p className="lms-error" role="alert">{error}<button onClick={() => void load()}>Reintentar</button></p>}
-    {notice && <p className="lms-users-success" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Cerrar aviso">×</button></p>}
+    {error && <ToastMessage kind="error" message={error}><button onClick={() => void load()}>Reintentar</button></ToastMessage>}
+    {notice && <ToastMessage kind="success" message={notice} />}
     <section className="lms-users-panel">
       <div className="lms-users-filters lms-academic-course-filters">
         <label className="lms-users-search"><Search size={18}/><input placeholder="Buscar curso..." aria-label="Buscar cursos" value={search} onChange={e => setSearch(e.target.value)}/></label>
@@ -308,7 +309,7 @@ export function AdminCourses() {
             </aside>
           </div>
           <footer className="lms-course-create-footer">
-            {modalError && <p className="lms-error" role="alert">{modalError}</p>}
+            {modalError && <ToastMessage kind="error" message={modalError} />}
             <div className="lms-course-create-actions"><button type="button" className="lms-outline-button" disabled={busy} onClick={closeCreate}>Cancelar</button>
               <button type="submit" className="button button-primary" disabled={busy}>{busy ? 'Guardando...' : 'Crear curso'}</button></div>
           </footer>
@@ -320,7 +321,7 @@ export function AdminCourses() {
       <span className="lms-users-alert-icon"><AlertTriangle size={23}/></span><h2>¿Eliminar el curso?</h2>
       <p>Vas a eliminar lógicamente <strong>{deleting.name}</strong>. Aunque existan matrículas, notas, asistencias o certificados, su historial permanecerá en la base de datos. El curso dejará de mostrarse en los listados activos.</p>
       {deleting.total_students > 0 && <p className="lms-academic-note"><strong>Advertencia:</strong> este curso registra {deleting.total_students} estudiantes.</p>}
-      {modalError && <p className="lms-error" role="alert">{modalError}</p>}
+      {modalError && <ToastMessage kind="error" message={modalError} />}
       <div className="lms-editor-actions"><button className="lms-outline-button" disabled={busy} onClick={() => setDeleting(null)}>Cancelar</button>
         <button className="lms-users-danger-button" disabled={busy} onClick={() => void remove()}><Trash2 size={16}/>{busy ? 'Eliminando...' : 'Sí, eliminar curso'}</button></div>
     </div></div>}

@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useState} from 'react';
 import {ChevronLeft,ChevronRight,History} from 'lucide-react';
 import {apiErrorMessage,requestJson} from '@/lib/academic/client';
@@ -29,7 +30,7 @@ export function MdtResourceHistory({courseId,blocks,revision}:{courseId:number;b
       {expanded?'Ocultar historial':'Ver historial'}</button>
     {expanded&&<div className="mdt-history-body">
       {loading&&<p role="status" className="mdt-muted">Consultando bitácora...</p>}
-      {error&&<p className="lms-error" role="alert">{error}</p>}
+      {error&&<ToastMessage kind="error" message={error} />}
       {!loading&&data&&!error&&<>
         {data.items.length?<div className="workspace-table-scroll"><table className="workspace-table">
           <thead><tr><th>Fecha</th><th>Acción</th><th>Recurso</th><th>Autor</th><th>Matrícula</th></tr></thead>

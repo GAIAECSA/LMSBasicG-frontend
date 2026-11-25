@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import {useState,type ChangeEvent} from 'react';
 import {Download,Eye,FileCheck2,FileUp,Info,RefreshCw} from 'lucide-react';
 import {apiErrorMessage,requestJson} from '@/lib/academic/client';
@@ -18,7 +19,7 @@ export function MdtInstitutionalPdfs({courseId,blocks,onChanged}:{
     if(!file||busyId!==null)return;
     const invalid=validateMdtFiles([file],'pdf');
     if(invalid){setError(invalid);return;}
-    if(block.has_file&&!window.confirm(`¿Reemplazar el PDF de «${block.title}»? El archivo anterior dejará de estar disponible.`))return;
+    if(block.has_file&&!(await confirmAction(`¿Reemplazar el PDF de «${block.title}»? El archivo anterior dejará de estar disponible.`)))return;
     setBusyId(block.id);setError('');setNotice('');
     const form=new FormData();form.set('file',file,file.name);
     try{
@@ -33,8 +34,8 @@ export function MdtInstitutionalPdfs({courseId,blocks,onChanged}:{
       <h2>Evidencias institucionales</h2>
       <p>Documentos PDF del curso, exclusivos de ADMIN y TEACHER. No se entregan ni califican por estudiante.</p>
     </div>
-    {error&&<p className="lms-error" role="alert">{error}</p>}
-    {notice&&<p className="lms-users-success" role="status">{notice}</p>}
+    {error&&<ToastMessage kind="error" message={error} />}
+    {notice&&<ToastMessage kind="success" message={notice} />}
     {!blocks.length?<div className="workspace-empty"><FileCheck2 size={29} aria-hidden="true"/> No hay bloques PDF institucionales configurados para este curso MDT.</div>:
       <div className="mdt-pdf-grid">{blocks.map(block=><article key={block.id} className="mdt-pdf-card">
         <div className="mdt-pdf-card-top"><span className="mdt-pdf-icon"><FileCheck2 size={26} aria-hidden="true"/></span>

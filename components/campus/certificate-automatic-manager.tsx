@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import {Clock3,Download,Eye,History,RefreshCw,RotateCcw,Search,ShieldOff} from 'lucide-react';
 import {certificateApi,certificateRequest,displayDate,parseAutomaticCerts,parseEvents,readableError,
@@ -81,8 +82,8 @@ export function CertificateAutomaticManager({courseId}:{courseId:number}){
       </select>
       <button type="button" className="lms-outline-button" disabled={loading} onClick={()=>setRevision(n=>n+1)}><RefreshCw size={16}/> Actualizar</button>
     </div>
-    {notice&&<p className={css.success} role="status">{notice}</p>}
-    {error&&<div role="alert" className="lms-error">{error}</div>}
+    {notice&&<ToastMessage kind="success" message={notice} />}
+    {error&&<ToastMessage kind="error" message={error} />}
     {loading?<p role="status" className={css.empty}>Cargando certificados...</p>:<>
       {results.length===0?<p className={css.empty}>No hay certificados en esta página que coincidan con los filtros.</p>:
         <div className={css.tableScroll}><table className={css.table}>
@@ -114,7 +115,7 @@ export function CertificateAutomaticManager({courseId}:{courseId:number}){
       <section className={`lms-modal ${css.historyModal}`} role="dialog" aria-modal="true" aria-labelledby="auto-history-title">
         <div className={css.modalTitle}><h2 id="auto-history-title">Historial del certificado</h2>
           <button type="button" className="lms-outline-button" onClick={()=>setHistoryId(null)}>Cerrar</button></div>
-        {historyError&&<div className="lms-error" role="alert">{historyError}</div>}
+        {historyError&&<ToastMessage kind="error" message={historyError} />}
         {history===null?<p>Cargando historial...</p>:history.length===0?<p>Sin eventos registrados.</p>:
           <div className={css.historyList}>{history.map(event=><article key={event.id}>
             <div><strong>{event.action}</strong><small>{displayDate(event.created_at)} · Actor #{event.actor_user_id}</small></div>

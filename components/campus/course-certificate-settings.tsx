@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, FileBadge2, RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -104,8 +105,8 @@ export function CourseCertificateSettings({ courseId, disabled, unsaved, onChang
     {!loading && current && !current.institutional_allowed &&
       <p className={css.hint}>Este tipo de curso no dispone de la capacidad institucional opcional.</p>}
     {unsaved && <p className={css.hint}>Guarda o descarta primero los cambios generales del curso.</p>}
-    {error && <p className="lms-error" role="alert">{error}</p>}
-    {notice && <p className="lms-users-success" role="status">{notice}</p>}
+    {error && <ToastMessage kind="error" message={error} />}
+    {notice && <ToastMessage kind="success" message={notice} />}
     <footer className={css.footer}>
       <p>Deshabilitar el institucional no elimina certificados previamente almacenados. El certificado ministerial continúa habilitado.</p>
       <button type="button" className="button button-primary" disabled={locked || !changed || !current?.institutional_allowed}

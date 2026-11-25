@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Check, ChevronDown, CirclePlus, Clock, Pencil, RefreshCw, Save, Search, Trash2, Users } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -86,7 +87,7 @@ export function CourseAttendanceManager({courseId,courseName}:{courseId:number;c
   }
   async function generate(){
     if(busy||!confirmedPreview||!confirmedPreview.to_create.length)return;
-    if(!window.confirm(`¿Crear ${confirmedPreview.to_create.length} sesiones de «${courseName}» en una única transacción?`))return;
+    if(!(await confirmAction(`¿Crear ${confirmedPreview.to_create.length} sesiones de «${courseName}» en una única transacción?`)))return;
     setBusy(true);setError('');setNotice('');
     try{
       const data=recurringPayload(courseId,from,to,slots,exclusions);
@@ -107,7 +108,7 @@ export function CourseAttendanceManager({courseId,courseName}:{courseId:number;c
     }catch(e){setError(apiErrorMessage(e));}finally{setBusy(false);}
   }
   async function deleteSession(){
-    if(!active||busy||!window.confirm('¿Archivar esta sesión? Se conservará su historial de asistencia.'))return;
+    if(!active||busy||!(await confirmAction('¿Archivar esta sesión? Se conservará su historial de asistencia.')))return;
     setBusy(true);setError('');setNotice('');
     try{await requestJson(`${url}/${active.id}`,undefined,{method:'DELETE'});setActiveId(null);setNotice('Sesión archivada');await load();}
     catch(e){setError(apiErrorMessage(e));}finally{setBusy(false);}
@@ -129,8 +130,8 @@ export function CourseAttendanceManager({courseId,courseName}:{courseId:number;c
       <div className="workspace-actions"><button className="lms-outline-button" onClick={()=>void load()} disabled={busy}><RefreshCw size={17}/> Recargar</button>
       <button className="button button-primary" onClick={()=>{setMode(mode==='create'?'list':'create');setError('');}} disabled={busy}>
         <CirclePlus size={17}/>{mode==='create'?'Cerrar programación':'Programar sesiones'}</button></div></header>
-    {error&&<p className="lms-error" role="alert">{error}</p>}
-    {notice&&<p className="lms-users-success" role="status">{notice}</p>}
+    {error&&<ToastMessage kind="error" message={error} />}
+    {notice&&<ToastMessage kind="success" message={notice} />}
     {mode==='create'&&<section className="workspace-panel"><div className="workspace-panel-header"><h2>Programar sesiones recurrentes</h2>
       <p>Selecciona un período, activa los días y asigna sus horarios. También sirve para crear una sola sesión.</p></div>
       <div className="workspace-form-grid"><label>Desde<input type="date" value={from} disabled={busy} onChange={e=>setFrom(e.target.value)}/></label>

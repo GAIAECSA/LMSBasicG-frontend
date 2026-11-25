@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useState} from 'react';
 import {Award,CheckCircle2,Clock3,Download,FileBadge2,LockKeyhole,ShieldCheck,AlertCircle} from 'lucide-react';
 import {action,apiErrorMessage} from '@/lib/student-course/client';
@@ -29,7 +30,7 @@ export function StudentCertificateTab({courseId,code,eligibility,refresh}:{cours
    {!eligibility.grade_ok&&<div className={css.warningLine}><AlertCircle size={18}/> La nota final todavía no alcanza el mínimo requerido.</div>}
    {eligibility.missing_activities.length>0&&<div className={css.missing}><h3>Actividades pendientes</h3><ul>{eligibility.missing_activities.map(x=><li key={x.block_id}><Clock3 size={15}/>{x.title}</li>)}</ul></div>}
    {eligibility.missing_documents.length>0&&<div className={css.missing}><h3>Documentos pendientes</h3><ul>{eligibility.missing_documents.map(x=><li key={x.id}><FileBadge2 size={15}/>{x.title}</li>)}</ul></div>}
-   {error&&<p className={css.error} role="alert">{error}</p>}{notice&&<p className={css.success} role="status">{notice}</p>}
+   {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
    {!eligibility.academic_eligible&&!eligibility.can_download?<div className={css.statusCard}><LockKeyhole size={19}/><span>Completa los requisitos anteriores para acceder a tu certificado.</span></div>:
      eligibility.can_download&&possible.length>0?<div className={css.certChoices}><h3><ShieldCheck size={20}/> {possible.length>1?'Escoge tu certificado':'Tu certificado está disponible'}</h3>
       {possible.map(cert=><div className={css.certChoice} key={cert.id}><span><Award size={19}/> {cert.type==='MDT'?'Certificado ministerial MDT':cert.type==='INSTITUTIONAL'?'Certificado institucional':'Certificado automático MOOC'}</span>

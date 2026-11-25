@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useEffect, useState } from "react";
 import { ExternalLink, FileText, X } from "lucide-react";
@@ -60,7 +61,7 @@ export function PolicyViewer({document,onClose}:{document:PolicyDocument|null;on
         <button type="button" className="lms-icon-button" onClick={onClose} aria-label="Cerrar visor"><X size={21}/></button>
       </header>
       {loading?<div className="lms-document-loading">Cargando documento…</div>:
-        error?<p className="lms-error" role="alert">{error}</p>:
+        error?<ToastMessage kind="error" message={error} />:
         resolved==="HTML"?<iframe className="lms-document-frame" title={document.title} sandbox="" referrerPolicy="no-referrer" srcDoc={htmlFrame(html)}/>:
         resolved==="PDF"?<><object className="lms-document-frame" data={pdfUrl} type="application/pdf" aria-label={document.title}>
           <p>El navegador no pudo mostrar el PDF. Puedes abrirlo en otra pestaña.</p>

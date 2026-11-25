@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 /* eslint-disable @next/next/no-img-element -- Vista previa blob: de imagen seleccionada en el navegador. */
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -129,8 +130,8 @@ export function AdminCourseDetail({courseId,initialCourse}:{courseId:number;init
       <button type="button" className="lms-outline-button" disabled={loading||busy} onClick={()=>void reload()}>
         <RefreshCw size={16}/> Recargar</button>
     </header>
-    {error&&<p className="lms-error" role="alert">{error}</p>}
-    {notice&&<p className="lms-users-success" role="status">{notice}</p>}
+    {error&&<ToastMessage kind="error" message={error} />}
+    {notice&&<ToastMessage kind="success" message={notice} />}
     {partialUpdate&&<p className="lms-academic-note">El curso fue modificado parcialmente: revisa el método de calificación antes de hacer nuevos cambios.</p>}
     {loading?<div className="lms-loading-card">Cargando información del curso...</div>:<form className="course-settings-form" onSubmit={e=>void save(e)}>
       <div className="lms-course-create-columns">

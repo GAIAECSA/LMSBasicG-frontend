@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useMemo,useState} from 'react';
 import Link from 'next/link';
 import {useRouter} from 'next/navigation';
@@ -82,7 +83,7 @@ export function VisitorCertificates({result}:{result:VisitorCertState}){
     <label className={css.search}><Search size={17}/><span className="sr-only">Buscar cursos certificados</span>
      <input value={query} maxLength={120} placeholder="Buscar por curso…" onChange={e=>setQuery(e.target.value)}/></label>
    </div>
-   {error&&<p className={css.error} role="alert">{error}</p>}
+   {error&&<ToastMessage kind="error" message={error} />}
    {filtered.length?<div className={css.list}>
     {filtered.map(course=><article className={css.course} key={course.course_id}>
      <div className={css.head}>

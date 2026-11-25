@@ -1,4 +1,5 @@
 'use client';
+import { notify } from '@/components/ui/notifications';
 import { useEffect, useRef, useState } from 'react';
 import { Code2, Eye, Bold, Italic, Underline, List, ListOrdered, Link2 } from 'lucide-react';
 import { safeAcademicHtml } from '@/lib/course-modules/html';
@@ -8,7 +9,7 @@ export function CourseModuleHtmlEditor({value,onChange}:{value:string;onChange:(
  const [mode,setMode]=useState<'visual'|'html'>('visual');const ref=useRef<HTMLDivElement>(null);
  useEffect(()=>{if(mode==='visual'&&ref.current&&ref.current.innerHTML!==safeAcademicHtml(value))ref.current.innerHTML=safeAcademicHtml(value);},[value,mode]);
  function command(cmd:string,argument?:string){ref.current?.focus();document.execCommand(cmd,false,argument);onChange(safeAcademicHtml(ref.current?.innerHTML||''));}
- function link(){const href=window.prompt('URL HTTPS del enlace');if(!href)return;try{if(new URL(href).protocol!=='https:')throw Error();command('createLink',href);}catch{window.alert('Introduce una URL https:// válida.');}}
+ function link(){const href=window.prompt('URL HTTPS del enlace');if(!href)return;try{if(new URL(href).protocol!=='https:')throw Error();command('createLink',href);}catch{notify('Introduce una URL https:// válida.','error');}}
  return <div className={css.stack}>
   <div className={css.tabs}><button className={mode==='visual'?css.selected:''} onClick={()=>{onChange(safeAcademicHtml(value));setMode('visual');}} type="button"><Eye size={14}/> Visual</button>
    <button type="button" className={mode==='html'?css.selected:''} onClick={()=>{onChange(safeAcademicHtml(ref.current?.innerHTML||value));setMode('html');}}><Code2 size={14}/> HTML</button></div>

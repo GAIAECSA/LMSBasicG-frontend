@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import {CheckCircle2,Download,Eye,FilePlus2,Files,History,RefreshCw,Search,UploadCloud} from 'lucide-react';
 import {CERT_IMPORT_BATCH,certificateApi,certificateRequest,displayDate,
@@ -133,8 +134,8 @@ export function CertificateExternalManager({courseId,code,focus}:{courseId:numbe
         </div>)}</div>
       </div>}
     </section>
-    {notice&&<p className={css.success} role="status"><CheckCircle2 size={16}/>{notice}</p>}
-    {error&&<div className="lms-error" role="alert">{error}</div>}
+    {notice&&<ToastMessage kind="success" message={notice} />}
+    {error&&<ToastMessage kind="error" message={error} />}
     <div className={css.rosterHeader}><div><h3>Certificados por estudiante</h3>
       <p>Solo matrículas STUDENT ACEPTADO. La asociación se determina mediante la cédula cifrada y su índice de búsqueda.</p></div>
       <div className={css.rosterStats}><strong>{uploadedCount}</strong> cargados en esta página</div>
@@ -189,7 +190,7 @@ export function CertificateExternalManager({courseId,code,focus}:{courseId:numbe
           <textarea maxLength={500} rows={3} value={reason} onChange={e=>setReason(e.target.value)}
             placeholder="Por ejemplo: documento incorrecto o ilegible"/>
         </label>}
-        {error&&<div className="lms-error" role="alert">{error}</div>}
+        {error&&<ToastMessage kind="error" message={error} />}
         <div className={css.actions}>
           <button type="button" className="lms-outline-button" disabled={working} onClick={()=>{setUploadTarget(null);setError('');}}>Cancelar</button>
           <button type="button" className="button button-primary" disabled={working||!uploaded||
@@ -202,7 +203,7 @@ export function CertificateExternalManager({courseId,code,focus}:{courseId:numbe
       <section className={`lms-modal ${css.historyModal}`} role="dialog" aria-modal="true" aria-labelledby="external-history-title">
         <div className={css.modalTitle}><h2 id="external-history-title">Historial del documento</h2>
           <button type="button" className="lms-outline-button" onClick={()=>setHistoryId(null)}>Cerrar</button></div>
-        {historyError&&<div className="lms-error" role="alert">{historyError}</div>}
+        {historyError&&<ToastMessage kind="error" message={historyError} />}
         {events===null?<p>Cargando eventos...</p>:events.length===0?<p>No hay eventos registrados.</p>:
           <div className={css.historyList}>{events.map(event=><article key={event.id}>
             <div><strong>{event.action==='IMPORT'?'Importación':event.action==='CORRECT'?'Corrección':event.action}</strong>

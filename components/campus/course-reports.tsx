@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookOpen, ClipboardList, Download, FileCheck2, FileSpreadsheet, GraduationCap, LoaderCircle, RefreshCw, Users, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -85,7 +86,7 @@ export function CourseReports({courseId,courseName}:{courseId:number;courseName:
       <p className="lms-eyebrow">CURSO MDT #{courseId} / ADMINISTRACIÓN</p>
       <h1>Reportes</h1><p>Genera los 14 reportes oficiales de «{courseName}». Solo incluyen matrículas aceptadas.</p>
     </div><div className="workspace-actions"><button type="button" className="lms-outline-button" disabled={loading||downloading!==null} onClick={()=>void load()}><RefreshCw size={16}/> Actualizar</button></div></header>
-    {error&&<div className={css.error} role="alert"><AlertCircle size={18}/>{error}</div>}
+    {error&&<ToastMessage kind="error" message={error} />}
     {loading&&<p className={css.loading}><LoaderCircle className={css.spin} size={18}/> Cargando configuración y actividades...</p>}
     {!loading&&catalog&&<>
       <div className={css.summary}><strong>{catalog.reports.length} reportes</strong><span>6 categorías</span><span>{catalog.activities.length} actividades evaluables disponibles</span></div>

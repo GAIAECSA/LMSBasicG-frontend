@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Eye, LoaderCircle, LockKeyhole, X } from 'lucide-react';
 import { requestJson,apiErrorMessage } from '@/lib/academic/client';
@@ -47,7 +48,7 @@ export function CourseModulePreview({courseId,tree,onClose}:{courseId:number;tre
       <h3>{item.title}</h3><p>{displayDate(item.date_available)}</p>
       {isFuture(item.date_available)&&<p className={css.info}><LockKeyhole size={15} style={{display:'inline'}}/> Esta actividad aparecerá bloqueada hasta su fecha de disponibilidad. El editor autorizado puede previsualizarla.</p>}
       {loading?<p className={css.placeholder}><LoaderCircle className={css.spin}/> Cargando…</p>:
-       error?<p className={css.error}>{error}</p>:detail&&<div className={css.stack}>
+       error?<ToastMessage kind="error" message={error} />:detail&&<div className={css.stack}>
         {['text','image','homework','quiz','survey','forum'].includes(item.block_type)&&raw&&<iframe sandbox="" title="Contenido HTML seguro" srcDoc={`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font-family:system-ui;color:#223346;line-height:1.6;overflow-wrap:anywhere">${raw}</body></html>`} style={{width:'100%',border:'1px solid #dfe7f1',height:150,background:'#fff'}}/>}
         {item.block_type==='image'&&hasUploadedFile&&<img alt={item.title} src={modulesUrl(courseId,'blocks',id,'file')} style={{maxWidth:'100%',maxHeight:400,objectFit:'contain'}}/>}
         {item.block_type==='pdf'&&hasUploadedFile&&<iframe title={item.title} src={modulesUrl(courseId,'blocks',id,'file')} style={{width:'100%',minHeight:420,border:0}}/>}

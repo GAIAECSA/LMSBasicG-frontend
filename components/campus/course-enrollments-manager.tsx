@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Plus, RefreshCw, Search, Trash2, Upload, UserPlus, Users } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -91,7 +92,7 @@ export function CourseEnrollmentsManager({courseId,courseName}:{courseId:number;
   async function enrollExisting(){
     const people=Object.values(selected);
     if(!people.length||busy)return;
-    if(!window.confirm(`¿Matricular ${people.length} usuario(s) en «${courseName}» como ${role==='STUDENT'?'estudiantes':'profesores'}? El lote será atómico.`))return;
+    if(!(await confirmAction(`¿Matricular ${people.length} usuario(s) en «${courseName}» como ${role==='STUDENT'?'estudiantes':'profesores'}? El lote será atómico.`)))return;
     setBusy(true);setError('');setNotice('');setResults([]);
     try{
       const payload=existingBatchPayload(courseId,people.map(u=>({id:u.id,role_code:role})));
@@ -104,8 +105,8 @@ export function CourseEnrollmentsManager({courseId,courseName}:{courseId:number;
   }
   async function manageEnrollment(e:Enrollment,action:'accept'|'reject'|'cancel'|'role',newRole?:CourseRole){
     if(busy)return;
-    if(!window.confirm(action==='role'?`¿Cambiar rol a ${newRole==='TEACHER'?'Profesor':'Estudiante'}?`:
-      `¿${action==='accept'?'Aceptar':action==='reject'?'Rechazar':'Cancelar'} esta matrícula?`))return;
+    if(!(await confirmAction(action==='role'?`¿Cambiar rol a ${newRole==='TEACHER'?'Profesor':'Estudiante'}?`:
+      `¿${action==='accept'?'Aceptar':action==='reject'?'Rechazar':'Cancelar'} esta matrícula?`)))return;
     setBusy(true);setError('');setNotice('');
     try{
       await requestJson(`${url}/${e.id}/${action}`,undefined,json(action==='role'?{role_code:newRole}:{comment:''},action==='role'?'PATCH':'POST'));
@@ -129,7 +130,7 @@ export function CourseEnrollmentsManager({courseId,courseName}:{courseId:number;
     let payload:ReturnType<typeof massiveBatchPayload>;
     try{payload=massiveBatchPayload(courseId,mass.map(item=>item.value));}
     catch(e){setError(apiErrorMessage(e));return;}
-    if(!window.confirm(`¿Matricular ${mass.length} personas en «${courseName}»? FastAPI buscará primero cada cédula y procesará TODO en una transacción.`))return;
+    if(!(await confirmAction(`¿Matricular ${mass.length} personas en «${courseName}»? FastAPI buscará primero cada cédula y procesará TODO en una transacción.`)))return;
     setBusy(true);
     try{
       const batch=readBatchResult(await requestJson(`${url}/massive`,undefined,json(payload)));
@@ -145,7 +146,7 @@ export function CourseEnrollmentsManager({courseId,courseName}:{courseId:number;
     <header className="workspace-heading"><div><p className="lms-eyebrow">GESTIÓN DEL CURSO / ADMIN</p><h1>Matrículas</h1>
       <p>Gestiona estudiantes y profesores del curso. La matrícula administrativa se acepta directamente.</p></div>
       <button className="lms-outline-button" onClick={()=>void load()} disabled={busy}><RefreshCw size={17}/> Recargar</button></header>
-    {error&&<p role="alert" className="lms-error">{error}</p>}{notice&&<p className="lms-users-success" role="status">{notice}</p>}
+    {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
     <div className="workspace-tabs" role="tablist" aria-label="Opciones de matrículas">
       <button role="tab" aria-selected={tab==='existing'} className={tab==='existing'?'selected':''} onClick={()=>{setTab('existing');setResults([]);}}><UserPlus size={18}/> Usuarios existentes</button>
       <button role="tab" aria-selected={tab==='mass'} className={tab==='mass'?'selected':''} onClick={()=>{setTab('mass');setResults([]);}}><FileSpreadsheet size={18}/> Matrícula masiva / Excel</button>

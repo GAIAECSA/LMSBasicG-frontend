@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export function PolicyWizard({tenant,initialPending}: {tenant:TenantPublic;initi
         <><object className="policy-document" type="application/pdf" data={`/api/policies/versions/${current.version_id}/pdf`} aria-label={current.title}>
           <p>Tu navegador no puede visualizar este PDF.</p></object>
           <a className="policy-pdf-link" href={`/api/policies/versions/${current.version_id}/pdf`} target="_blank" rel="noopener noreferrer">Abrir documento PDF en otra pestaña</a></>}
-      {error&&<p role="alert" className="form-error">{error}</p>}
+      {error&&<ToastMessage kind="error" message={error} />}
       <label className="policy-check"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)} disabled={busy||loading||!!error}/>
         He leído la política y acepto esta versión.</label>
       <div className="policy-actions"><button type="button" className="button button-secondary" onClick={reject} disabled={busy}>No acepto, cerrar sesión</button>

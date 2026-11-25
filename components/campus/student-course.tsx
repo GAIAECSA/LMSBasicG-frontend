@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useState} from 'react';
 import Link from 'next/link';
 import {Award,BookOpen,CheckCircle2,Clock3,FileText,GraduationCap,Layers3,RefreshCw,ArrowRight,AlertTriangle} from 'lucide-react';
@@ -41,8 +42,7 @@ export function StudentCourse({courseId,courseName,code,section,userId}:Props){
   </header>
   <nav aria-label="Secciones del curso" className={css.nav}>{tabs.map(tab=><Link key={tab.section} className={`${css.tab} ${section===tab.section?css.activeTab:''}`} aria-current={section===tab.section?'page':undefined}
    href={`/campus/courses/${courseId}/${tab.section}`}>{tab.section==='certificate'?(code==='MDT'?'Certificado MDT':'Certificado'):tab.label}</Link>)}</nav>
-  {error&&<div className={css.error} role="alert"><AlertTriangle size={18}/>{error}
-   <button className={css.secondary} onClick={()=>{setError('');setLoading(true);refresh().catch(e=>setError(apiErrorMessage(e))).finally(()=>setLoading(false));}}>Reintentar</button></div>}
+  {error&&<ToastMessage kind="error" message={error}><button className={css.secondary} onClick={()=>{setError('');setLoading(true);refresh().catch(e=>setError(apiErrorMessage(e))).finally(()=>setLoading(false));}}>Reintentar</button></ToastMessage>}
   {loading&&!overview?<div className={css.panel} role="status"><RefreshCw size={19}/> Cargando tu aula…</div>:overview&&<>
    {section==='summary'&&<StudentSummary overview={overview} courseId={courseId}/>}
    {section==='content'&&<StudentCourseContent courseId={courseId} overview={overview} userId={userId} onSaved={refresh}/>}

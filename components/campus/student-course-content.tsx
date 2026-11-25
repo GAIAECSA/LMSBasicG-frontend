@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 /* eslint-disable @next/next/no-img-element -- Archivo privado mismo origen BFF; no se optimiza externamente. */
 import {useEffect,useMemo,useState} from 'react';
 import {BookOpen,CheckCircle2,ChevronDown,ChevronRight,ClipboardList,FileText,Image as ImageIcon,LockKeyhole,MessageSquare,ScrollText,Video,Clock3,ArrowRight} from 'lucide-react';
@@ -95,7 +96,7 @@ export function StudentCourseContent({courseId,overview,userId,onSaved}:Props){
       {!active.available&&<span className={css.warn}><LockKeyhole size={15}/> Disponible desde {shortDate(active.date_available)}</span>}
      </div></header>
     {!active.available?<div className={css.locked}><LockKeyhole size={30}/><strong>Contenido todavía bloqueado</strong><p>Podrás acceder a partir del {shortDate(active.date_available)}.</p></div>:
-    loading?<div className={css.muted}>Cargando recurso…</div>:error?<p role="alert" className={css.error}>{error}</p>:detail?<div className={css.resourceBody}>
+    loading?<div className={css.muted}>Cargando recurso…</div>:error?<ToastMessage kind="error" message={error} />:detail?<div className={css.resourceBody}>
      {['text','image','quiz','homework','survey','forum'].includes(active.kind)&&description&&<iframe title={`Descripción: ${active.title}`} sandbox="" className={css.htmlFrame} srcDoc={iframeHtml(description)}/>}
      {active.kind==='image'&&hasFile&&<img alt={active.title} className={css.resourceImage} src={url(courseId,'blocks',id,'file')}/>}
      {active.kind==='pdf'&&hasFile&&<iframe title={active.title} className={css.pdfFrame} src={url(courseId,'blocks',id,'file')}/>}
@@ -110,7 +111,7 @@ export function StudentCourseContent({courseId,overview,userId,onSaved}:Props){
     <footer className={css.contentFooter}><span>{index+1} / {navigation.length} recursos</span>
      {next&&<button className={css.secondary} type="button" onClick={()=>choose(next)}>Siguiente contenido <ArrowRight size={16}/></button>}</footer>
    </article>}
-   {message&&<p className={css.success}>{message}</p>}
+   {message&&<ToastMessage kind="success" message={message} />}
   </div>
  </div>;
 }

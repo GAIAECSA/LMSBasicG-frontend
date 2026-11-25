@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import {useEffect,useMemo,useRef,useState,type PointerEvent} from 'react';
 import {AlignCenter,AlignLeft,AlignRight,Check,Eye,ImagePlus,Move,Save,Trash2} from 'lucide-react';
 import {CERT_KEYS,CERT_PAGE_WIDTH,CERT_PAGE_HEIGHT,certificateApi,certificateRequest,
@@ -321,8 +322,8 @@ export function CertificateTemplateEditor({courseId,courseName}:{courseId:number
         Sin matrícula de prueba, la fecha de inicio queda vacía cuando el curso no la define.
         Esta prueba tiene marca de agua y no emite ni almacena certificados.</p>
     </div>
-    {failure&&<div className="lms-error" role="alert">{failure}</div>}
-    {notice&&<p className={css.success} role="status"><Check size={17}/>{notice}</p>}
+    {failure&&<ToastMessage kind="error" message={failure} />}
+    {notice&&<ToastMessage kind="success" message={notice} />}
     <div className={css.footerActions}>
       <button type="button" className="lms-outline-button" onClick={()=>void doPreview()} disabled={busy||initializing||!layout}>
         <Eye size={17}/> {busy?'Procesando...':'Generar PDF de prueba'}</button>

@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -59,7 +60,7 @@ export function AdminPolicies() {
     </div>
     <div className="lms-stat-row"><span><strong>{policies.length}</strong> tipos de políticas</span><span><strong>{total}</strong> versiones registradas</span>
       <span><ShieldCheck size={17}/> Solo políticas de tu academia</span></div>
-    {error&&<div className="lms-error" role="alert">{error} <button type="button" onClick={()=>{setError("");void load().catch(()=>setError("Sigue sin haber conexión con el backend."));}}>Reintentar</button></div>}
+    {error&&<ToastMessage kind="error" message={error}><button type="button" onClick={()=>{setError("");void load().catch(()=>setError("Sigue sin haber conexión con el backend."));}}>Reintentar</button></ToastMessage>}
     {loading?<div className="lms-loading-card">Cargando políticas…</div>:
       policies.length===0?<div className="lms-empty-card"><BookOpen size={35}/><h2>No hay políticas de tu academia</h2>
         <p>Registra la primera política en HTML o PDF. Las políticas globales de la plataforma no se administran aquí.</p>
@@ -179,7 +180,7 @@ function PolicyUploadDialog({editor,onClose,onSuccess,onPartial}: {
         </label>:<label>Documento PDF
           <input type="file" accept=".pdf,application/pdf" onChange={e=>setFile(e.target.files?.[0]??null)} disabled={busy} required/>
           <small>Máximo 25 MiB. El archivo se almacena de forma privada en FastAPI.</small></label>}
-        {error&&<div className="lms-error" role="alert">{error}</div>}
+        {error&&<ToastMessage kind="error" message={error} />}
         <p className="lms-publish-help"><CheckCircle2 size={16}/> Al publicar, esta versión entra en vigor de inmediato; las anteriores se conservan y no se pueden editar ni eliminar.</p>
         <div className="lms-editor-actions"><button type="button" className="lms-outline-button" onClick={onClose} disabled={busy}>Cancelar</button>
           <button className="button button-primary" type="submit" disabled={busy||!canPublish||newType&&created===null&&(!code||!title.trim())}>

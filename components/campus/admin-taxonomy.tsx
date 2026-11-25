@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { FolderOpen, FolderTree, Pencil, Plus, RefreshCw, Search, Trash2, X, AlertTriangle } from 'lucide-react';
@@ -56,8 +57,8 @@ export function AdminTaxonomy({mode}:{mode:'categories'|'subcategories'}){
    <div className="lms-users-panel-header"><div><h2>{isCategory?'Catálogo de categorías':'Catálogo de subcategorías'}</h2>
     <p>{items.length} registros activos en esta academia</p></div>
     <button className="lms-outline-button" onClick={()=>void load()} disabled={loading}><RefreshCw size={16}/> Actualizar</button></div>
-   {notice&&<p className="lms-users-success" role="status">{notice}<button onClick={()=>setNotice('')} aria-label="Cerrar aviso">×</button></p>}
-   {error&&<p className="lms-error" role="alert">{error}</p>}
+   {notice&&<ToastMessage kind="success" message={notice} />}
+   {error&&<ToastMessage kind="error" message={error} />}
    <div className="lms-users-filters lms-academic-filters"><label className="lms-users-search"><Search size={18}/>
     <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Buscar ${label}...`} aria-label="Buscar"/></label>
     {!isCategory&&<select aria-label="Filtrar por categoría" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">Todas las categorías</option>
@@ -81,14 +82,14 @@ export function AdminTaxonomy({mode}:{mode:'categories'|'subcategories'}){
      <label>Nombre<input autoFocus required maxLength={150} value={name} onChange={e=>setName(e.target.value)}/></label>
      {!isCategory&&<label>Categoría<select required value={categoryId} onChange={e=>setCategoryId(e.target.value)}>
       {categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label>}
-     {modalError&&<p className="lms-error" role="alert">{modalError}</p>}
+     {modalError&&<ToastMessage kind="error" message={modalError} />}
      <div className="lms-editor-actions"><button className="lms-outline-button" type="button" onClick={()=>setEditing(null)} disabled={busy}>Cancelar</button>
       <button className="button button-primary small-button" disabled={busy}>{busy?'Guardando...':'Guardar'}</button></div>
     </form></div></div>}
   {deleting&&<div className="lms-modal-backdrop" role="presentation"><div className="lms-modal lms-users-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmar eliminación">
    <span className="lms-users-alert-icon"><AlertTriangle size={23}/></span><h2>¿Eliminar {label}?</h2>
    <p>Se eliminará lógicamente <strong>{deleting.name}</strong>. No se podrá eliminar si tiene {isCategory?'subcategorías activas':'cursos activos'}.</p>
-   {modalError&&<p className="lms-error" role="alert">{modalError}</p>}
+   {modalError&&<ToastMessage kind="error" message={modalError} />}
    <div className="lms-editor-actions"><button className="lms-outline-button" disabled={busy} onClick={()=>setDeleting(null)}>Cancelar</button>
     <button className="lms-users-danger-button" disabled={busy} onClick={()=>void remove()}><Trash2 size={16}/> {busy?'Eliminando...':'Confirmar eliminación'}</button></div>
   </div></div>}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { resolveTenant } from "@/lib/tenant/resolve";
 import { tenantCssVars } from "@/lib/tenant/branding";
 import "./globals.css";
+import { NotificationProvider } from "@/components/ui/notifications";
 
 // Metadata se genera por hostname, nunca queda fijada en el build para una academia.
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,6 +21,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="es">
       <body style={tenantCssVars(tenant.theme) as CSSProperties}>
+        <NotificationProvider />
         {children}
       </body>
     </html>

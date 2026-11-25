@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 
 import {useEffect,useMemo,useState} from 'react';
 import {BookOpenCheck,ChevronLeft,ChevronRight,GraduationCap,Info,RefreshCw,Search} from 'lucide-react';
@@ -215,8 +216,7 @@ export function CourseGrades({courseId,courseName}:{courseId:number;courseName:s
         <Info size={15} aria-hidden="true"/>
         <span>«—» significa que todavía no hay nota final. <strong>0.00</strong> es una nota real. Los pendientes no se consideran cero.</span>
       </p>
-      {error&&<div className="lms-error" role="alert">{error}{' '}
-        <button type="button" onClick={()=>setRevision(value=>value+1)}>Reintentar</button></div>}
+      {error&&<ToastMessage kind="error" message={error}><button type="button" onClick={()=>setRevision(value=>value+1)}>Reintentar</button></ToastMessage>}
       {loading&&<div className={css.loading} role="status" aria-live="polite">Cargando calificaciones...</div>}
       {data&&!loading&&<>
         {data.students.length===0?<div className={css.empty} role="status">

@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import {CheckCircle2,ChevronLeft,ChevronRight,Download,Eye,FilePlus2,FolderOpen,Info,Search,UploadCloud,X} from 'lucide-react';
 import {apiErrorMessage,requestJson} from '@/lib/academic/client';
@@ -56,7 +57,7 @@ export function MdtStudentDocuments({courseId,blocks,onChanged}:{
     const validation=validateMdtFiles(files,'homework');
     if(validation){setEditorError(validation);return;}
     if(comment.length>20000){setEditorError('El comentario supera 20 000 caracteres.');return;}
-    if(editor.submitted&&!window.confirm(`¿Reemplazar el documento actual de ${person(editor)}? El archivo anterior dejará de estar disponible.`))return;
+    if(editor.submitted&&!(await confirmAction(`¿Reemplazar el documento actual de ${person(editor)}? El archivo anterior dejará de estar disponible.`)))return;
     setBusy(true);setEditorError('');setError('');setNotice('');
     const form=new FormData();form.append('files',files[0],files[0].name);
     // Enviar incluso vacío permite eliminar un comentario anterior.
@@ -96,8 +97,8 @@ export function MdtStudentDocuments({courseId,blocks,onChanged}:{
         {selected?.instructions&&<p>{selected.instructions}</p>}
         <p>Incluye matrículas STUDENT aceptadas. Cada requisito admite un solo PDF de hasta 25 MiB, sin calificación.</p>
       </div>
-      {notice&&<p className="lms-users-success" role="status">{notice}</p>}
-      {error&&<div className="lms-error" role="alert">{error} <button type="button" onClick={()=>setReload(v=>v+1)}>Reintentar</button></div>}
+      {notice&&<ToastMessage kind="success" message={notice} />}
+      {error&&<ToastMessage kind="error" message={error}><button type="button" onClick={()=>setReload(v=>v+1)}>Reintentar</button></ToastMessage>}
       <form className="mdt-filters" onSubmit={filter}>
         <label className="workspace-search"><Search size={17} aria-hidden="true"/>
           <span className="sr-only">Buscar estudiante</span>
@@ -164,7 +165,7 @@ export function MdtStudentDocuments({courseId,blocks,onChanged}:{
         <label className="mdt-comment-label">Comentario (opcional)
           <textarea value={comment} disabled={busy} maxLength={20000} rows={3}
             onChange={e=>setComment(e.target.value)} placeholder="Observaciones sobre la entrega"/></label>
-        {editorError&&<p className="lms-error" role="alert">{editorError}</p>}
+        {editorError&&<ToastMessage kind="error" message={editorError} />}
         <div className="mdt-dialog-actions"><button type="button" className="lms-outline-button" disabled={busy} onClick={closeEditor}>Cancelar</button>
           <button className="button button-primary" type="submit" disabled={busy||!files.length}>
             <UploadCloud size={17}/>{busy?'Subiendo...':editor.submitted?'Confirmar reemplazo':'Guardar entrega'}</button></div>

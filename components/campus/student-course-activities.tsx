@@ -1,4 +1,5 @@
 'use client';
+import { confirmAction, ToastMessage } from '@/components/ui/notifications';
 import {useCallback,useEffect,useMemo,useState,type FormEvent,type ChangeEvent,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,CheckCircle2,FileUp,LoaderCircle,MessageCircle,Send,Upload} from 'lucide-react';
 import {requestJson} from '@/lib/academic/client';
@@ -40,7 +41,7 @@ export function StudentQuiz({courseId,block,onSaved}:Props){
   const opened=await action(courseId,['quiz',block.id,'start'],'POST',{}) as Attempt;
   setAttempt(opened);setAnswers({});setStep(0);await onSaved();
  }catch(e){setError(err(e));}finally{setBusy(false);}}
- async function submit(){if(!attempt)return;if(!window.confirm('¿Entregar este intento? Las respuestas quedarán definitivas y se calculará tu nota.'))return;
+ async function submit(){if(!attempt)return;if(!(await confirmAction('¿Entregar este intento? Las respuestas quedarán definitivas y se calculará tu nota.')))return;
   setBusy(true);setError('');try{
    const payload:Record<number,unknown>={};for(const item of questions)payload[item.id]=answers[item.id]??null;
    const result=await action(courseId,['quiz',block.id,'attempts',attempt.id,'submit'],'POST',{answers:payload}) as {score:string;status:string};
@@ -50,7 +51,7 @@ export function StudentQuiz({courseId,block,onSaved}:Props){
  const update=(id:number,val:unknown)=>setAnswers(prev=>({...prev,[id]:val}));
  return <section className={css.activity} aria-label="Realizar Quiz">
   <div className={css.activityHeader}><h3>Evaluación</h3><span className={css.help}>La nota de cada intento se calcula en el servidor.</span></div>
-  {error&&<p className={css.error} role="alert">{error}</p>}{notice&&<p className={css.success} role="status">{notice}</p>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.muted}><LoaderCircle size={16}/> Consultando tus intentos…</p>:<>
    {attempt&&questions.length>0?<>
     <div className={css.quizHeader}><strong>Intento #{attempt.attempt_number}</strong><span>Pregunta {step+1} de {questions.length}</span></div>
@@ -88,14 +89,14 @@ export function StudentHomework({courseId,block,onSaved}:Props){
  async function submit(e:FormEvent){e.preventDefault();setError('');setNotice('');
   if(!comment.trim()&&files.length===0){setError('Escribe una respuesta o adjunta archivos.');return;}
   if(files.length>10||files.some(f=>f.size===0||f.size>25*1024*1024)){setError('Máximo 10 archivos de hasta 25 MiB cada uno.');return;}
-  if(mine&&files.length&&!window.confirm('Los nuevos archivos reemplazarán los adjuntos de la entrega anterior. ¿Continuar?'))return;
+  if(mine&&files.length&&!(await confirmAction('Los nuevos archivos reemplazarán los adjuntos de la entrega anterior. ¿Continuar?')))return;
   setBusy(true);try{const form=new FormData();form.set('comment',comment);files.forEach(f=>form.append('files',f));
    await action(courseId,['homework',block.id,'submission'],mine?'PUT':'POST',form);
    await reload();setFiles([]);await onSaved();setNotice('Entrega guardada correctamente.');
   }catch(e){setError(err(e));}finally{setBusy(false);}}
  const graded=mine?.status==='CALIFICADO';
  return <section className={css.activity} aria-label="Entregar tarea"><h3>Tu entrega</h3>
-  {error&&<p className={css.error} role="alert">{error}</p>}{notice&&<p className={css.success} role="status">{notice}</p>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.muted}>Consultando tu entrega…</p>:<>
    {mine&&<div className={css.statusCard}><strong><CheckCircle2 size={16}/> {graded?'Tarea calificada':'Tarea entregada; pendiente de calificación'}</strong>
     {graded&&<p>Nota: <b>{Number(mine.score).toFixed(2)} / 10</b></p>}
@@ -131,12 +132,12 @@ export function StudentSurvey({courseId,block,onSaved}:Props){
    if(q.required&&(a===undefined||a===null||a==='')){setError(`Debes responder: ${q.question}`);return;}
    if(a!==undefined&&a!==null&&a!=='')result[q.id]=a;
   }
-  if(!window.confirm('¿Enviar tus respuestas? Esta encuesta solo se puede responder una vez.'))return;
+  if(!(await confirmAction('¿Enviar tus respuestas? Esta encuesta solo se puede responder una vez.')))return;
   setBusy(true);setError('');try{await action(courseId,['survey',surveyId,'submit'],'POST',{answers:result});
    await load();await onSaved();setNotice('Encuesta enviada correctamente.');
   }catch(e){setError(err(e));}finally{setBusy(false);}}
  return <section className={css.activity}><h3>Encuesta de satisfacción</h3>
-  {error&&<p className={css.error} role="alert">{error}</p>}{notice&&<p className={css.success} role="status">{notice}</p>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.muted}>Cargando encuesta…</p>:mine?.submitted?<div className={css.statusCard}><CheckCircle2 size={19}/> Tus respuestas están registradas. Solo se permite una participación por matrícula.</div>:
    survey?<form onSubmit={submit}><p className={css.muted}>{survey.description}</p>
     {[...survey.questions].sort((a,b)=>a.order-b.order).map((q,i)=><fieldset key={q.id} className={css.surveyQuestion}>
@@ -179,7 +180,7 @@ export function StudentForum({courseId,block,onSaved,userId}:Props){
   {children(p.id,depth+1)}
  </div>);
  return <section className={css.activity}><h3>Foro del curso</h3>
-  {error&&<p className={css.error} role="alert">{error}</p>}{notice&&<p className={css.success}>{notice}</p>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.muted}>Cargando conversación…</p>:<>
    {topic&&<div className={css.statusCard}><strong>{topic.title}</strong><p>{topic.description}</p>{topic.is_closed&&<span className={css.muted}>El foro está cerrado.</span>}</div>}
    <div className={css.forumPosts}>{children(null)}</div>
@@ -206,7 +207,7 @@ export function StudentDocuments({courseId,documents,onSaved}:{courseId:number;d
   }catch(e){setError(err(e));}finally{setBusy(null);}}
  return <section className={css.documents} aria-label="Documentación obligatoria MDT"><div className={css.documentsHead}><FileUp size={21}/><div><h3>Documentación obligatoria MDT</h3>
   <p>Sube cada PDF para completar tu expediente. Estos documentos no bloquean el acceso a las lecciones.</p></div></div>
-  {error&&<p className={css.error} role="alert">{error}</p>}{success&&<p className={css.success} role="status">{success}</p>}
+  {error&&<ToastMessage kind="error" message={error} />}{success&&<ToastMessage kind="success" message={success} />}
   <div className={css.documentGrid}>{documents.map(d=><div className={css.documentCard} key={d.id}>
    <strong>{d.title}</strong><span className={d.submitted?css.good:css.warn}>{d.submitted?'Documento entregado':'Pendiente de carga'}</span>
    {d.uploaded_at&&<small>Última entrega: {shortDate(d.uploaded_at)}</small>}

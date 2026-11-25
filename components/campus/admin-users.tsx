@@ -1,4 +1,5 @@
 "use client";
+import { ToastMessage } from '@/components/ui/notifications';
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, Check, Eye, EyeOff, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, UsersRound, X } from "lucide-react";
@@ -172,8 +173,8 @@ export function AdminUsers({ tenantId, currentUserId, roleAssignmentEnabled }: P
             <option value="all">Todos los estados</option><option value="active">Activos</option><option value="inactive">Inactivos</option>
           </select></label>
       </div>
-      {message && <p className="lms-users-success" role="status"><Check size={17}/>{message}<button type="button" onClick={() => setMessage("")} aria-label="Cerrar aviso"><X size={16}/></button></p>}
-      {error && <div className="lms-error" role="alert">{error}<button type="button" onClick={() => void refresh()}>Reintentar</button></div>}
+      {message && <ToastMessage kind="success" message={message} />}
+      {error && <ToastMessage kind="error" message={error}><button type="button" onClick={() => void refresh()}>Reintentar</button></ToastMessage>}
       {loading ? <div className="lms-loading-card">Cargando usuarios…</div> : !error && !filtered.length ?
         <div className="lms-empty-card"><UserRound size={28}/><h2>No se encontraron usuarios</h2><p>{users.length ? "Cambia los filtros para volver a ver resultados." : "Crea la primera cuenta de tu academia."}</p></div> :
         !error && <div className="lms-users-table-wrap"><table className="lms-users-table"><thead><tr>
@@ -230,7 +231,7 @@ export function AdminUsers({ tenantId, currentUserId, roleAssignmentEnabled }: P
             <small>De 8 a 128 caracteres. Nunca se muestra la contraseña actual ni se almacena en el navegador.</small>
           </label> : <label className="lms-switch-label"><input type="checkbox" checked={form.is_active} disabled={busy || editor.id === currentUserId} onChange={e=>setForm(p=>({...p,is_active:e.target.checked}))}/>
             <span>Cuenta activa<small>Al desactivar, FastAPI revoca las sesiones del usuario. No puedes desactivar tu propia cuenta.</small></span></label>}
-          {modalError && <p className="lms-error" role="alert">{modalError}</p>}
+          {modalError && <ToastMessage kind="error" message={modalError} />}
           <div className="lms-editor-actions"><button type="button" className="lms-outline-button" disabled={busy} onClick={()=>setEditor(null)}>Cancelar</button>
             <button type="submit" className="button button-primary" disabled={busy}><Check size={17}/>{busy ? "Guardando…" : editor === "new" ? "Crear usuario" : "Guardar cambios"}</button></div>
         </form>
@@ -241,7 +242,7 @@ export function AdminUsers({ tenantId, currentUserId, roleAssignmentEnabled }: P
       <h2 id="lms-users-delete-title">¿Eliminar usuario?</h2>
       <p id="lms-users-delete-description">Vas a eliminar la cuenta de <strong>{targetDelete.firstname} {targetDelete.lastname} (@{targetDelete.username})</strong>. Perderá el acceso y se revocarán sus sesiones.</p>
       <p>El backend utiliza eliminación lógica para conservar el historial y las relaciones académicas. Esta acción no se puede deshacer desde esta pantalla.</p>
-      {modalError && <div className="lms-error" role="alert">{modalError}</div>}
+      {modalError && <ToastMessage kind="error" message={modalError} />}
       <div className="lms-editor-actions"><button type="button" className="lms-outline-button" disabled={busy} onClick={()=>setTargetDelete(null)}>Cancelar</button>
         <button type="button" className="lms-users-danger-button" disabled={busy} onClick={()=>void remove()}><Trash2 size={17}/>{busy ? "Eliminando…" : "Sí, eliminar"}</button></div>
     </section></div>}

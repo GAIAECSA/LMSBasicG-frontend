@@ -1,0 +1,8 @@
+# Athena: interfaz y notificaciones
+
+- Login: ventana de dos columnas, geometría CSS, adaptación móvil y tokens SSR del tenant. No cambia autenticación, rutas ni datos.
+- `components/ui/notifications.tsx`: proveedor global, `notify(texto, tipo)`, `ToastMessage` para estados existentes y `await confirmAction(texto)` para confirmaciones. Implementación React sin dependencia externa; no es la biblioteca Toastr. Éxito, aviso e información duran 5,5 segundos; error permanece hasta cierre. Los controles de reintento permanecen accesibles en su pantalla. Los estados persistentes de carga, disponibilidad, instrucciones y validación contextual se conservan. Los modales especializados existentes (formularios, certificados, etc.) conservan sus flujos.
+- Módulos: se agrega clase base `button` a acciones principales, alturas, padding, foco y comportamiento responsive uniforme.
+- No se modifican API, backend, contratos, cookies ni permisos. Se conserva `window.prompt` del editor HTML para capturar URL; el aviso de URL inválida pasa a toast.
+- Instalar con `npm ci` y ejecutar `npm test`, `npm run typecheck`, `npm run build`. Verificar escritorio/móvil, dos tenants, error de login, mensajes repetidos, confirmar/cancelar/Escape y operaciones de archivo. Las 159 pruebas originales pasan; no se ejecutó build ni comprobación de tipos completa por falta de dependencias instaladas. No se verificó visualmente en navegador real.
+- El ZIP completo omite `.env` por seguridad; conservar el `.env` local original. Se incluye `.env.example`. Los manifiestos históricos se preservan como referencia de versiones anteriores; `SHA256SUMS_UI_20261125.txt` corresponde a los archivos modificados de esta entrega.

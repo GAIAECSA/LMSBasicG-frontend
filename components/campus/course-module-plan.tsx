@@ -1,4 +1,5 @@
 'use client';
+import { ToastMessage } from '@/components/ui/notifications';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, LoaderCircle, X } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
@@ -43,7 +44,7 @@ export function CourseModulePlan({courseId,count,onClose,onSaved}:{courseId:numb
  return <div className={css.backdrop}><section role="dialog" aria-modal="true" aria-label="Plan de calificación" className={`${css.modal} ${css.wide}`}>
   <div className={css.modalTop}><h2>Plan de calificación</h2><button aria-label="Cerrar" onClick={onClose}><X size={21}/></button></div>
   <p className={css.info}>Define qué Quiz y tareas cuentan. En ponderación se guardan todos los cambios juntos; el plan activo solo cambia al alcanzar exactamente el 100%. Las notas pendientes cuentan como cero.</p>
-  {error&&<div className={css.error} role="alert">{error}</div>}{notice&&<div className={css.success} role="status">{notice}</div>}
+  {error&&<ToastMessage kind="error" message={error} />}{notice&&<ToastMessage kind="success" message={notice} />}
   {loading?<p className={css.placeholder}><LoaderCircle className={css.spin}/> Cargando plan…</p>:<div className={css.stack}>
    <label className={css.field}>Método<select value={method} onChange={e=>{setMethod(e.target.value as 'AVERAGE'|'WEIGHTED');setDirty(true);}}>
      <option value="AVERAGE">Promedio simple (actividades habilitadas por igual)</option><option value="WEIGHTED">Ponderado por pesos (%)</option></select></label>
@@ -63,7 +64,7 @@ export function CourseModulePlan({courseId,count,onClose,onSaved}:{courseId:numb
     <div style={{width:`${Math.min(total,100)}%`,height:'100%',background:'var(--tenant-primary,#315c96)'}}/></div>}
    <div className={css.formActions}><button className="lms-outline-button" onClick={onClose}>Cerrar</button>
     <button className="lms-outline-button" disabled={busy||!items.length} onClick={()=>void save(false)}>{busy?'Guardando…':'Guardar borrador'}</button>
-    <button className="button-primary" disabled={busy||!items.length||!valid} onClick={()=>void save(true)}>{dirty?'Guardar y activar plan':'Activar plan'}</button></div>
+    <button className="button button-primary" disabled={busy||!items.length||!valid} onClick={()=>void save(true)}>{dirty?'Guardar y activar plan':'Activar plan'}</button></div>
   </div>}
  </section></div>;
 }
