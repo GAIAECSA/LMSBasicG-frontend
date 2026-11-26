@@ -30,9 +30,10 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
   const admin=isTenantAdmin(user.role);
   const visitor=user.role.code==="VISITOR" && user.role.scope==="PLATFORM";
   const inPolicies=pathname==="/campus/policies";
+  const inSettings=admin&&pathname==="/campus/settings";
   const inUsers=pathname==="/campus/users";
   const inCourses=pathname==="/campus/courses"||pathname==="/campus/categories"||pathname==="/campus/subcategories";
-  const [expanded,setExpanded]=useState(inPolicies);
+  const [expanded,setExpanded]=useState(inPolicies||inSettings);
   const [usersExpanded,setUsersExpanded]=useState(inUsers);
   const [coursesExpanded,setCoursesExpanded]=useState(inCourses);
   const [mobile,setMobile]=useState(false);
@@ -166,6 +167,7 @@ export function CampusShell({tenant,user,expiresAt,children,courseWorkspace}: {
         </button>
         {expanded&&<div id="lms-policies-submenu" className="lms-submenu">
           <Link href="/campus/policies" onClick={closeMobile} className={inPolicies?"lms-submenu-active":""} aria-current={inPolicies?"page":undefined}>Políticas</Link>
+          {admin&&<Link href="/campus/settings" onClick={closeMobile} className={inSettings?"lms-submenu-active":""} aria-current={inSettings?"page":undefined}>Configuración</Link>}
         </div>}
         </>}
       </nav>

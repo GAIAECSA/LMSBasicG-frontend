@@ -2,6 +2,7 @@ import { backendBaseUrl } from "../backend/config";
 import { buildTenant } from "./branding";
 import { createAsyncTtlCache } from "./ttl-cache";
 import type { TenantPublic } from "./types";
+import { normalizeHostname } from "./hostname";
 import { validTenantForHost } from "./validation";
 
 export class TenantNotFoundError extends Error {
@@ -12,7 +13,16 @@ export class TenantNotFoundError extends Error {
  * TTL 20 s: evita consultar la BD en cada petición RSC/BFF/heartbeat y mantiene
  * un margen pequeño de cambios de branding/dominio. No hay fallback obsoleto.
  */
-const tenantCache = createAsyncTtlCache<TenantPublic>(20_000, 128);
+// Compartir entre bundles de rutas BFF y páginas dentro del mismo proceso Next.js.
+const shared = globalThis as typeof globalThis & { __athenaPublicTenantCache?: ReturnType<typeof createAsyncTtlCache<TenantPublic>> };
+const tenantCache = shared.__athenaPublicTenantCache ??= createAsyncTtlCache<TenantPublic>(20_000, 128);
+
+export function invalidateTenantDomains(...domains: (string|null)[]): void {
+  for (const domain of domains) {
+    const hostname = normalizeHostname(domain);
+    if (hostname) tenantCache.invalidate(hostname);
+  }
+}
 
 const retryable = new Set([429, 502, 503, 504]);
 const pause = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));

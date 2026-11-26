@@ -50,8 +50,8 @@ async function bounded(request:NextRequest,max:number):Promise<{data:Uint8Array}
  const out=new Uint8Array(size);let offset=0;for(const part of parts){out.set(part,offset);offset+=part.byteLength;}
  return {data:out};
 }
-export async function multipart(request:NextRequest):Promise<{form:FormData}|{response:NextResponse}> {
- const raw=await bounded(request,6*1024*1024);if('response'in raw)return raw;
+export async function multipart(request:NextRequest,max=6*1024*1024):Promise<{form:FormData}|{response:NextResponse}> {
+ const raw=await bounded(request,max);if('response'in raw)return raw;
  try {
   const surrogate=new Request('http://internal.invalid/',{method:'POST',headers:{'Content-Type':request.headers.get('content-type')||''},body:raw.data as BodyInit});
   const form=await surrogate.formData();return {form};

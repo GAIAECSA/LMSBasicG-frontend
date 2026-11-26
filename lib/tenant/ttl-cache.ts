@@ -27,6 +27,8 @@ export function createAsyncTtlCache<T>(ttlMs: number, maxEntries = 128, clock = 
       if (existing) return existing;
 
       const promise = Promise.resolve().then(loader).then(value => {
+        // Una petición anterior a invalidate no debe volver a poblar la caché.
+        if (pending.get(key) !== promise) return value;
         settled.set(key, { value, expiresAt: clock() + ttlMs });
         while (settled.size > maxEntries) {
           const oldest = settled.keys().next().value;
@@ -35,11 +37,11 @@ export function createAsyncTtlCache<T>(ttlMs: number, maxEntries = 128, clock = 
         }
         return value;
       }).finally(() => {
-        pending.delete(key);
+        if (pending.get(key) === promise) pending.delete(key);
       });
       pending.set(key, promise);
       return promise;
     },
-    invalidate(key: string): void { settled.delete(key); },
+    invalidate(key: string): void { settled.delete(key); pending.delete(key); },
   };
 }

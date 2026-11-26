@@ -39,7 +39,7 @@ function luminance(hex: string): number {
   return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
 }
 
-function contrast(a: string, b: string): number {
+export function contrast(a: string, b: string): number {
   const first = luminance(a), second = luminance(b);
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }

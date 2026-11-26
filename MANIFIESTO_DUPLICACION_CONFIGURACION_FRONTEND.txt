@@ -1,0 +1,25 @@
+ATHENA FRONTEND — PARCHE 2026-11-26
+Base: LMSBasicG-frontend-main.zip
+Archivos completos; conservar directorios.
+
+AGREGAR  06a4e290d2a3ca083b3b541a2e1ebd02cf7673fca37506f045c2dfe3a7d95faf  README_DUPLICACION_Y_CONFIGURACION_FRONTEND_20261126.md
+AGREGAR  eac2406b201707faeb178b94e9b750133111e5992e506c04291b1f1277c692d8  app/api/academic/courses/[id]/duplicate/route.ts
+AGREGAR  05fa2cd2d72b44889b1b3c43d3c54d2f0d7b13653a63fcef1498a4b660f9fee4  app/api/tenant/admin/logo/route.ts
+AGREGAR  b9ecaaab7484cf4bcfe0e26537555f9483e842cdc5592eb16cf01c10b0d41a7a  app/api/tenant/admin/profile/route.ts
+AGREGAR  4239b1cc0ca658bf24d7ebd2b92f4d35fc29e2b68e7cac34946c2f0698435458  app/api/v1/tenant/logo/route.ts
+AGREGAR  778943fb5fefde5bc52d85c79c23243b03c526a61c20afbe16ec361035dbed81  app/campus/settings/page.tsx
+MODIFICAR  6c5c5d4a5bc7198dc6e904a3ca1f1f9f516afe9171b3b88b1bb21a5d5e57b389  app/globals.css
+MODIFICAR  839b53957db150085d2988aeee3ae7a026cf3744f4e1ecfe6f10ece313765478  components/campus/admin-courses.tsx
+AGREGAR  66fc7fef6344759488d5fec6cd756fbe843a0ce198321a4e1d227af28856488b  components/campus/admin-institution-settings.module.css
+AGREGAR  257f0414c07fe2e5fd1259391618cc1b4dbf7749041aea962fbb08847d28049b  components/campus/admin-institution-settings.tsx
+MODIFICAR  013c02f6e2e75c0da9408d13d4edaad897996008871b2f9ffe811a8494f3e48a  components/campus/campus-shell.tsx
+AGREGAR  6c9eb3b236c6f33b1d8eaff074f7c2f5ac242d4e0431cf2631c8220f760834bc  components/campus/course-duplicate-dialog.tsx
+MODIFICAR  00388d57095cd2f47bf4bd34a4f906a620507675f68f2f754858ec89d5d4d293  docs/DISENO_Y_BRANDING.md
+MODIFICAR  d219aa9e61ade91215eebe0312e2e5811b895f4b5dd97a47d175e79409b6f324  lib/academic/bff.ts
+AGREGAR  1850372f6dca7afac0e45627d7aebfd6f951d1294397547c1a0940620526d269  lib/academic/course-duplicate.ts
+MODIFICAR  16b79d3b05733070c6f1f1366ad8edb4a42f8ef2967f1897cf6cf70f3bbc5b6c  lib/tenant/branding.ts
+MODIFICAR  9d9ec7857327f1a86268b8e14f982143b34c39392ac694dcfc4dffc8c39dc347  lib/tenant/lookup.ts
+AGREGAR  0c378d702b9fb918fd8544d140c8c695a40eb5079581ffc1f5719e154d7c2bad  lib/tenant/profile.ts
+MODIFICAR  d272d4d8fe7311a1e6abbf43b226d46fd5c05e343194c0eb507969393e905f2d  lib/tenant/ttl-cache.ts
+MODIFICAR  9eb9c29bdc9cd3421f6f0f7f48a5be7b669cfa70e6b844d5e47ee0d1d01d6e13  nginx/default.conf.template
+AGREGAR  a47bdc07c9d8c0416252b4cf8cfe5e59663e61eb7b4b1667c82f990d783cfb6e  tests/duplication-institution-settings.test.mjs

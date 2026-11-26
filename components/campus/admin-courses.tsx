@@ -4,9 +4,10 @@ import { ToastMessage } from '@/components/ui/notifications';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AlertTriangle, BookOpen, Eye, ImagePlus, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Copy, Eye, ImagePlus, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import { apiErrorMessage, requestJson } from '@/lib/academic/client';
 import { CourseCover } from './course-cover';
+import { CourseDuplicateDialog } from './course-duplicate-dialog';
 import {
   parseCategory, parseCourse, parseCourseType, parseList, parseSubcategory,
   type Category, type Subcategory, type CourseType, type ManagedCourse,
@@ -67,6 +68,7 @@ export function AdminCourses() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<FormState>(newForm);
   const [modalError, setModalError] = useState('');
+  const [duplicating, setDuplicating] = useState<ManagedCourse | null>(null);
   const [deleting, setDeleting] = useState<ManagedCourse | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -215,6 +217,7 @@ export function AdminCourses() {
               {course.is_published ? 'Publicado' : 'Borrador'}</span></td>
             <td className="lms-users-action-col"><div className="lms-users-actions">
               <Link title="Ver y gestionar curso" aria-label={`Ver curso ${course.name}`} className="lms-icon-button" href={`/campus/courses/${course.id}`}><Eye size={16}/></Link>
+              <button type="button" title={allowed.includes(course.course_type.code)?"Copiar curso":"Tu plan no habilita esta modalidad"} aria-label={`Copiar curso ${course.name}`} className="lms-icon-button" disabled={busy||!allowed.includes(course.course_type.code)} onClick={()=>setDuplicating(course)}><Copy size={16}/></button>
               <button title="Eliminar curso" aria-label={`Eliminar ${course.name}`} className="lms-icon-button lms-users-danger-icon" onClick={() => { setDeleting(course); setModalError(''); }}><Trash2 size={16}/></button>
             </div></td>
           </tr>;
@@ -316,6 +319,8 @@ export function AdminCourses() {
         </form>
       </section>
     </div>}
+
+    {duplicating && <CourseDuplicateDialog course={duplicating} onClose={()=>setDuplicating(null)} onCheck={()=>load()}/>}
 
     {deleting && <div className="lms-modal-backdrop" role="presentation"><div className="lms-modal lms-users-confirm" role="alertdialog" aria-modal="true" aria-label="Confirmación de eliminación de curso">
       <span className="lms-users-alert-icon"><AlertTriangle size={23}/></span><h2>¿Eliminar el curso?</h2>

@@ -223,3 +223,28 @@ con este documento el contrato de `businesses.branding_config` descrito arriba.
 - Botones, focos y acentos respetan `--tenant-primary`, `--tenant-accent-ink`, `--lms-brand-border`, `--lms-brand-tint` y `--tenant-surface`; los estados de cargado/pendiente mantienen colores semánticos.
 - La tabla debe desplazarse horizontalmente en dispositivos estrechos. Los PDF se abren en el visor BFF privado, no se descargan automáticamente ni se exponen enlaces FastAPI.
 - Contrato y decisiones: `docs/CERTIFICADOS_MDT_DOBLE_DOCUMENTO_20261122.md`.
+
+---
+
+## 26/11/2026 — Editor institucional ADMIN
+
+La sección histórica «Qué no se ha hecho» ya no describe el estado de esta actualización.
+El nuevo módulo `/campus/settings` (Administración → Configuración) integra los endpoints
+administrativos del backend del mismo día. No hay otro sistema de branding ni paletas por
+institución en código. El editor utiliza `buildTenant`, `tenantCssVars` y el mismo cálculo de
+contraste que el campus. La previsualización queda limitada a su tarjeta; los valores reales
+se aplican al guardar y refrescar los componentes desde el servidor. Se advierte sobre
+contrastes insuficientes sin impedir que la institución elija su paleta.
+
+- Datos de contacto, nombre y logo son editables; dominios e ID son de solo lectura.
+- El PATCH es parcial; las seis claves conocidas de colores y cuatro textos de portada
+  admiten restauración individual y por grupo, sin borrar extensiones del JSONB.
+- La carga de logo se guarda por separado, con preview local y validación en BFF/backend.
+- El logo versionado evita reutilizar la URL cacheada anterior.
+- Se invalida la caché de campus y landing del tenant autenticado; se mantiene el TTL corto
+  en otros procesos y no se modifica la autorización ni la resolución de dominios existente.
+- Para desarrollo directo con npm, se añade únicamente un puente same-origin para el logo
+  público; en Docker, Nginx conserva la ruta `/api/v1/tenant/logo` existente.
+
+Ver `README_DUPLICACION_Y_CONFIGURACION_FRONTEND_20261126.md` para contratos,
+procedimiento de despliegue y pruebas pendientes de navegador/infraestructura.
